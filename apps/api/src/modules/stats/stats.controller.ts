@@ -76,4 +76,18 @@ export class StatsController {
     const analytics = await this.statsService.getIncidentAnalytics();
     return { data: analytics };
   }
+
+  @Get('recent-activity')
+  @ApiOperation({ summary: 'Get recent activity feed (incidents, invoices, contracts)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Number of items to return (default: 10)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Recent activity feed with caching',
+  })
+  async getRecentActivity(
+    @Query('limit') limit?: number,
+  ): Promise<{ data: any }> {
+    const activity = await this.statsService.getRecentActivity(limit ? parseInt(String(limit)) : 10);
+    return { data: activity };
+  }
 }

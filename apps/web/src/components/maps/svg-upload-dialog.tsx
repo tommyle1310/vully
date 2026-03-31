@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { useUpdateBuildingSvgMap } from '@/hooks/use-buildings';
 
 interface SvgUploadDialogProps {
   buildingId: string;
@@ -32,10 +33,10 @@ export function SvgUploadDialog({
 }: SvgUploadDialogProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [svgPreview, setSvgPreview] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const updateSvgMapMutation = useUpdateBuildingSvgMap();
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -81,22 +82,13 @@ export function SvgUploadDialog({
   const handleUpload = async () => {
     if (!selectedFile || !svgPreview) return;
 
-    setIsUploading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/buildings/${buildingId}/svg-map`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ svgMapData: svgPreview }),
+      await updateSvgMapMutation.mutateAsync({
+        id: buildingId,
+        svgMapData: svgPreview,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to upload SVG');
-      }
 
       toast({
         title: 'Success',
@@ -112,8 +104,6 @@ export function SvgUploadDialog({
         description: 'Failed to upload floor plan',
         variant: 'destructive',
       });
-    } finally {
-      setIsUploading(false);
     }
   };
 
@@ -141,8 +131,8 @@ export function SvgUploadDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl h-[90vh] p-0 flex flex-col gap-0">
+        <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0 border-b">
           <DialogTitle>Upload Floor Plan</DialogTitle>
           <DialogDescription>
             Upload an SVG floor plan for {buildingName}. Make sure apartment elements have{' '}
@@ -152,7 +142,8 @@ export function SvgUploadDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+          <div className="space-y-4">
           {/* File Upload Area */}
           {!svgPreview && (
             <motion.div
@@ -198,7 +189,7 @@ export function SvgUploadDialog({
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                     <span className="font-medium">{selectedFile?.name}</span>
                     <span className="text-muted-foreground">
-                      ({(selectedFile?.size || 0 / 1024).toFixed(1)} KB)
+                      ({((selectedFile?.size || 0) / 1024).toFixed(1)} KB)
                     </span>
                   </div>
                   <Button
@@ -213,9 +204,9 @@ export function SvgUploadDialog({
                   </Button>
                 </div>
 
-                <div className="border rounded-lg p-4 bg-muted/20 max-h-[400px] overflow-auto">
+                <div className="border rounded-lg p-4 bg-muted/20 max-h-[300px] overflow-auto">
                   <div
-                    className="w-full"
+                    className="w-full flex items-center justify-center"
                     dangerouslySetInnerHTML={{ __html: svgPreview }}
                   />
                 </div>
@@ -241,14 +232,15 @@ export function SvgUploadDialog({
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+          </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={isUploading}>
+        <DialogFooter className="px-6 py-4 flex-shrink-0 border-t">
+          <Button variant="outline" onClick={handleClose} disabled={updateSvgMapMutation.isPending}>
             Cancel
           </Button>
-          <Button onClick={handleUpload} disabled={!svgPreview || isUploading}>
-            {isUploading ? (
+          <Button onClick={handleUpload} disabled={!svgPreview || updateSvgMapMutation.isPending}>
+            {updateSvgMapMutation.isPending ? (
               <>
                 <motion.div
                   animate={{ rotate: 360 }}

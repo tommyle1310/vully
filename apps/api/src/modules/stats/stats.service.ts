@@ -388,4 +388,118 @@ export class StatsService {
     await this.cacheManager.set(cacheKey, result, 300 * 1000);
     return result;
   }
+
+  async getRecentActivity(limit = 10): Promise<Array<{
+    id: string;
+    type: 'incident' | 'invoice' | 'contract';
+    title: string;
+    description: string;
+    timestamp: Date;
+    status?: string;
+    priority?: string;
+  }>> {
+    const cacheKey = `activity:recent:${limit}`;
+    const cached = await this.cacheManager.get<any>(cacheKey);
+    if (cached) return cached;
+
+    const activities: Array<any> = [];
+
+    // Recent incidents (last 7 days)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    
+    const recentIncidents = await this.prisma.incident.findMany({
+      where: {
+        createdAt: { gte: sevenDaysAgo },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Math.ceil(limit / 3),
+      include: {
+        apartment: {
+          include: {
+            building: true,
+          },
+        },
+      },
+    });
+
+    for (const incident of recentIncidents) {
+      activities.push({
+        id: incident.id,
+        type: 'incident' as const,
+        title: incident.title,
+        description: `${incident.category} - ${incident.apartment.building.name}, ${incident.apartment.floor}F-${incident.apartment.number}`,
+        timestamp: incident.createdAt,
+        status: incident.status,
+        priority: incident.priority,
+      });
+    }
+
+    // Recent invoices (last 7 days)
+    const recentInvoices = await this.prisma.invoice.findMany({
+      where: {
+        createdAt: { gte: sevenDaysAgo },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Math.ceil(limit / 3),
+      include: {
+        contract: {
+          include: {
+            apartment: {
+              include: {
+                building: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    for (const invoice of recentInvoices) {
+      const amount = invoice.totalAmount.toNumber();
+      activities.push({
+        id: invoice.id,
+        type: 'invoice' as const,
+        title: `Invoice #${invoice.invoiceNumber}`,
+        description: `${invoice.contract.apartment.building.name}, ${invoice.contract.apartment.floor}F-${invoice.contract.apartment.number} - ${amount.toLocaleString('vi-VN')} VND`,
+        timestamp: invoice.createdAt,
+        status: invoice.status,
+      });
+    }
+
+    // Recent contracts (last 7 days)
+    const recentContracts = await this.prisma.contract.findMany({
+      where: {
+        createdAt: { gte: sevenDaysAgo },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Math.ceil(limit / 3),
+      include: {
+        apartment: {
+          include: {
+            building: true,
+          },
+        },
+        tenant: true,
+      },
+    });
+
+    for (const contract of recentContracts) {
+      activities.push({
+        id: contract.id,
+        type: 'contract' as const,
+        title: `New Contract`,
+        description: `${contract.tenant.firstName} ${contract.tenant.lastName} - ${contract.apartment.building.name}, ${contract.apartment.floor}F-${contract.apartment.number}`,
+        timestamp: contract.createdAt,
+        status: contract.status,
+      });
+    }
+
+    // Sort by timestamp and limit
+    const sortedActivities = activities
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, limit);
+
+    await this.cacheManager.set(cacheKey, sortedActivities, 60 * 1000); // 1 min cache
+    return sortedActivities;
+  }
 }

@@ -129,3 +129,26 @@ export function useIncidentAnalytics() {
   });
 }
 
+export interface RecentActivity {
+  id: string;
+  type: 'incident' | 'invoice' | 'contract';
+  title: string;
+  description: string;
+  timestamp: string;
+  status?: string;
+  priority?: string;
+}
+
+export function useRecentActivity(limit = 10) {
+  return useQuery({
+    queryKey: ['stats', 'recent-activity', limit],
+    queryFn: async (): Promise<{ data: RecentActivity[] }> => {
+      return apiClient.get<{ data: RecentActivity[] }>(
+        `/stats/recent-activity?limit=${limit}`
+      );
+    },
+    staleTime: 60 * 1000, // 1 minute (matches backend cache)
+    refetchInterval: 2 * 60 * 1000, // Refresh every 2 minutes for fresh activity
+  });
+}
+

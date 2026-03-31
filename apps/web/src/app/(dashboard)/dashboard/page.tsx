@@ -57,6 +57,22 @@ const IncidentsSummary = dynamic(
   }
 );
 
+const RecentActivity = dynamic(
+  () => import('@/components/dashboard/recent-activity').then((mod) => ({ default: mod.RecentActivity })),
+  {
+    loading: () => (
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[400px] w-full" />
+        </CardContent>
+      </Card>
+    ),
+  }
+);
+
 interface StatCardProps {
   title: string;
   value: string | number;
@@ -169,8 +185,11 @@ export default function DashboardPage() {
         <RevenueChart />
       </div>
 
-      {/* Incidents Summary */}
-      <IncidentsSummary />
+      {/* Incidents Summary and Recent Activity */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <IncidentsSummary />
+        <RecentActivity />
+      </div>
     </div>
   );
 }

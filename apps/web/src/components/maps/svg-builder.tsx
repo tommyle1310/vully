@@ -107,11 +107,139 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 }); // Cursor offset within element
   const [clickedElement, setClickedElement] = useState(false); // Track if element was clicked
+  const [isLoaded, setIsLoaded] = useState(false); // Track if initial SVG has been loaded
   
   const svgRef = useRef<SVGSVGElement>(null);
   const { toast } = useToast();
 
   const selectedElement = elements.find((el) => el.id === selectedElementId);
+
+  // Load existing SVG on mount
+  useEffect(() => {
+    if (initialSvg && !isLoaded) {
+      try {
+        const parser = new DOMParser();
+        const svgDoc = parser.parseFromString(initialSvg, 'image/svg+xml');
+        const svgElement = svgDoc.querySelector('svg');
+        
+        if (!svgElement) {
+          throw new Error('Invalid SVG');
+        }
+
+        // Extract canvas size from viewBox or width/height
+        const viewBox = svgElement.getAttribute('viewBox');
+        if (viewBox) {
+          const [, , width, height] = viewBox.split(' ').map(Number);
+          setCanvasSize({ width, height });
+        } else {
+          const width = Number(svgElement.getAttribute('width')) || DEFAULT_CANVAS_SIZE.width;
+          const height = Number(svgElement.getAttribute('height')) || DEFAULT_CANVAS_SIZE.height;
+          setCanvasSize({ width, height });
+        }
+
+        const loadedElements: SvgElement[] = [];
+        const processedTextIndices = new Set<number>();
+
+        // Parse rect elements
+        const rects = Array.from(svgDoc.querySelectorAll('rect'));
+        const texts = Array.from(svgDoc.querySelectorAll('text'));
+
+        rects.forEach((rect, index) => {
+          const apartmentId = rect.getAttribute('data-apartment-id');
+          const x = Number(rect.getAttribute('x')) || 0;
+          const y = Number(rect.getAttribute('y')) || 0;
+          const width = Number(rect.getAttribute('width')) || 100;
+          const height = Number(rect.getAttribute('height')) || 80;
+          const fill = rect.getAttribute('fill') || '#e0e0e0';
+          const stroke = rect.getAttribute('stroke') || '#333333';
+          const strokeWidth = Number(rect.getAttribute('stroke-width')) || 2;
+
+          // Find associated text label (positioned at center of rectangle)
+          const centerX = x + width / 2;
+          const centerY = y + height / 2;
+          let label: string | undefined;
+
+          texts.forEach((text, textIndex) => {
+            const textX = Number(text.getAttribute('x')) || 0;
+            const textY = Number(text.getAttribute('y')) || 0;
+            const textAnchor = text.getAttribute('text-anchor');
+            const fontSize = Number(text.getAttribute('font-size')) || 14;
+            const fontWeight = text.getAttribute('font-weight');
+
+            // Check if text is centered on this rectangle (likely a label)
+            const isLabel = textAnchor === 'middle' && 
+                           Math.abs(textX - centerX) < 5 && 
+                           Math.abs(textY - centerY) < 5 &&
+                           fontSize >= 14 &&
+                           fontWeight === 'bold';
+
+            if (isLabel && !processedTextIndices.has(textIndex)) {
+              label = text.textContent || undefined;
+              processedTextIndices.add(textIndex); // Mark as processed
+            }
+          });
+
+          loadedElements.push({
+            id: `rect-${index}-${Date.now()}`,
+            type: 'rect',
+            x,
+            y,
+            width,
+            height,
+            fill,
+            stroke,
+            strokeWidth,
+            apartmentId: apartmentId || undefined,
+            label,
+          });
+        });
+
+        // Parse remaining text elements (those not associated with rectangles)
+        texts.forEach((text, index) => {
+          if (processedTextIndices.has(index)) return; // Skip labels
+
+          const x = Number(text.getAttribute('x')) || 0;
+          const y = Number(text.getAttribute('y')) || 0;
+          const fill = text.getAttribute('fill') || '#333333';
+          const content = text.textContent || '';
+
+          // Only add non-empty text elements
+          if (content.trim()) {
+            loadedElements.push({
+              id: `text-${index}-${Date.now()}`,
+              type: 'text',
+              x,
+              y,
+              fill,
+              stroke: '#000000',
+              strokeWidth: 1,
+              text: content,
+            });
+          }
+        });
+
+        if (loadedElements.length > 0) {
+          setElements(loadedElements);
+          setHistory([loadedElements]);
+          setHistoryIndex(0);
+          toast({
+            title: 'Floor plan loaded',
+            description: `Loaded ${rects.length} apartment${rects.length !== 1 ? 's' : ''} from existing floor plan`,
+          });
+        }
+        
+        setIsLoaded(true);
+      } catch (err) {
+        console.error('Failed to parse initial SVG:', err);
+        toast({
+          title: 'Warning',
+          description: 'Failed to load existing floor plan. Starting with empty canvas.',
+          variant: 'destructive',
+        });
+        setIsLoaded(true);
+      }
+    }
+  }, [initialSvg, isLoaded, toast]);
 
   // Check for overlapping rectangles
   const checkOverlaps = useCallback((elementId: string): boolean => {
@@ -484,7 +612,7 @@ ${elements
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4 h-full w-full">
       {/* Canvas */}
-      <Card className="overflow-hidden flex flex-col h-full">
+      <Card className="flex flex-col h-full min-h-0">
         <CardHeader className="pb-3 flex-shrink-0">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Floor Plan Builder</CardTitle>
@@ -555,14 +683,14 @@ ${elements
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0 flex-1 overflow-auto">
-          <div className="bg-muted/20 w-full h-full overflow-auto flex items-center justify-center">
+        <CardContent className="p-4 flex-1 min-h-0 overflow-hidden">
+          <div className="bg-muted/20 w-full h-full flex items-center justify-center overflow-auto rounded-md border">
             <svg
               ref={svgRef}
               width={canvasSize.width * zoom}
               height={canvasSize.height * zoom}
               viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
-              className="border bg-white cursor-crosshair select-none"
+              className="bg-white cursor-crosshair select-none"
               style={{ userSelect: 'none' }}
               onClick={handleCanvasClick}
               onMouseMove={handleMouseMove}
@@ -730,16 +858,16 @@ ${elements
       </Card>
 
       {/* Sidebar */}
-      <Card className="flex flex-col h-full">
-        <Tabs defaultValue="templates" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="w-full flex-shrink-0">
+      <Card className="flex flex-col h-full min-h-0 overflow-hidden">
+        <Tabs defaultValue="templates" className="flex-1 flex flex-col min-h-0">
+          <TabsList className="w-full flex-shrink-0 m-4 mb-0">
             <TabsTrigger value="templates" className="flex-1">Templates</TabsTrigger>
             <TabsTrigger value="tools" className="flex-1">Tools</TabsTrigger>
             <TabsTrigger value="properties" className="flex-1">Properties</TabsTrigger>
           </TabsList>
 
           {/* Templates Tab */}
-          <TabsContent value="templates" className="space-y-4 p-4 overflow-auto flex-1">
+          <TabsContent value="templates" className="space-y-4 p-4 overflow-y-auto flex-1 m-0 min-h-0">
             <div>
               <h3 className="text-sm font-medium mb-3">Apartment Templates</h3>
               <div className="grid grid-cols-2 gap-2">
@@ -759,7 +887,7 @@ ${elements
           </TabsContent>
 
           {/* Tools Tab */}
-          <TabsContent value="tools" className="space-y-4 p-4 overflow-auto flex-1">
+          <TabsContent value="tools" className="space-y-4 p-4 overflow-y-auto flex-1 m-0 min-h-0">
             <div>
               <h3 className="text-sm font-medium mb-3">Drawing Tools</h3>
               <div className="grid grid-cols-2 gap-2">
@@ -830,7 +958,7 @@ ${elements
           </TabsContent>
 
           {/* Properties Tab */}
-          <TabsContent value="properties" className="space-y-4 p-4 overflow-auto flex-1">
+          <TabsContent value="properties" className="space-y-4 p-4 overflow-y-auto flex-1 m-0 min-h-0">
             {selectedElement ? (
               <div className="space-y-4">
                 <div>

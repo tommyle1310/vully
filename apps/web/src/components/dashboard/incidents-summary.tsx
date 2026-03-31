@@ -1,8 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { AlertTriangle, Clock, Wrench } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIncidentAnalytics } from '@/hooks/use-stats';
@@ -16,7 +15,7 @@ const STATUS_COLORS: Record<string, string> = {
   closed: '#6b7280',      // gray-500
 };
 
-const CATEGORY_ICONS: Record<string, any> = {
+const CATEGORY_ICONS: Record<string, string> = {
   plumbing: '💧',
   electrical: '⚡',
   hvac: '❄️',
@@ -134,7 +133,7 @@ export function IncidentsSummary() {
             <div>
               <h4 className="mb-3 text-sm font-medium">Top Categories</h4>
               <div className="space-y-3">
-                {topCategories.map((cat, index) => (
+                {topCategories.map((cat) => (
                   <div key={cat.category} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-xl">

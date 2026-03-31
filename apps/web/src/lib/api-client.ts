@@ -1,4 +1,7 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+// Use relative URL to leverage Next.js rewrites for API proxy
+const API_URL = typeof window !== 'undefined' 
+  ? '/api' // Client-side: use Next.js proxy
+  : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1'; // Server-side: use direct URL
 
 interface RequestOptions extends RequestInit {
   json?: Record<string, unknown> | object;

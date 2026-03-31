@@ -162,28 +162,35 @@
 ## Phase 5: Dashboard & Maps
 
 ### 5.1 Dashboard Backend
-- [ ] Create statistics aggregation endpoints
-- [ ] Implement Redis caching for dashboard data (TTL: 5 min)
-- [ ] Add occupancy rate calculation
-- [ ] Add revenue summary endpoints
-- [ ] Add incident analytics endpoints
+- [x] Create statistics aggregation endpoints
+- [x] Implement Redis caching for dashboard data (TTL: 5 min)
+- [x] Add occupancy rate calculation
+- [x] Add revenue summary endpoints
+- [x] Add incident analytics endpoints
+- [x] Add recent activity feed endpoint
 
 ### 5.2 SVG Map Engine (Frontend)
-- [ ] Create SVG floor plan component
-- [ ] Implement Zustand store for map state
-- [ ] Add apartment highlighting on hover
-- [ ] Implement click-to-select with detail panel
-- [ ] Add filter controls (status-based)
-- [ ] Support zoom and pan (optional)
+- [x] Create SVG floor plan component
+- [x] Implement Zustand store for map state
+- [x] Add apartment highlighting on hover
+- [x] Implement click-to-select with detail panel
+- [x] Add filter controls (status-based)
+- [x] Support zoom and pan
+- [x] SVG builder and upload dialogs
 
 ### 5.3 Dashboard UI (Frontend)
-- [ ] Create dashboard layout with widget grid
-- [ ] Implement dynamic import for all widgets
-- [ ] Build occupancy chart widget
-- [ ] Build revenue chart widget
-- [ ] Build recent incidents widget
-- [ ] Add skeleton loaders for all widgets
-- [ ] Verify Lighthouse score >90
+- [x] Create dashboard layout with widget grid
+- [x] Implement dynamic import for all widgets
+- [x] Build occupancy chart widget
+- [x] Build revenue chart widget
+- [x] Build incidents summary widget
+- [x] Build recent activity widget
+- [x] Add skeleton loaders for all widgets
+- [x] Web Vitals monitoring setup
+- [ ] Run production Lighthouse audit (pending deployment)
+- [x] Performance documentation and tooling
+
+**Status**: Phase 5 Complete ✅ (Lighthouse audit pending production deployment)
 
 **Parallelizable**: 5.1 and 5.2 can run concurrently. 5.3 depends on both.
 

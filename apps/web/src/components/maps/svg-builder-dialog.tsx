@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { SvgBuilder } from './svg-builder';
 import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/api-client';
+import { useUpdateBuildingSvgMap } from '@/hooks/use-buildings';
 
 interface SvgBuilderDialogProps {
   buildingId: string;
@@ -31,10 +31,12 @@ export function SvgBuilderDialog({
   onSaveSuccess,
 }: SvgBuilderDialogProps) {
   const { toast } = useToast();
+  const updateSvgMapMutation = useUpdateBuildingSvgMap();
 
   const handleSave = async (svgContent: string) => {
     try {
-      await apiClient.patch(`/buildings/${buildingId}/svg-map`, {
+      await updateSvgMapMutation.mutateAsync({
+        id: buildingId,
         svgMapData: svgContent,
       });
 
@@ -56,8 +58,8 @@ export function SvgBuilderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden p-0 flex flex-col">
-        <DialogHeader className="px-6 pt-6 pb-0 flex-shrink-0">
+      <DialogContent className="max-w-[95vw] h-[95vh] p-0 flex flex-col gap-0">
+        <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0 border-b">
           <DialogTitle className="flex items-center gap-2">
             <Pencil className="h-5 w-5" />
             {existingSvg ? 'Edit Floor Plan' : 'Build Floor Plan'}
@@ -68,7 +70,7 @@ export function SvgBuilderDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden px-6 pb-6 flex w-full">
+        <div className="flex-1 min-h-0 px-6 pb-6 pt-4">
           <SvgBuilder
             buildingId={buildingId}
             initialSvg={existingSvg}
