@@ -1,0 +1,30 @@
+{
+  "name": "vully",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Apartment Management Platform",
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:cov": "turbo run test:cov",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:generate": "pnpm --filter @vully/api prisma:generate",
+    "db:migrate": "pnpm --filter @vully/api prisma:migrate",
+    "db:push": "pnpm --filter @vully/api prisma:push",
+    "db:studio": "pnpm --filter @vully/api prisma:studio"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.4",
+    "turbo": "^2.0.0",
+    "typescript": "^5.3.3"
+  }
+}

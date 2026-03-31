@@ -1,0 +1,147 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+  ParseUUIDPipe,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
+import { ApartmentsService } from './apartments.service';
+import {
+  CreateApartmentDto,
+  UpdateApartmentDto,
+  ApartmentResponseDto,
+  ApartmentFiltersDto,
+} from './dto/apartment.dto';
+import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+
+interface AuthUser {
+  id: string;
+  email: string;
+  role: string;
+}
+
+@ApiTags('Apartments')
+@Controller('apartments')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@ApiBearerAuth()
+export class ApartmentsController {
+  constructor(private readonly apartmentsService: ApartmentsService) {}
+
+  @Post()
+  @Roles('admin')
+  @ApiOperation({ summary: 'Create a new apartment (admin only)' })
+  @ApiResponse({ status: 201, description: 'Apartment created', type: ApartmentResponseDto })
+  async create(@Body() dto: CreateApartmentDto): Promise<{ data: ApartmentResponseDto }> {
+    const apartment = await this.apartmentsService.create(dto);
+    return { data: apartment };
+  }
+
+  @Get()
+  @Roles('admin', 'technician')
+  @ApiOperation({ summary: 'List apartments (admin/technician)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'buildingId', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, enum: ['vacant', 'occupied', 'maintenance', 'reserved'] })
+  @ApiQuery({ name: 'floor', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Apartments list' })
+  async findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('buildingId') buildingId?: string,
+    @Query('status') status?: string,
+    @Query('floor') floor?: string,
+  ): Promise<{
+    data: ApartmentResponseDto[];
+    meta: { total: number; page: number; limit: number };
+  }> {
+    const pageNum = parseInt(page || '1', 10);
+    const limitNum = parseInt(limit || '20', 10);
+
+    const filters: ApartmentFiltersDto = {
+      buildingId,
+      status: status as ApartmentFiltersDto['status'],
+      floor: floor ? parseInt(floor, 10) : undefined,
+    };
+
+    const result = await this.apartmentsService.findAll(filters, pageNum, limitNum);
+
+    return {
+      data: result.data,
+      meta: {
+        total: result.total,
+        page: pageNum,
+        limit: limitNum,
+      },
+    };
+  }
+
+  @Get('my')
+  @Roles('resident')
+  @ApiOperation({ summary: 'Get current resident\'s apartment' })
+  @ApiResponse({ status: 200, description: 'Resident\'s apartment' })
+  async findMyApartment(
+    @CurrentUser() user: AuthUser,
+  ): Promise<{ data: ApartmentResponseDto | null }> {
+    const apartment = await this.apartmentsService.findByResident(user.id);
+    return { data: apartment };
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get apartment by ID' })
+  @ApiResponse({ status: 200, description: 'Apartment details', type: ApartmentResponseDto })
+  @ApiResponse({ status: 404, description: 'Apartment not found' })
+  @ApiResponse({ status: 403, description: 'Access denied (residents only see their own)' })
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ): Promise<{ data: ApartmentResponseDto }> {
+    let apartment: ApartmentResponseDto;
+
+    if (user.role === 'resident') {
+      apartment = await this.apartmentsService.findOneForResident(id, user.id);
+    } else {
+      apartment = await this.apartmentsService.findOne(id);
+    }
+
+    return { data: apartment };
+  }
+
+  @Patch(':id')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Update apartment (admin only)' })
+  @ApiResponse({ status: 200, description: 'Apartment updated', type: ApartmentResponseDto })
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateApartmentDto,
+  ): Promise<{ data: ApartmentResponseDto }> {
+    const apartment = await this.apartmentsService.update(id, dto);
+    return { data: apartment };
+  }
+
+  @Patch(':id/status')
+  @Roles('admin', 'technician')
+  @ApiOperation({ summary: 'Update apartment status' })
+  @ApiResponse({ status: 200, description: 'Status updated', type: ApartmentResponseDto })
+  async updateStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('status') status: 'vacant' | 'occupied' | 'maintenance' | 'reserved',
+  ): Promise<{ data: ApartmentResponseDto }> {
+    const apartment = await this.apartmentsService.updateStatus(id, status);
+    return { data: apartment };
+  }
+}
