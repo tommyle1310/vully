@@ -28,7 +28,7 @@ export interface ChatResponse {
 export class AiAssistantService {
   private readonly logger = new Logger(AiAssistantService.name);
   private readonly genAI: GoogleGenerativeAI;
-  private readonly model: string = 'gemini-1.5-flash'; // Fast and cost-effective
+  private readonly model: string = 'gemini-2.0-flash'; // Fast and cost-effective
   private readonly maxQueriesPerDay = 20; // Rate limit for residents
 
   constructor(
@@ -160,14 +160,65 @@ Answer:`;
     } catch (error) {
       const err = error as Error;
       this.logger.error(`Failed to generate AI response: ${err.message}`, err.stack);
+      const isQuotaError =
+        err.message.includes('429') ||
+        err.message.includes('RESOURCE_EXHAUSTED') ||
+        err.message.includes('quota');
+      if (isQuotaError) {
+        this.logger.warn('Gemini chat quota exceeded — returning document excerpts directly');
+        return this.buildFallbackResponse(query, relevantDocs, startTime, userId);
+      }
       throw error;
     }
   }
 
   /**
+   * Fallback when AI quota is exceeded: synthesise a response from document excerpts directly.
+   */
+  private async buildFallbackResponse(
+    query: string,
+    relevantDocs: import('./document.service').SearchResult[],
+    startTime: number,
+    userId: string,
+  ): Promise<ChatResponse> {
+    const responseTime = Date.now() - startTime;
+
+    let responseText: string;
+    if (relevantDocs.length === 0) {
+      responseText =
+        "I couldn't find relevant information for your question. Please contact the building administrator for assistance.";
+    } else {
+      const excerpts = relevantDocs
+        .slice(0, 3)
+        .map((doc) => `**${doc.title}**\n${doc.content.substring(0, 400)}${doc.content.length > 400 ? '…' : ''}`)
+        .join('\n\n---\n\n');
+      responseText = `Here is what I found in the knowledge base regarding "${query}":\n\n${excerpts}\n\n*(AI summarisation is temporarily unavailable — showing raw knowledge base results)*`;
+    }
+
+    await this.prisma.chatQuery.create({
+      data: {
+        userId,
+        query,
+        response: responseText,
+        sourceDocs: relevantDocs.map((doc) => doc.documentId),
+        tokensUsed: 0,
+        responseTime,
+      },
+    });
+
+    return {
+      response: responseText,
+      sources: relevantDocs.map((doc) => ({
+        title: doc.title,
+        category: doc.category,
+        relevance: doc.similarity,
+      })),
+      responseTime,
+    };
+  }
+
+  /**
    * Check if user has exceeded rate limit
-   * @param userId User ID
-   * @throws BadRequestException if rate limit exceeded
    */
   private async checkRateLimit(userId: string): Promise<void> {
     // Admin users have no rate limit

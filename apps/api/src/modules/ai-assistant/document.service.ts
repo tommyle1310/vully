@@ -89,12 +89,77 @@ export class DocumentService {
   ): Promise<SearchResult[]> {
     this.logger.debug(`Searching documents for: ${query}`);
 
-    // Generate embedding for query
-    const queryEmbedding = await this.embeddingService.generateEmbedding(query);
-    const embeddingString = `[${queryEmbedding.join(',')}]`;
+    try {
+      // Generate embedding for query
+      const queryEmbedding = await this.embeddingService.generateEmbedding(query);
+      const embeddingString = `[${queryEmbedding.join(',')}]`;
 
-    // Search using cosine similarity via $queryRawUnsafe avoiding Prisma.raw vector issue
-    const categoryClause = category ? `AND d.category = '${category.replace(/'/g, "''")}'` : '';
+      // Search using cosine similarity via $queryRawUnsafe avoiding Prisma.raw vector issue
+      const categoryClause = category ? `AND d.category = '${category.replace(/'/g, "''")}'` : '';
+
+      const results = await this.prisma.$queryRawUnsafe<Array<{
+        documentId: string;
+        chunkId: string;
+        title: string;
+        content: string;
+        category: string;
+        metadata: unknown;
+        similarity: string;
+      }>>(
+        `SELECT 
+          d.id as "documentId",
+          dc.id as "chunkId",
+          d.title,
+          dc.content,
+          d.category,
+          d.metadata,
+          1 - (dc.embedding <=> $1::vector) as similarity
+        FROM document_chunks dc
+        JOIN documents d ON d.id = dc.document_id
+        WHERE d.is_active = true ${categoryClause}
+        ORDER BY dc.embedding <=> $1::vector
+        LIMIT $2`,
+        embeddingString,
+        limit,
+      );
+
+      this.logger.debug(`Found ${results.length} relevant chunks (vector search)`);
+
+      return results.map((r) => ({
+        documentId: r.documentId,
+        chunkId: r.chunkId,
+        title: r.title,
+        content: r.content,
+        category: r.category,
+        similarity: parseFloat(r.similarity),
+        metadata: r.metadata,
+      }));
+    } catch (error) {
+      const err = error as Error;
+      const isQuotaError =
+        err.message.includes('429') ||
+        err.message.includes('RESOURCE_EXHAUSTED') ||
+        err.message.includes('quota');
+
+      if (isQuotaError) {
+        this.logger.warn('Embedding API quota exceeded — falling back to full-text keyword search');
+        return this.keywordSearchDocuments(query, limit, category);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Fallback full-text + ILIKE keyword search when embedding quota is exhausted
+   */
+  private async keywordSearchDocuments(
+    query: string,
+    limit: number,
+    category?: string,
+  ): Promise<SearchResult[]> {
+    const categoryClause = category ? `AND d.category = $3` : '';
+    const params: unknown[] = [query, limit];
+    if (category) params.push(category);
 
     const results = await this.prisma.$queryRawUnsafe<Array<{
       documentId: string;
@@ -105,24 +170,37 @@ export class DocumentService {
       metadata: unknown;
       similarity: string;
     }>>(
-      `SELECT 
+      `SELECT
         d.id as "documentId",
         dc.id as "chunkId",
         d.title,
         dc.content,
         d.category,
         d.metadata,
-        1 - (dc.embedding <=> $1::vector) as similarity
+        COALESCE(
+          ts_rank(
+            to_tsvector('english', dc.content || ' ' || d.title),
+            websearch_to_tsquery('english', $1)
+          ), 0
+        ) as similarity
       FROM document_chunks dc
       JOIN documents d ON d.id = dc.document_id
       WHERE d.is_active = true ${categoryClause}
-      ORDER BY dc.embedding <=> $1::vector
+        AND (
+          to_tsvector('english', dc.content || ' ' || d.title) @@ websearch_to_tsquery('english', $1)
+          OR EXISTS (
+            SELECT 1 FROM unnest(string_to_array(lower($1), ' ')) AS word
+            WHERE length(word) > 2
+              AND (lower(dc.content) LIKE '%' || word || '%'
+                OR lower(d.title) LIKE '%' || word || '%')
+          )
+        )
+      ORDER BY similarity DESC
       LIMIT $2`,
-      embeddingString,
-      limit,
+      ...params,
     );
 
-    this.logger.debug(`Found ${results.length} relevant chunks`);
+    this.logger.debug(`Found ${results.length} relevant chunks (keyword search)`);
 
     return results.map((r) => ({
       documentId: r.documentId,

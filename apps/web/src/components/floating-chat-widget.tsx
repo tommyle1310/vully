@@ -13,22 +13,22 @@ import {
   useQueryQuota, 
   type ChatMessage 
 } from '@/hooks/use-ai-assistant';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 
 export function FloatingChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   const { mutate: sendMessage, isPending } = useAiChat();
   const { data: quota } = useQueryQuota();
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isPending]);
 
   const handleSend = () => {
     if (!input.trim() || isPending) return;
@@ -116,7 +116,7 @@ export function FloatingChatWidget() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-6 right-6 z-50 w-96 max-h-[600px]"
+            className="fixed bottom-6 right-6 z-50 w-96 h-[600px]"
           >
             <Card className="flex flex-col h-full shadow-2xl">
               {/* Header */}
@@ -143,7 +143,7 @@ export function FloatingChatWidget() {
               </div>
 
               {/* Messages */}
-              <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+              <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4">
                   {messages.length === 0 && (
                     <div className="text-center text-muted-foreground py-8">
@@ -178,7 +178,15 @@ export function FloatingChatWidget() {
                             : 'bg-muted'
                         )}
                       >
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        {message.role === 'assistant' ? (
+                          <div className="text-sm prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-headings:font-semibold prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-strong:font-semibold prose-hr:my-2">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {message.content}
+                            </ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        )}
                         
                         {message.sources && message.sources.length > 0 && (
                           <div className="mt-2 pt-2 border-t border-border/50">
@@ -215,6 +223,7 @@ export function FloatingChatWidget() {
                       </div>
                     </motion.div>
                   )}
+                  <div ref={bottomRef} />
                 </div>
               </ScrollArea>
 
