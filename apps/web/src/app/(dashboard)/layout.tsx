@@ -13,6 +13,7 @@ import {
   BarChart3,
   Settings,
   Menu,
+  Gauge,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { href: '/apartments', label: 'Apartments', icon: Building },
   { href: '/users', label: 'Users', icon: Users, roles: ['ADMIN'] },
   { href: '/invoices', label: 'Invoices', icon: FileText },
+  { href: '/meter-readings', label: 'Meter Readings', icon: Gauge },
   { href: '/incidents', label: 'Incidents', icon: AlertTriangle },
   { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['ADMIN'] },
   { href: '/settings', label: 'Settings', icon: Settings },
@@ -60,13 +62,11 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
       )}
 
       {/* Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{ x: isOpen ? 0 : '-100%' }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+      <aside
         className={cn(
-          'fixed left-0 top-0 z-50 h-full w-64 border-r bg-card',
-          'lg:static lg:translate-x-0'
+          'fixed left-0 top-0 z-50 h-full w-64 border-r bg-card transition-transform duration-300',
+          'lg:static lg:transform-none',
+          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         {/* Logo */}
@@ -99,7 +99,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
             );
           })}
         </nav>
-      </motion.aside>
+      </aside>
     </>
   );
 }

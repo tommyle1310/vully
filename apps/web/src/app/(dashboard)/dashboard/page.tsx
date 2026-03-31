@@ -1,37 +1,42 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Building, Users, FileText, AlertTriangle } from 'lucide-react';
+import { Building, Users, FileText, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthStore } from '@/stores/authStore';
+import { useDashboardStats } from '@/hooks/use-stats';
 
-const stats = [
-  {
-    title: 'Total Apartments',
-    value: '156',
-    change: '+12%',
-    icon: Building,
-  },
-  {
-    title: 'Active Residents',
-    value: '342',
-    change: '+5%',
-    icon: Users,
-  },
-  {
-    title: 'Pending Invoices',
-    value: '23',
-    change: '-8%',
-    icon: FileText,
-  },
-  {
-    title: 'Open Incidents',
-    value: '7',
-    change: '-15%',
-    icon: AlertTriangle,
-  },
-];
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  isLoading?: boolean;
+}
+
+function StatCard({ title, value, subtitle, icon: Icon, isLoading }: StatCardProps) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-8 w-20" />
+        ) : (
+          <>
+            <div className="text-2xl font-bold">{value}</div>
+            {subtitle && (
+              <p className="text-xs text-muted-foreground">{subtitle}</p>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 const container = {
   hidden: { opacity: 0 },
@@ -50,6 +55,8 @@ const item = {
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const { data: statsResponse, isLoading } = useDashboardStats();
+  const stats = statsResponse?.data;
 
   return (
     <div className="space-y-6">
@@ -68,33 +75,42 @@ export default function DashboardPage() {
         animate="show"
         className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
       >
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          const isPositive = stat.change.startsWith('+');
-
-          return (
-            <motion.div key={stat.title} variants={item}>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {stat.title}
-                  </CardTitle>
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stat.value}</div>
-                  <p
-                    className={`text-xs ${
-                      isPositive ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
-                    {stat.change} from last month
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          );
-        })}
+        <motion.div variants={item}>
+          <StatCard
+            title="Total Apartments"
+            value={stats?.apartments.total ?? 0}
+            subtitle={`${stats?.apartments.occupied ?? 0} occupied, ${stats?.apartments.vacant ?? 0} vacant`}
+            icon={Building}
+            isLoading={isLoading}
+          />
+        </motion.div>
+        <motion.div variants={item}>
+          <StatCard
+            title="Active Residents"
+            value={stats?.residents.active ?? 0}
+            subtitle={`${stats?.residents.total ?? 0} total residents`}
+            icon={Users}
+            isLoading={isLoading}
+          />
+        </motion.div>
+        <motion.div variants={item}>
+          <StatCard
+            title="Pending Invoices"
+            value={stats?.invoices.pending ?? 0}
+            subtitle={`${stats?.invoices.overdue ?? 0} overdue`}
+            icon={FileText}
+            isLoading={isLoading}
+          />
+        </motion.div>
+        <motion.div variants={item}>
+          <StatCard
+            title="Open Incidents"
+            value={stats?.incidents.open ?? 0}
+            subtitle={`${stats?.incidents.inProgress ?? 0} in progress`}
+            icon={AlertTriangle}
+            isLoading={isLoading}
+          />
+        </motion.div>
       </motion.div>
 
       {/* Placeholder for more dashboard content */}

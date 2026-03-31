@@ -98,6 +98,7 @@ model User {
 
   // Relations
   refreshTokens  RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
   auditLogs      AuditLog[]       @relation("ActorLogs")
   contracts      Contract[]       @relation("TenantContracts")
   createdContracts Contract[]     @relation("ContractCreator")
@@ -124,6 +125,21 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @unique @map("token_hash") @db.VarChar(512)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
+  isUsed    Boolean  @default(false) @map("is_used")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model AuditLog {

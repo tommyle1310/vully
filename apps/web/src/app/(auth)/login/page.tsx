@@ -4,7 +4,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Loader2, Building2 } from 'lucide-react';
+import { Loader2, Building2, CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useLogin } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +16,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import {
   Form,
@@ -33,6 +36,9 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const { mutate: login, isPending, error } = useLogin();
+  const searchParams = useSearchParams();
+  const justRegistered = searchParams.get('registered') === 'true';
+  const justReset = searchParams.get('reset') === 'true';
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -70,6 +76,26 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {justRegistered && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="mb-4 flex items-center gap-2 rounded-md bg-green-500/10 p-3 text-sm text-green-600 dark:text-green-400"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Account created successfully! Please sign in.
+              </motion.div>
+            )}
+            {justReset && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="mb-4 flex items-center gap-2 rounded-md bg-green-500/10 p-3 text-sm text-green-600 dark:text-green-400"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Password reset successfully! Please sign in with your new password.
+              </motion.div>
+            )}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -97,7 +123,15 @@ export default function LoginPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <div className="flex items-center justify-between">
+                        <FormLabel>Password</FormLabel>
+                        <Link
+                          href="/forgot-password"
+                          className="text-xs text-muted-foreground hover:text-primary hover:underline"
+                        >
+                          Forgot password?
+                        </Link>
+                      </div>
                       <FormControl>
                         <Input
                           type="password"
@@ -140,6 +174,17 @@ export default function LoginPage() {
               </form>
             </Form>
           </CardContent>
+          <CardFooter className="flex justify-center">
+            <p className="text-sm text-muted-foreground">
+              Don&apos;t have an account?{' '}
+              <Link
+                href="/register"
+                className="text-primary hover:underline font-medium"
+              >
+                Create one
+              </Link>
+            </p>
+          </CardFooter>
         </Card>
 
         <p className="mt-4 text-center text-sm text-muted-foreground">

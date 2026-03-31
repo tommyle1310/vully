@@ -14,7 +14,8 @@ import { HealthModule } from './common/health/health.module';
 // Feature modules (will be added progressively)
 import { IdentityModule } from './modules/identity/identity.module';
 import { ApartmentsModule } from './modules/apartments/apartments.module';
-// import { BillingModule } from './modules/billing/billing.module';
+import { BillingModule } from './modules/billing/billing.module';
+import { StatsModule } from './modules/stats/stats.module';
 // import { IncidentsModule } from './modules/incidents/incidents.module';
 // import { NotificationsModule } from './modules/notifications/notifications.module';
 // import { DashboardModule } from './modules/dashboard/dashboard.module';
@@ -75,7 +76,8 @@ import { ApartmentsModule } from './modules/apartments/apartments.module';
     // Feature modules
     IdentityModule,
     ApartmentsModule,
-    // BillingModule,
+    BillingModule,
+    StatsModule,
     // IncidentsModule,
     // NotificationsModule,
     // DashboardModule,

@@ -11,25 +11,42 @@ interface LoginCredentials {
   password: string;
 }
 
-interface AuthResponse {
+interface RegisterCredentials {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+}
+
+interface RegisterResponse {
   data: {
-    user: {
-      id: string;
-      email: string;
-      firstName: string;
-      lastName: string;
-      role: string;
-    };
-    accessToken: string;
-    refreshToken: string;
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
   };
 }
 
-interface RefreshResponse {
-  data: {
-    accessToken: string;
-    refreshToken: string;
+interface AuthResponse {
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: string;
   };
+  accessToken: string;
+  expiresIn: string;
+}
+
+interface RefreshResponse {
+  accessToken: string;
+  refreshToken: string;
 }
 
 interface MeResponse {
@@ -51,7 +68,7 @@ export function useLogin() {
       return apiClient.post<AuthResponse>('/auth/login', credentials);
     },
     onSuccess: (data) => {
-      const { user, accessToken } = data.data;
+      const { user, accessToken } = data;
       
       // Store token in api client for subsequent requests
       apiClient.setAccessToken(accessToken);
@@ -63,6 +80,20 @@ export function useLogin() {
       // accessToken stored in memory for XSS protection
       
       router.push('/dashboard' as string);
+    },
+  });
+}
+
+export function useRegister() {
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: async (credentials: RegisterCredentials): Promise<RegisterResponse> => {
+      return apiClient.post<RegisterResponse>('/auth/register', credentials);
+    },
+    onSuccess: () => {
+      // Redirect to login after successful registration
+      router.push('/login?registered=true' as string);
     },
   });
 }
@@ -97,7 +128,7 @@ export function useRefreshToken() {
       return apiClient.post<RefreshResponse>('/auth/refresh');
     },
     onSuccess: (data) => {
-      const { accessToken } = data.data;
+      const { accessToken } = data;
       apiClient.setAccessToken(accessToken);
       if (user) {
         setAuth(user, accessToken);
@@ -147,4 +178,37 @@ export function useAuth() {
     logout: handleLogout,
     refreshToken: handleRefresh,
   };
+}
+
+// ----- Password Reset Hooks -----
+
+interface ForgotPasswordResponse {
+  message: string;
+}
+
+interface ResetPasswordCredentials {
+  token: string;
+  newPassword: string;
+}
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: async (email: string): Promise<ForgotPasswordResponse> => {
+      return apiClient.post<ForgotPasswordResponse>('/auth/forgot-password', { email });
+    },
+  });
+}
+
+export function useResetPassword() {
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: async (credentials: ResetPasswordCredentials): Promise<ForgotPasswordResponse> => {
+      return apiClient.post<ForgotPasswordResponse>('/auth/reset-password', credentials);
+    },
+    onSuccess: () => {
+      // Redirect to login after successful password reset
+      router.push('/login?reset=true' as string);
+    },
+  });
 }

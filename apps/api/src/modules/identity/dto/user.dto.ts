@@ -107,3 +107,27 @@ export class ResetPasswordDto {
   @MinLength(8)
   newPassword: string;
 }
+
+export class RegisterDto {
+  @ApiProperty({ example: 'user@example.com' })
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({ example: 'password123', minLength: 8 })
+  @IsString()
+  @MinLength(8)
+  password: string;
+
+  @ApiProperty({ example: 'Nguyen' })
+  @IsString()
+  firstName: string;
+
+  @ApiProperty({ example: 'Van A' })
+  @IsString()
+  lastName: string;
+
+  @ApiPropertyOptional({ example: '+84901234567' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+}

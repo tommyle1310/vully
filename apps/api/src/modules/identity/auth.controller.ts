@@ -22,6 +22,7 @@ import {
   RefreshTokenDto,
   RefreshResponseDto,
 } from './dto/login.dto';
+import { RegisterDto, UserResponseDto, ResetPasswordRequestDto, ResetPasswordDto } from './dto/user.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -29,6 +30,19 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Post('register')
+  @ApiOperation({ summary: 'Public user registration (creates resident account)' })
+  @ApiResponse({
+    status: 201,
+    description: 'Registration successful',
+    type: UserResponseDto,
+  })
+  @ApiResponse({ status: 409, description: 'Email already exists' })
+  async register(@Body() dto: RegisterDto): Promise<{ data: UserResponseDto }> {
+    const user = await this.authService.register(dto);
+    return { data: user };
+  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -91,5 +105,32 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async me(@CurrentUser() user: { id: string; email: string; role: string }) {
     return { data: user };
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset email' })
+  @ApiResponse({
+    status: 200,
+    description: 'If an account exists, reset email will be sent',
+  })
+  async forgotPassword(
+    @Body() dto: ResetPasswordRequestDto,
+  ): Promise<{ message: string }> {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password with token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Password has been reset',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    return this.authService.resetPassword(dto);
   }
 }
