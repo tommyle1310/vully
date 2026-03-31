@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { useCreateIncident, CreateIncidentData } from '@/hooks/use-incidents';
 import { useApartments } from '@/hooks/use-apartments';
+import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -90,8 +91,12 @@ export function CreateIncidentDialog({
   onOpenChange,
 }: CreateIncidentDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuthStore();
   const createIncident = useCreateIncident();
-  const { data: apartmentsData, isLoading: loadingApartments } = useApartments();
+  const { data: apartmentsData, isLoading: loadingApartments } = useApartments({
+    page: 1,
+    limit: 100, // Fetch enough apartments for selection
+  });
 
   const form = useForm<FormData>({
     resolver: zodResolver(createIncidentSchema),
@@ -124,6 +129,8 @@ export function CreateIncidentDialog({
   };
 
   const apartments = apartmentsData?.data ?? [];
+  const isResident = user?.role === 'RESIDENT';
+  const hasNoApartments = !loadingApartments && apartments.length === 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -138,8 +145,24 @@ export function CreateIncidentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {hasNoApartments && isResident ? (
+          <div className="py-8 text-center space-y-4">
+            <div className="text-muted-foreground">
+              <p className="font-medium">No apartment assigned</p>
+              <p className="text-sm mt-2">
+                You need to have an active rental contract to report incidents.
+              </p>
+              <p className="text-sm mt-1">
+                Please contact the building administrator.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          </div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="apartmentId"
@@ -157,12 +180,22 @@ export function CreateIncidentDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {apartments.map((apt) => (
-                        <SelectItem key={apt.id} value={apt.id}>
-                          {apt.unitNumber}
-                          {apt.building?.name && ` - ${apt.building.name}`}
+                      {loadingApartments ? (
+                        <SelectItem value="loading" disabled>
+                          Loading apartments...
                         </SelectItem>
-                      ))}
+                      ) : apartments.length === 0 ? (
+                        <SelectItem value="empty" disabled>
+                          No apartments available
+                        </SelectItem>
+                      ) : (
+                        apartments.map((apt) => (
+                          <SelectItem key={apt.id} value={apt.id}>
+                            {apt.unitNumber}
+                            {apt.building?.name && ` - ${apt.building.name}`}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -276,8 +309,9 @@ export function CreateIncidentDialog({
                 Submit Incident
               </Button>
             </DialogFooter>
-          </form>
-        </Form>
+            </form>
+          </Form>
+        )}
       </DialogContent>
     </Dialog>
   );

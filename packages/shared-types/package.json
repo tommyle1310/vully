@@ -7,29 +7,29 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./api": {
+      "types": "./dist/api/index.d.ts",
       "import": "./dist/api/index.mjs",
-      "require": "./dist/api/index.js",
-      "types": "./dist/api/index.d.ts"
+      "require": "./dist/api/index.js"
     },
     "./entities": {
+      "types": "./dist/entities/index.d.ts",
       "import": "./dist/entities/index.mjs",
-      "require": "./dist/entities/index.js",
-      "types": "./dist/entities/index.d.ts"
+      "require": "./dist/entities/index.js"
     },
     "./enums": {
+      "types": "./dist/enums/index.d.ts",
       "import": "./dist/enums/index.mjs",
-      "require": "./dist/enums/index.js",
-      "types": "./dist/enums/index.d.ts"
+      "require": "./dist/enums/index.js"
     },
     "./events": {
+      "types": "./dist/events/index.d.ts",
       "import": "./dist/events/index.mjs",
-      "require": "./dist/events/index.js",
-      "types": "./dist/events/index.d.ts"
+      "require": "./dist/events/index.js"
     }
   },
   "scripts": {

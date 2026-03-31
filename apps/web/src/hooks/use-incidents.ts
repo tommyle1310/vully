@@ -4,7 +4,14 @@ import {
   IncidentCategory,
   IncidentPriority,
   IncidentStatus,
+  WS_EVENTS,
+  WS_ROOMS,
+  IncidentEventPayload,
 } from '@vully/shared-types';
+import { useWebSocketEvent, useWebSocket } from './use-websocket';
+import { useToast } from './use-toast';
+import { useAuthStore } from '@/stores/authStore';
+import { useEffect } from 'react';
 
 // Types
 export interface Incident {
@@ -371,4 +378,145 @@ export function useDeleteComment() {
       queryClient.invalidateQueries({ queryKey: incidentKeys.all });
     },
   });
+}
+
+// =============================================================================
+// REAL-TIME INCIDENT UPDATES
+// =============================================================================
+
+interface UseIncidentRealTimeOptions {
+  buildingId?: string;
+  apartmentId?: string;
+  showToasts?: boolean;
+}
+
+/**
+ * Hook to enable real-time incident updates via WebSocket
+ * Automatically joins relevant rooms and listens for incident events
+ */
+export function useIncidentRealTime(options: UseIncidentRealTimeOptions = {}) {
+  const { buildingId, apartmentId, showToasts = true } = options;
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { user } = useAuthStore();
+  const { joinRoom, leaveRoom, connected } = useWebSocket();
+
+  // Join building/apartment rooms when connected
+  useEffect(() => {
+    if (!connected) return;
+
+    const rooms: string[] = [];
+
+    if (buildingId) {
+      rooms.push(WS_ROOMS.building(buildingId));
+    }
+
+    if (apartmentId) {
+      rooms.push(WS_ROOMS.apartment(apartmentId));
+    }
+
+    rooms.forEach((room) => joinRoom(room));
+
+    return () => {
+      rooms.forEach((room) => leaveRoom(room));
+    };
+  }, [connected, buildingId, apartmentId, joinRoom, leaveRoom]);
+
+  // Listen for incident:created events
+  useWebSocketEvent<IncidentEventPayload>(
+    WS_EVENTS.INCIDENT_CREATED,
+    (payload) => {
+      console.log('[Incidents] New incident created:', payload);
+
+      // Invalidate lists to refetch
+      queryClient.invalidateQueries({ queryKey: incidentKeys.lists() });
+
+      // Show toast notification
+      if (showToasts && user?.id !== payload.assignedTo) {
+        toast({
+          title: '🆕 New Incident',
+          description: `${payload.title} - ${payload.status}`,
+          duration: 5000,
+        });
+      }
+    },
+    [showToasts, user?.id]
+  );
+
+  // Listen for incident:updated events
+  useWebSocketEvent<IncidentEventPayload>(
+    WS_EVENTS.INCIDENT_UPDATED,
+    (payload) => {
+      console.log('[Incidents] Incident updated:', payload);
+
+      // Invalidate specific incident and lists
+      queryClient.invalidateQueries({
+        queryKey: incidentKeys.detail(payload.incidentId),
+      });
+      queryClient.invalidateQueries({ queryKey: incidentKeys.lists() });
+
+      // Show toast notification
+      if (showToasts) {
+        toast({
+          title: '🔄 Incident Updated',
+          description: `${payload.title} - ${payload.status}`,
+          duration: 4000,
+        });
+      }
+    },
+    [showToasts]
+  );
+
+  // Listen for incident:assigned events (only for assigned technician)
+  useWebSocketEvent<IncidentEventPayload>(
+    WS_EVENTS.INCIDENT_ASSIGNED,
+    (payload) => {
+      console.log('[Incidents] Incident assigned:', payload);
+
+      // Invalidate lists
+      queryClient.invalidateQueries({ queryKey: incidentKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: incidentKeys.detail(payload.incidentId),
+      });
+
+      // Show toast if assigned to current user
+      if (showToasts && payload.assignedTo === user?.id) {
+        toast({
+          title: '👷 New Assignment',
+          description: `You've been assigned: ${payload.title}`,
+          duration: 6000,
+          variant: 'default',
+        });
+      }
+    },
+    [showToasts, user?.id]
+  );
+
+  // Listen for incident:resolved events
+  useWebSocketEvent<IncidentEventPayload>(
+    WS_EVENTS.INCIDENT_RESOLVED,
+    (payload) => {
+      console.log('[Incidents] Incident resolved:', payload);
+
+      // Invalidate queries
+      queryClient.invalidateQueries({
+        queryKey: incidentKeys.detail(payload.incidentId),
+      });
+      queryClient.invalidateQueries({ queryKey: incidentKeys.lists() });
+
+      // Show success toast
+      if (showToasts) {
+        toast({
+          title: '✅ Incident Resolved',
+          description: `${payload.title} has been resolved`,
+          duration: 5000,
+        });
+      }
+    },
+    [showToasts]
+  );
+
+  return {
+    connected,
+  };
 }

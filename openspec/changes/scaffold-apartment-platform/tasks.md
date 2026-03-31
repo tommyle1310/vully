@@ -151,7 +151,7 @@
 - [x] Create incident submission form with React-Hook-Form + image upload
 - [x] Build incident list with TanStack Table (virtualized rows)
 - [x] Implement incident detail page with timeline (Framer Motion LayoutGroup)
-- [ ] Add real-time status updates via WebSocket with motion notifications
+- [x] Add real-time status updates via WebSocket with motion notifications ✨
 - [x] Create technician assignment modal (Shadcn Dialog)
 - [ ] Optimize images with next/image
 

@@ -26,7 +26,7 @@ import {
   Wrench,
   CircleDot,
 } from 'lucide-react';
-import { useIncidents, Incident } from '@/hooks/use-incidents';
+import { useIncidents, Incident, useIncidentRealTime } from '@/hooks/use-incidents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -187,6 +187,11 @@ export default function IncidentsPage() {
 
   const { data, isLoading, isError } = useIncidents(filters, page, limit);
 
+  // Enable real-time incident updates via WebSocket
+  const { connected: wsConnected } = useIncidentRealTime({
+    showToasts: true,
+  });
+
   const table = useReactTable({
     data: data?.data ?? [],
     columns,
@@ -212,8 +217,19 @@ export default function IncidentsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Incidents</h1>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">Incidents</h1>
+            {wsConnected && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 dark:bg-green-950 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                Live
+              </span>
+            )}
+          </div>
           <p className="text-muted-foreground">
             Manage and track maintenance incidents
           </p>
@@ -324,7 +340,7 @@ export default function IncidentsPage() {
             ))}
           </TableHeader>
           <TableBody>
-            <AnimatePresence mode="wait">
+            <AnimatePresence>
               {isLoading ? (
                 // Loading skeleton
                 Array.from({ length: 5 }).map((_, i) => (

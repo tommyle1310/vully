@@ -1,7 +1,7 @@
 # Vully Project Status
 
 **Last Updated**: March 31, 2026  
-**Current Phase**: Phase 2 Complete → Ready for Phase 3 (Billing)
+**Current Phase**: Phase 4 Real-time Complete (95%) → Ready for Phase 5 (Dashboard)
 
 ---
 
@@ -15,6 +15,7 @@
 | Redis | ⚠️ Docker | Needed for BullMQ (Phase 3) |
 | Authentication | ✅ JWT | Login works, no register UI |
 | RBAC | ✅ Backend | Guards implemented |
+| **WebSocket** | ✅ **Live** | **Real-time incidents with auto-reconnect** ✨ |
 
 ---
 

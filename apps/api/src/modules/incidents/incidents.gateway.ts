@@ -4,12 +4,14 @@ import {
   SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger, UseGuards } from '@nestjs/common';
 import { WS_EVENTS, WS_ROOMS, IncidentEventPayload } from '@vully/shared-types';
+import { WsAuthMiddleware } from '../../common/middleware/ws-auth.middleware';
 
 // For JWT validation in WebSocket connections
 interface AuthenticatedSocket extends Socket {
@@ -31,18 +33,58 @@ interface JoinRoomPayload {
   },
   namespace: '/',
 })
-export class IncidentsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class IncidentsGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(IncidentsGateway.name);
+
+  constructor(private readonly wsAuthMiddleware: WsAuthMiddleware) {}
+
+  afterInit(server: Server) {
+    // Apply authentication middleware
+    server.use((client: AuthenticatedSocket, next) => {
+      this.wsAuthMiddleware.use(client, next);
+    });
+    
+    this.logger.log('WebSocket Gateway initialized with auth middleware');
+  }
 
   handleConnection(client: AuthenticatedSocket) {
     this.logger.log({
       event: 'ws_client_connected',
       clientId: client.id,
       userId: client.user?.id,
+      role: client.user?.role,
     });
+
+    // Auto-join user-specific rooms
+    if (client.user) {
+      const userRoom = WS_ROOMS.user(client.user.id);
+      client.join(userRoom);
+      this.logger.log({
+        event: 'ws_auto_join',
+        clientId: client.id,
+        room: userRoom,
+      });
+
+      // Auto-join role-based rooms
+      if (client.user.role === 'ADMIN') {
+        client.join(WS_ROOMS.admin());
+        this.logger.log({
+          event: 'ws_auto_join',
+          clientId: client.id,
+          room: 'role:admin',
+        });
+      } else if (client.user.role === 'TECHNICIAN') {
+        client.join(WS_ROOMS.technician());
+        this.logger.log({
+          event: 'ws_auto_join',
+          clientId: client.id,
+          room: 'role:technician',
+        });
+      }
+    }
   }
 
   handleDisconnect(client: AuthenticatedSocket) {
