@@ -16,7 +16,7 @@ import { IdentityModule } from './modules/identity/identity.module';
 import { ApartmentsModule } from './modules/apartments/apartments.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { StatsModule } from './modules/stats/stats.module';
-// import { IncidentsModule } from './modules/incidents/incidents.module';
+import { IncidentsModule } from './modules/incidents/incidents.module';
 // import { NotificationsModule } from './modules/notifications/notifications.module';
 // import { DashboardModule } from './modules/dashboard/dashboard.module';
 // import { AiModule } from './modules/ai/ai.module';
@@ -78,7 +78,7 @@ import { StatsModule } from './modules/stats/stats.module';
     ApartmentsModule,
     BillingModule,
     StatsModule,
-    // IncidentsModule,
+    IncidentsModule,
     // NotificationsModule,
     // DashboardModule,
     // AiModule,

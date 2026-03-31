@@ -152,7 +152,7 @@ export function useCurrentUser() {
 }
 
 export function useAuth() {
-  const { user, accessToken, isAuthenticated, clearAuth } = useAuthStore();
+  const { user, accessToken, isAuthenticated } = useAuthStore();
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
   const { mutate: refreshToken } = useRefreshToken();
 

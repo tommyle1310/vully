@@ -29,16 +29,25 @@ export class ApartmentsService {
       throw new NotFoundException('Building not found');
     }
 
+    this.logger.debug({
+      event: 'apartment_create_input',
+      dto: {
+        areaSqm: dto.areaSqm,
+        bedroomCount: dto.bedroomCount,
+        bathroomCount: dto.bathroomCount,
+      },
+    });
+
     const apartment = await this.prisma.apartment.create({
       data: {
         buildingId: dto.buildingId,
         unitNumber: dto.unitNumber,
         floor: dto.floor,
-        areaSqm: dto.areaSqm,
-        bedroomCount: dto.bedroomCount || 1,
-        bathroomCount: dto.bathroomCount || 1,
+        areaSqm: dto.areaSqm !== undefined ? dto.areaSqm : null,
+        bedroomCount: dto.bedroomCount ?? 1,
+        bathroomCount: dto.bathroomCount ?? 1,
         features: (dto.features || {}) as Prisma.InputJsonValue,
-        svgElementId: dto.svgElementId,
+        svgElementId: dto.svgElementId ?? null,
         status: 'vacant',
       },
       include: {
@@ -53,6 +62,11 @@ export class ApartmentsService {
       apartmentId: apartment.id,
       buildingId: dto.buildingId,
       unitNumber: dto.unitNumber,
+      storedValues: {
+        areaSqm: apartment.areaSqm,
+        bedroomCount: apartment.bedroomCount,
+        bathroomCount: apartment.bathroomCount,
+      },
     });
 
     return this.toResponseDto(apartment);
@@ -164,18 +178,39 @@ export class ApartmentsService {
       throw new NotFoundException('Apartment not found');
     }
 
+    this.logger.debug({
+      event: 'apartment_update_input',
+      apartmentId: id,
+      dto: {
+        areaSqm: dto.areaSqm,
+        bedroomCount: dto.bedroomCount,
+        bathroomCount: dto.bathroomCount,
+      },
+    });
+
+    const updateData: Prisma.ApartmentUpdateInput = {};
+    
+    if (dto.unitNumber !== undefined) updateData.unitNumber = dto.unitNumber;
+    if (dto.floor !== undefined) updateData.floor = dto.floor;
+    if (dto.areaSqm !== undefined) updateData.areaSqm = dto.areaSqm;
+    if (dto.bedroomCount !== undefined) updateData.bedroomCount = dto.bedroomCount;
+    if (dto.bathroomCount !== undefined) updateData.bathroomCount = dto.bathroomCount;
+    if (dto.features !== undefined) updateData.features = dto.features as Prisma.InputJsonValue;
+    if (dto.svgElementId !== undefined) updateData.svgElementId = dto.svgElementId;
+    if (dto.status !== undefined) updateData.status = dto.status;
+
+    this.logger.debug({
+      event: 'apartment_update_data',
+      updateData: {
+        areaSqm: updateData.areaSqm,
+        bedroomCount: updateData.bedroomCount,
+        bathroomCount: updateData.bathroomCount,
+      },
+    });
+
     const updated = await this.prisma.apartment.update({
       where: { id },
-      data: {
-        ...(dto.unitNumber && { unitNumber: dto.unitNumber }),
-        ...(dto.floor && { floor: dto.floor }),
-        ...(dto.areaSqm !== undefined && { areaSqm: dto.areaSqm }),
-        ...(dto.bedroomCount !== undefined && { bedroomCount: dto.bedroomCount }),
-        ...(dto.bathroomCount !== undefined && { bathroomCount: dto.bathroomCount }),
-        ...(dto.features && { features: dto.features as Prisma.InputJsonValue }),
-        ...(dto.svgElementId !== undefined && { svgElementId: dto.svgElementId }),
-        ...(dto.status && { status: dto.status }),
-      },
+      data: updateData,
       include: {
         building: {
           select: { id: true, name: true, address: true },
@@ -187,6 +222,11 @@ export class ApartmentsService {
       event: 'apartment_updated',
       apartmentId: id,
       status: dto.status,
+      storedValues: {
+        areaSqm: updated.areaSqm,
+        bedroomCount: updated.bedroomCount,
+        bathroomCount: updated.bathroomCount,
+      },
     });
 
     return this.toResponseDto(updated);

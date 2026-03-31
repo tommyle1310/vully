@@ -60,12 +60,12 @@ class ApiClient {
     return this.request<T>(endpoint, { ...options, method: 'POST', json: json as Record<string, unknown> });
   }
 
-  put<T>(endpoint: string, json?: Record<string, unknown>, options?: RequestOptions) {
-    return this.request<T>(endpoint, { ...options, method: 'PUT', json });
+  put<T>(endpoint: string, json?: Record<string, unknown> | object, options?: RequestOptions) {
+    return this.request<T>(endpoint, { ...options, method: 'PUT', json: json as Record<string, unknown> });
   }
 
-  patch<T>(endpoint: string, json?: Record<string, unknown>, options?: RequestOptions) {
-    return this.request<T>(endpoint, { ...options, method: 'PATCH', json });
+  patch<T>(endpoint: string, json?: Record<string, unknown> | object, options?: RequestOptions) {
+    return this.request<T>(endpoint, { ...options, method: 'PATCH', json: json as Record<string, unknown> });
   }
 
   delete<T>(endpoint: string, options?: RequestOptions) {

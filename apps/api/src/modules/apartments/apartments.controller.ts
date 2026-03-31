@@ -51,8 +51,8 @@ export class ApartmentsController {
   }
 
   @Get()
-  @Roles('admin', 'technician')
-  @ApiOperation({ summary: 'List apartments (admin/technician)' })
+  @Roles('admin', 'technician', 'resident')
+  @ApiOperation({ summary: 'List apartments' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'buildingId', required: false, type: String })
@@ -65,12 +65,26 @@ export class ApartmentsController {
     @Query('buildingId') buildingId?: string,
     @Query('status') status?: string,
     @Query('floor') floor?: string,
+    @CurrentUser() user?: AuthUser,
   ): Promise<{
     data: ApartmentResponseDto[];
     meta: { total: number; page: number; limit: number };
   }> {
     const pageNum = parseInt(page || '1', 10);
     const limitNum = parseInt(limit || '20', 10);
+
+    // Residents can only see their own apartment
+    if (user?.role === 'resident') {
+      const apartment = await this.apartmentsService.findByResident(user.id);
+      return {
+        data: apartment ? [apartment] : [],
+        meta: {
+          total: apartment ? 1 : 0,
+          page: 1,
+          limit: limitNum,
+        },
+      };
+    }
 
     const filters: ApartmentFiltersDto = {
       buildingId,

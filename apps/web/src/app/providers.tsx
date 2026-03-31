@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { AnimatePresence } from 'framer-motion';
 import { ThemeProvider } from '@/components/theme-provider';
+import { AuthSync } from '@/components/auth-sync';
 import { Toaster } from '@/components/ui/toaster';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -28,9 +29,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
-        <AnimatePresence mode="wait">
-          {children}
-        </AnimatePresence>
+        <AuthSync>
+          <AnimatePresence mode="wait">
+            {children}
+          </AnimatePresence>
+        </AuthSync>
         <Toaster />
       </ThemeProvider>
       <ReactQueryDevtools initialIsOpen={false} />

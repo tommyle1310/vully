@@ -13,9 +13,12 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const router = useRouter();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, _hasHydrated } = useAuthStore();
 
   useEffect(() => {
+    // Wait for hydration before checking auth
+    if (!_hasHydrated) return;
+
     // Check authentication
     if (!isAuthenticated) {
       router.replace('/login' as string);
@@ -26,10 +29,10 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     if (allowedRoles && user && !allowedRoles.includes(user.role)) {
       router.replace('/unauthorized' as string);
     }
-  }, [isAuthenticated, user, allowedRoles, router]);
+  }, [isAuthenticated, user, allowedRoles, router, _hasHydrated]);
 
-  // Show loading state while checking auth
-  if (!isAuthenticated) {
+  // Show loading state while hydrating or checking auth
+  if (!_hasHydrated || !isAuthenticated) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="space-y-4 w-full max-w-md px-4">

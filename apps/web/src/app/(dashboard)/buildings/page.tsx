@@ -13,67 +13,89 @@ import {
   SortingState,
   ColumnFiltersState,
 } from '@tanstack/react-table';
-import { Building, Search, Filter, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { useApartments, Apartment } from '@/hooks/use-apartments';
+import { Building as BuildingIcon, Search, ChevronLeft, ChevronRight, Plus, MapPin } from 'lucide-react';
+import { useBuildings, Building } from '@/hooks/use-buildings';
+import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
+  TableRow, // Updated to trigger TS recompile
 } from '@/components/ui/table';
-import { ApartmentDetailSheet } from './apartment-detail-sheet';
-import { ApartmentFormDialog } from './apartment-form-dialog';
+import { BuildingFormDialog } from './building-form-dialog';
+import { BuildingDetailSheet } from './building-detail-sheet';
 
-const columnHelper = createColumnHelper<Apartment>();
-
-const statusVariants: Record<string, 'default' | 'success' | 'warning' | 'destructive'> = {
-  vacant: 'success',
-  occupied: 'default',
-  maintenance: 'warning',
-  reserved: 'default',
-};
+const columnHelper = createColumnHelper<Building>();
 
 const columns = [
-  columnHelper.accessor('unitNumber', {
-    header: 'Unit',
+  columnHelper.accessor('name', {
+    header: 'Building Name',
     cell: (info) => (
-      <span className="font-medium">{info.getValue()}</span>
+      <div>
+        <span className="font-medium">{info.getValue()}</span>
+        {info.row.original.apartmentCount !== undefined && (
+          <span className="block text-xs text-muted-foreground">
+            {info.row.original.apartmentCount} apartments
+          </span>
+        )}
+      </div>
     ),
   }),
-  columnHelper.accessor('building.name', {
-    header: 'Building',
-    cell: (info) => info.getValue() || '-',
+  columnHelper.accessor('city', {
+    header: 'City',
+    cell: (info) => (
+      <div className="flex items-center gap-2">
+        <MapPin className="h-3 w-3 text-muted-foreground" />
+        <span>{info.getValue()}</span>
+      </div>
+    ),
   }),
-  columnHelper.accessor('floor', {
-    header: 'Floor',
-    cell: (info) => `Floor ${info.getValue()}`,
+  columnHelper.accessor('address', {
+    header: 'Address',
+    cell: (info) => (
+      <span className="text-sm text-muted-foreground">{info.getValue()}</span>
+    ),
   }),
-  columnHelper.accessor('areaSqm', {
-    header: 'Area',
-    cell: (info) => info.getValue() ? `${info.getValue()} m²` : '-',
+  columnHelper.accessor('floorCount', {
+    header: 'Floors',
+    cell: (info) => `${info.getValue()} floors`,
   }),
-  columnHelper.accessor('bedroomCount', {
-    header: 'Beds',
-  }),
-  columnHelper.accessor('bathroomCount', {
-    header: 'Baths',
-  }),
-  columnHelper.accessor('status', {
-    header: 'Status',
+  columnHelper.accessor('amenities', {
+    header: 'Amenities',
     cell: (info) => {
-      const status = info.getValue();
+      const amenities = info.getValue();
+      if (!amenities || amenities.length === 0) return <span className="text-muted-foreground">—</span>;
+      
       return (
-        <Badge variant={statusVariants[status] || 'default'}>
-          {status.charAt(0) + status.slice(1).toLowerCase()}
-        </Badge>
+        <div className="flex flex-wrap gap-1">
+          {amenities.slice(0, 3).map((amenity) => (
+            <Badge key={amenity} variant="secondary" className="text-xs">
+              {amenity}
+            </Badge>
+          ))}
+          {amenities.length > 3 && (
+            <Badge variant="outline" className="text-xs">
+              +{amenities.length - 3}
+            </Badge>
+          )}
+        </div>
       );
     },
+  }),
+  columnHelper.accessor('isActive', {
+    header: 'Status',
+    cell: (info) => (
+      <Badge variant={info.getValue() ? 'success' : 'secondary'}>
+        {info.getValue() ? 'Active' : 'Inactive'}
+      </Badge>
+    ),
   }),
 ];
 
@@ -87,16 +109,16 @@ function TableSkeleton() {
       <div className="rounded-md border">
         <div className="border-b p-4">
           <div className="flex gap-4">
-            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-              <Skeleton key={i} className="h-4 w-20" />
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} className="h-4 w-24" />
             ))}
           </div>
         </div>
         {[1, 2, 3, 4, 5].map((row) => (
           <div key={row} className="border-b p-4">
             <div className="flex gap-4">
-              {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-                <Skeleton key={i} className="h-4 w-20" />
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Skeleton key={i} className="h-4 w-24" />
               ))}
             </div>
           </div>
@@ -106,36 +128,44 @@ function TableSkeleton() {
   );
 }
 
-export default function ApartmentsPage() {
+export default function BuildingsPage() {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
+
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
-  const [selectedApartment, setSelectedApartment] = useState<Apartment | null>(null);
+  const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [page, setPage] = useState(1);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
-  const [editingApartment, setEditingApartment] = useState<Apartment | null>(null);
+  const [editingBuilding, setEditingBuilding] = useState<Building | null>(null);
+  const [includeInactive, setIncludeInactive] = useState(false);
 
-  const handleCreateApartment = () => {
-    setEditingApartment(null);
+  const handleCreateBuilding = () => {
+    setEditingBuilding(null);
     setFormMode('create');
     setFormDialogOpen(true);
   };
 
-  const handleEditApartment = (apartment: Apartment) => {
-    setEditingApartment(apartment);
+  const handleEditBuilding = (building: Building) => {
+    setEditingBuilding(building);
     setFormMode('edit');
     setFormDialogOpen(true);
-    setSelectedApartment(null); // Close the detail sheet
+    setSelectedBuilding(null);
   };
 
-  const { data, isLoading, error } = useApartments({ page, limit: 20 });
+  const { data, isLoading, error } = useBuildings({ 
+    page, 
+    limit: 20,
+    includeInactive 
+  });
 
-  const apartments = data?.data || [];
+  const buildings = data?.data || [];
   const meta = data?.meta;
 
   const table = useReactTable({
-    data: apartments,
+    data: buildings,
     columns,
     state: {
       sorting,
@@ -155,9 +185,9 @@ export default function ApartmentsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Apartments</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Buildings</h1>
           <p className="text-muted-foreground">
-            Manage all apartments across your buildings.
+            Manage all buildings in your property portfolio.
           </p>
         </div>
         <TableSkeleton />
@@ -169,8 +199,8 @@ export default function ApartmentsPage() {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="text-center">
-          <Building className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h2 className="mt-4 text-lg font-semibold">Failed to load apartments</h2>
+          <BuildingIcon className="mx-auto h-12 w-12 text-muted-foreground" />
+          <h2 className="mt-4 text-lg font-semibold">Failed to load buildings</h2>
           <p className="text-muted-foreground">{error.message}</p>
         </div>
       </div>
@@ -180,11 +210,20 @@ export default function ApartmentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Apartments</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Buildings</h1>
         <p className="text-muted-foreground">
-          Manage all apartments across your buildings.
+          Manage all buildings in your property portfolio.
         </p>
       </div>
+
+      {/* Admin-only notice */}
+      {!isAdmin && (
+        <Alert>
+          <AlertDescription>
+            You are viewing buildings in read-only mode. Creating and editing buildings requires admin privileges.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Filters & Actions */}
       <div className="flex items-center justify-between gap-4">
@@ -192,20 +231,25 @@ export default function ApartmentsPage() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search apartments..."
+              placeholder="Search buildings..."
               value={globalFilter ?? ''}
               onChange={(e) => setGlobalFilter(e.target.value)}
               className="pl-9"
             />
           </div>
-          <Button variant="outline" size="icon">
-            <Filter className="h-4 w-4" />
+          <Button
+            variant={includeInactive ? 'default' : 'outline'}
+            onClick={() => setIncludeInactive(!includeInactive)}
+          >
+            {includeInactive ? 'Showing All' : 'Active Only'}
           </Button>
         </div>
-        <Button onClick={handleCreateApartment}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Apartment
-        </Button>
+        {isAdmin && (
+          <Button onClick={handleCreateBuilding}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Building
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -237,7 +281,7 @@ export default function ApartmentsPage() {
                     colSpan={columns.length}
                     className="h-24 text-center"
                   >
-                    No apartments found.
+                    No buildings found.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -249,7 +293,7 @@ export default function ApartmentsPage() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
-                    onClick={() => setSelectedApartment(row.original)}
+                    onClick={() => setSelectedBuilding(row.original)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
@@ -271,7 +315,7 @@ export default function ApartmentsPage() {
       {meta && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Showing {apartments.length} of {meta.total} apartments
+            Showing {buildings.length} of {meta.total} buildings
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -284,13 +328,13 @@ export default function ApartmentsPage() {
               Previous
             </Button>
             <span className="text-sm">
-              Page {meta.page} of {meta.totalPages}
+              Page {meta.page} of {Math.ceil(meta.total / (meta.limit || 20))}
             </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
-              disabled={page >= meta.totalPages}
+              onClick={() => setPage((p) => Math.min(Math.ceil(meta.total / (meta.limit || 20)), p + 1))}
+              disabled={page >= Math.ceil(meta.total / (meta.limit || 20))}
             >
               Next
               <ChevronRight className="h-4 w-4" />
@@ -300,18 +344,18 @@ export default function ApartmentsPage() {
       )}
 
       {/* Detail Sheet */}
-      <ApartmentDetailSheet
-        apartment={selectedApartment}
-        open={!!selectedApartment}
-        onOpenChange={(open) => !open && setSelectedApartment(null)}
-        onEdit={handleEditApartment}
+      <BuildingDetailSheet
+        building={selectedBuilding}
+        open={!!selectedBuilding}
+        onOpenChange={(open: boolean) => !open && setSelectedBuilding(null)}
+        onEdit={handleEditBuilding}
       />
 
       {/* Create/Edit Dialog */}
-      <ApartmentFormDialog
+      <BuildingFormDialog
         open={formDialogOpen}
         onOpenChange={setFormDialogOpen}
-        apartment={editingApartment}
+        building={editingBuilding}
         mode={formMode}
       />
     </div>

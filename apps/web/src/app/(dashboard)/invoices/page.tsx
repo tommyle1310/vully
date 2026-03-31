@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { InvoiceDetailSheet } from './invoice-detail-sheet';
+import { BulkGenerateInvoicesDialog } from './bulk-generate-dialog';
 
 const columnHelper = createColumnHelper<Invoice>();
 
@@ -228,11 +229,14 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
-        <p className="text-muted-foreground">
-          Manage billing and invoices for all tenants.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
+          <p className="text-muted-foreground">
+            Manage billing and invoices for all tenants.
+          </p>
+        </div>
+        <BulkGenerateInvoicesDialog />
       </div>
 
       {/* Filters */}

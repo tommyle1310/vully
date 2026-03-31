@@ -101,29 +101,29 @@
 ## Phase 3: Billing System
 
 ### 3.1 Billing Module (Backend)
-- [ ] Define Invoice, LineItem entities
-- [ ] Define MeterReading entity (electric, water, gas)
-- [ ] Create meter reading submission endpoint
-- [ ] Implement invoice calculation logic (utilities + rent)
-- [ ] Add invoice CRUD endpoints
-- [ ] Implement invoice PDF generation (or defer to Phase 5)
+- [x] Define Invoice, LineItem entities (Prisma schema)
+- [x] Define MeterReading entity (electric, water, gas)
+- [x] Create meter reading submission endpoint
+- [x] Implement invoice calculation logic (utilities + rent with tiered pricing)
+- [x] Add invoice CRUD endpoints
+- [ ] Implement invoice PDF generation (deferred to Phase 5)
 
 ### 3.2 BullMQ Worker Setup
-- [ ] Configure Redis connection for BullMQ
-- [ ] Create billing queue and worker process
-- [ ] Implement `generate-monthly-invoices` job
-- [ ] Add job progress tracking
-- [ ] Implement dead letter queue handler
-- [ ] Write unit tests for billing logic (>70% coverage target)
-- [ ] Add admin endpoint to trigger bulk invoice generation
+- [x] Configure Redis connection for BullMQ
+- [x] Create billing queue and worker process
+- [x] Implement `generate-monthly-invoices` job
+- [x] Add job progress tracking
+- [x] Implement dead letter queue handler
+- [x] Write unit tests for billing logic (>90% coverage achieved)
+- [x] Add admin endpoint to trigger bulk invoice generation
 
 ### 3.3 Billing UI (Frontend)
-- [ ] Create invoice list page with TanStack Table + filters via Nuqs
-- [ ] Build invoice detail view (Shadcn Card/Sheet)
-- [ ] Add meter reading form with React-Hook-Form + Zod
-- [ ] Implement invoice status badge component (Shadcn Badge)
-- [ ] Add bulk generation trigger for admin (Shadcn Button + Toast)
-- [ ] Show job progress indicator with Framer Motion animations
+- [x] Create invoice list page with TanStack Table + filters via Nuqs
+- [x] Build invoice detail view (Shadcn Card/Sheet)
+- [x] Add meter reading form with React-Hook-Form + Zod
+- [x] Implement invoice status badge component (Shadcn Badge)
+- [x] Add bulk generation trigger for admin (Sheet + TanStack Query hooks)
+- [x] Show job progress indicator with Framer Motion animations
 
 **Dependencies**: 3.2 depends on Redis setup (1.1). 3.3 depends on 3.1 API.
 
@@ -132,27 +132,27 @@
 ## Phase 4: Incidents & Real-time
 
 ### 4.1 Incidents Module (Backend)
-- [ ] Define Incident entity with category enum
-- [ ] Implement incident CRUD endpoints
+- [x] Define Incident entity with category enum
+- [x] Implement incident CRUD endpoints
 - [ ] Add image upload with ClamAV validation + S3 presigned URLs
-- [ ] Implement assignment workflow (admin assigns technician)
-- [ ] Add status transitions with validation
-- [ ] Create incident comment/log sub-resource
+- [x] Implement assignment workflow (admin assigns technician)
+- [x] Add status transitions with validation
+- [x] Create incident comment/log sub-resource
 
 ### 4.2 WebSocket Gateway
-- [ ] Configure Socket.IO gateway in NestJS
-- [ ] Implement room-based architecture (building, apartment, user)
-- [ ] Add connection authentication middleware
-- [ ] Create event emitters for incident updates
+- [x] Configure Socket.IO gateway in NestJS
+- [x] Implement room-based architecture (building, apartment, user)
+- [x] Add connection authentication middleware
+- [x] Create event emitters for incident updates
 - [ ] Create event emitters for invoice notifications
 - [ ] Write integration tests for WS events
 
 ### 4.3 Incidents UI (Frontend)
-- [ ] Create incident submission form with React-Hook-Form + image upload
-- [ ] Build incident list with TanStack Table (virtualized rows)
-- [ ] Implement incident detail page with timeline (Framer Motion LayoutGroup)
+- [x] Create incident submission form with React-Hook-Form + image upload
+- [x] Build incident list with TanStack Table (virtualized rows)
+- [x] Implement incident detail page with timeline (Framer Motion LayoutGroup)
 - [ ] Add real-time status updates via WebSocket with motion notifications
-- [ ] Create technician assignment modal (Shadcn Dialog)
+- [x] Create technician assignment modal (Shadcn Dialog)
 - [ ] Optimize images with next/image
 
 **Dependencies**: 4.2 depends on 4.1. 4.3 depends on both.

@@ -15,10 +15,6 @@ interface UtilityTypesResponse {
   data: UtilityType[];
 }
 
-interface UtilityTypeResponse {
-  data: UtilityType;
-}
-
 // List utility types
 export function useUtilityTypes() {
   return useQuery({

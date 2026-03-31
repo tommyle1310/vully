@@ -31,6 +31,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
+  { href: '/buildings', label: 'Buildings', icon: Building2, roles: ['ADMIN'] },
   { href: '/apartments', label: 'Apartments', icon: Building },
   { href: '/users', label: 'Users', icon: Users, roles: ['ADMIN'] },
   { href: '/invoices', label: 'Invoices', icon: FileText },
@@ -43,9 +44,9 @@ const navItems: NavItem[] = [
 function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const { user } = useAuthStore();
-
+console.log('cehc kuser', user)
   const filteredNavItems = navItems.filter(
-    (item) => !item.roles || (user && item.roles.includes(user.role))
+    (item) => !item.roles || (user && item.roles.toString().toLowerCase().includes(user.role))
   );
 
   return (

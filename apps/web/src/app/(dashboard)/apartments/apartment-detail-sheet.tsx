@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Building, Bed, Bath, Square, Wrench } from 'lucide-react';
+import { Building, Bed, Bath, Square, Wrench, Pencil } from 'lucide-react';
 import { Apartment, useUpdateApartmentStatus } from '@/hooks/use-apartments';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ interface ApartmentDetailSheetProps {
   apartment: Apartment | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEdit?: (apartment: Apartment) => void;
 }
 
 const statusVariants: Record<string, 'default' | 'success' | 'warning' | 'destructive'> = {
@@ -46,6 +47,7 @@ export function ApartmentDetailSheet({
   apartment,
   open,
   onOpenChange,
+  onEdit,
 }: ApartmentDetailSheetProps) {
   const { toast } = useToast();
   const updateStatus = useUpdateApartmentStatus();
@@ -95,9 +97,20 @@ export function ApartmentDetailSheet({
           {/* Status Badge */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Status</span>
-            <Badge variant={statusVariants[apartment.status] || 'default'} className="text-sm">
-              {apartment.status.charAt(0) + apartment.status.slice(1).toLowerCase()}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant={statusVariants[apartment.status] || 'default'} className="text-sm">
+                {apartment.status.charAt(0) + apartment.status.slice(1).toLowerCase()}
+              </Badge>
+              {onEdit && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onEdit(apartment)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Quick Stats */}
@@ -109,7 +122,7 @@ export function ApartmentDetailSheet({
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Area</p>
-                  <p className="text-lg font-semibold">{apartment.area} m²</p>
+                  <p className="text-lg font-semibold">{apartment.areaSqm} m²</p>
                 </div>
               </CardContent>
             </Card>
@@ -121,7 +134,7 @@ export function ApartmentDetailSheet({
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Bedrooms</p>
-                  <p className="text-lg font-semibold">{apartment.bedrooms}</p>
+                  <p className="text-lg font-semibold">{apartment.bedroomCount}</p>
                 </div>
               </CardContent>
             </Card>
@@ -133,7 +146,7 @@ export function ApartmentDetailSheet({
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Bathrooms</p>
-                  <p className="text-lg font-semibold">{apartment.bathrooms}</p>
+                  <p className="text-lg font-semibold">{apartment.bathroomCount}</p>
                 </div>
               </CardContent>
             </Card>

@@ -5,17 +5,18 @@ export interface Apartment {
   id: string;
   unitNumber: string;
   floor: number;
-  area: number;
-  bedrooms: number;
-  bathrooms: number;
-  status: 'VACANT' | 'OCCUPIED' | 'MAINTENANCE';
+  areaSqm?: number;
+  bedroomCount: number;
+  bathroomCount: number;
+  status: 'vacant' | 'occupied' | 'maintenance' | 'reserved';
   buildingId: string;
   building?: {
     id: string;
     name: string;
     address: string;
   };
-  features: Record<string, unknown> | null;
+  features: Record<string, unknown>;
+  svgElementId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -39,6 +40,27 @@ interface ApartmentsResponse {
 
 interface ApartmentResponse {
   data: Apartment;
+}
+
+export interface CreateApartmentInput {
+  buildingId: string;
+  unitNumber: string;
+  floor: number;
+  areaSqm?: number;
+  bedroomCount?: number;
+  bathroomCount?: number;
+  features?: Record<string, unknown>;
+}
+
+export interface UpdateApartmentInput {
+  buildingId?: string;
+  unitNumber?: string;
+  floor?: number;
+  areaSqm?: number;
+  bedroomCount?: number;
+  bathroomCount?: number;
+  features?: Record<string, unknown>;
+  status?: string;
 }
 
 export function useApartments(filters: ApartmentFilters = {}) {
@@ -67,6 +89,19 @@ export function useApartment(id: string) {
   });
 }
 
+export function useCreateApartment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CreateApartmentInput) => {
+      return apiClient.post<ApartmentResponse>('/apartments', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['apartments'] });
+    },
+  });
+}
+
 export function useUpdateApartmentStatus() {
   const queryClient = useQueryClient();
 
@@ -84,12 +119,54 @@ export function useUpdateApartment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<Apartment> }) => {
+    mutationFn: async ({ id, data }: { id: string; data: UpdateApartmentInput }) => {
       return apiClient.patch<ApartmentResponse>(`/apartments/${id}`, data);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['apartments'] });
       queryClient.invalidateQueries({ queryKey: ['apartments', variables.id] });
     },
+  });
+}
+
+export function useDeleteApartment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return apiClient.delete(`/apartments/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['apartments'] });
+    },
+  });
+}
+
+// Buildings
+export interface Building {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  floorCount: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface BuildingsResponse {
+  data: Building[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+  };
+}
+
+export function useBuildings() {
+  return useQuery({
+    queryKey: ['buildings'],
+    queryFn: () => apiClient.get<BuildingsResponse>('/buildings'),
+    staleTime: 10 * 60 * 1000, // 10 minutes (rarely changes)
   });
 }

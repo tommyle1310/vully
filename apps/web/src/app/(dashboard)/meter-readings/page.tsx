@@ -7,22 +7,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { CalendarIcon, Plus, Loader2, Gauge } from 'lucide-react';
-import {
-  useColumnFiltersState,
-  useTableInstance,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  createColumnHelper,
-  flexRender,
-  type ColumnDef,
-} from '@tanstack/react-table';
 import { motion } from 'framer-motion';
 
 import {
   useMeterReadings,
   useCreateMeterReading,
-  type MeterReading,
   type CreateMeterReadingDto,
 } from '@/hooks/use-meter-readings';
 import { useApartments } from '@/hooks/use-apartments';
@@ -102,8 +91,8 @@ export default function MeterReadingsPage() {
     utilityTypeId: selectedUtilityTypeId || undefined,
     billingPeriod: selectedBillingPeriod || undefined,
   });
-  const { data: apartmentsData, isLoading: isLoadingApartments } = useApartments({ limit: 100 });
-  const { data: utilityTypesData, isLoading: isLoadingUtilityTypes } = useUtilityTypes();
+  const { data: apartmentsData } = useApartments({ limit: 100 });
+  const { data: utilityTypesData } = useUtilityTypes();
 
   const createMeterReading = useCreateMeterReading();
 
@@ -117,8 +106,6 @@ export default function MeterReadingsPage() {
   const form = useForm<MeterReadingFormValues>({
     resolver: zodResolver(meterReadingSchema),
     defaultValues: {
-      apartmentId: '',
-      utilityTypeId: '',
       currentValue: 0,
       previousValue: undefined,
       billingPeriod: getCurrentBillingPeriod(),
@@ -184,7 +171,7 @@ export default function MeterReadingsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Apartment</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || undefined}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select apartment" />
@@ -210,7 +197,7 @@ export default function MeterReadingsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Utility Type</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || undefined}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select utility type" />
@@ -371,14 +358,14 @@ export default function MeterReadingsPage() {
           <div className="flex flex-wrap gap-4">
             <div className="w-[200px]">
               <Select
-                value={selectedApartmentId}
-                onValueChange={setSelectedApartmentId}
+                value={selectedApartmentId || 'all'}
+                onValueChange={(value) => setSelectedApartmentId(value === 'all' ? '' : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All Apartments" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Apartments</SelectItem>
+                  <SelectItem value="all">All Apartments</SelectItem>
                   {apartments.map((apt) => (
                     <SelectItem key={apt.id} value={apt.id}>
                       {apt.building?.name} - Unit {apt.unitNumber}
@@ -390,14 +377,14 @@ export default function MeterReadingsPage() {
 
             <div className="w-[180px]">
               <Select
-                value={selectedUtilityTypeId}
-                onValueChange={setSelectedUtilityTypeId}
+                value={selectedUtilityTypeId || 'all'}
+                onValueChange={(value) => setSelectedUtilityTypeId(value === 'all' ? '' : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All Utilities" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Utilities</SelectItem>
+                  <SelectItem value="all">All Utilities</SelectItem>
                   {utilityTypes.map((ut) => (
                     <SelectItem key={ut.id} value={ut.id}>
                       {ut.name}

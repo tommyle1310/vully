@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Loader2, Building2, UserPlus } from 'lucide-react';
+import { Loader2, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useRegister } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
@@ -56,6 +56,7 @@ export default function RegisterPage() {
   });
 
   const onSubmit = (data: RegisterFormData) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { confirmPassword, ...registerData } = data;
     register(registerData);
   };

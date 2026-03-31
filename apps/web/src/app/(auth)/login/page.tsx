@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -26,6 +27,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -34,7 +36,7 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+function LoginPageContent() {
   const { mutate: login, isPending, error } = useLogin();
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get('registered') === 'true';
@@ -192,5 +194,40 @@ export default function LoginPage() {
         </p>
       </motion.div>
     </div>
+  );
+}
+
+function LoginPageSkeleton() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
+      <div className="w-full max-w-md">
+        <Card className="shadow-lg">
+          <CardHeader className="space-y-1 text-center">
+            <Skeleton className="mx-auto h-14 w-14 rounded-full" />
+            <Skeleton className="mx-auto h-8 w-48" />
+            <Skeleton className="mx-auto h-4 w-64" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageSkeleton />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
