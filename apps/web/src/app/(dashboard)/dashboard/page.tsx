@@ -2,10 +2,60 @@
 
 import { motion } from 'framer-motion';
 import { Building, Users, FileText, AlertTriangle } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthStore } from '@/stores/authStore';
 import { useDashboardStats } from '@/hooks/use-stats';
+
+// Lazy load chart components for better performance
+const OccupancyChart = dynamic(
+  () => import('@/components/dashboard/occupancy-chart').then((mod) => ({ default: mod.OccupancyChart })),
+  {
+    loading: () => (
+      <Card>
+        <CardHeader>
+          <CardTitle>Occupancy Trend</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[300px] w-full" />
+        </CardContent>
+      </Card>
+    ),
+  }
+);
+
+const RevenueChart = dynamic(
+  () => import('@/components/dashboard/revenue-chart').then((mod) => ({ default: mod.RevenueChart })),
+  {
+    loading: () => (
+      <Card>
+        <CardHeader>
+          <CardTitle>Revenue Breakdown</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[300px] w-full" />
+        </CardContent>
+      </Card>
+    ),
+  }
+);
+
+const IncidentsSummary = dynamic(
+  () => import('@/components/dashboard/incidents-summary').then((mod) => ({ default: mod.IncidentsSummary })),
+  {
+    loading: () => (
+      <Card>
+        <CardHeader>
+          <CardTitle>Incidents Analytics</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[320px] w-full" />
+        </CardContent>
+      </Card>
+    ),
+  }
+);
 
 interface StatCardProps {
   title: string;
@@ -113,40 +163,14 @@ export default function DashboardPage() {
         </motion.div>
       </motion.div>
 
-      {/* Placeholder for more dashboard content */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <Skeleton className="h-10 w-10 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-3 w-1/2" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="col-span-3">
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* Analytics Charts */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <OccupancyChart />
+        <RevenueChart />
       </div>
+
+      {/* Incidents Summary */}
+      <IncidentsSummary />
     </div>
   );
 }

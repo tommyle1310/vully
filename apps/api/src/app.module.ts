@@ -3,6 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
+import { CacheModule } from '@nestjs/cache-manager';
+import * as redisStore from 'cache-manager-redis-store';
 
 // Configuration
 import { appConfig, databaseConfig, redisConfig, jwtConfig, s3Config } from './config';
@@ -66,6 +68,19 @@ import { IncidentsModule } from './modules/incidents/incidents.module';
           host: configService.get('redis.host'),
           port: configService.get('redis.port'),
         },
+      }),
+    }),
+
+    // Redis cache for dashboard stats
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        store: redisStore as any,
+        host: configService.get('redis.host'),
+        port: configService.get('redis.port'),
+        ttl: 300, // 5 minutes default TTL
       }),
     }),
 

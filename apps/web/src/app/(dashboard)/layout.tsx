@@ -44,7 +44,6 @@ const navItems: NavItem[] = [
 function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const { user } = useAuthStore();
-console.log('cehc kuser', user)
   const filteredNavItems = navItems.filter(
     (item) => !item.roles || (user && item.roles.toString().toLowerCase().includes(user.role))
   );

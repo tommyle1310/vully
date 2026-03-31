@@ -82,3 +82,9 @@ export class BuildingResponseDto {
   @ApiPropertyOptional({ description: 'Number of apartments in building' })
   apartmentCount?: number;
 }
+
+export class UpdateSvgMapDto {
+  @ApiProperty({ description: 'SVG map data as string' })
+  @IsString()
+  svgMapData: string;
+}

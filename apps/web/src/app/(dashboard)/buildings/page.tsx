@@ -13,7 +13,7 @@ import {
   SortingState,
   ColumnFiltersState,
 } from '@tanstack/react-table';
-import { Building as BuildingIcon, Search, ChevronLeft, ChevronRight, Plus, MapPin } from 'lucide-react';
+import { Building as BuildingIcon, Search, ChevronLeft, ChevronRight, Plus, MapPin, ExternalLink } from 'lucide-react';
 import { useBuildings, Building } from '@/hooks/use-buildings';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
@@ -95,6 +95,23 @@ const columns = [
       <Badge variant={info.getValue() ? 'success' : 'secondary'}>
         {info.getValue() ? 'Active' : 'Inactive'}
       </Badge>
+    ),
+  }),
+  columnHelper.display({
+    id: 'actions',
+    header: 'Actions',
+    cell: ({ row }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={(e) => {
+          e.stopPropagation();
+          window.location.href = `/buildings/${row.original.id}`;
+        }}
+      >
+        <ExternalLink className="h-4 w-4 mr-1" />
+        View
+      </Button>
     ),
   }),
 ];

@@ -21,6 +21,7 @@ import {
   CreateBuildingDto,
   UpdateBuildingDto,
   BuildingResponseDto,
+  UpdateSvgMapDto,
 } from './dto/building.dto';
 import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -106,9 +107,9 @@ export class BuildingsController {
   @ApiResponse({ status: 200, description: 'SVG map updated', type: BuildingResponseDto })
   async updateSvgMap(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body('svgMapData') svgMapData: string,
+    @Body() dto: UpdateSvgMapDto,
   ): Promise<{ data: BuildingResponseDto }> {
-    const building = await this.buildingsService.updateSvgMap(id, svgMapData);
+    const building = await this.buildingsService.updateSvgMap(id, dto.svgMapData);
     return { data: building };
   }
 }

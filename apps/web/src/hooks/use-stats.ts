@@ -67,3 +67,65 @@ export function useAdminStats() {
     refetchInterval: 5 * 60 * 1000,
   });
 }
+
+// =============================================================================
+// Analytics Hooks
+// =============================================================================
+
+export interface OccupancyTrendData {
+  month: string;
+  occupancyRate: number;
+  total: number;
+  occupied: number;
+}
+
+export interface RevenueBreakdownData {
+  month: string;
+  rent: number;
+  utilities: number;
+  fees: number;
+  total: number;
+}
+
+export interface IncidentAnalytics {
+  byCategory: Array<{ category: string; count: number; avgResolutionTime: number }>;
+  byPriority: Array<{ priority: string; count: number }>;
+  byStatus: Array<{ status: string; count: number }>;
+}
+
+export function useOccupancyTrend(months = 12) {
+  return useQuery({
+    queryKey: ['analytics', 'occupancy', months],
+    queryFn: async (): Promise<{ data: OccupancyTrendData[] }> => {
+      return apiClient.get<{ data: OccupancyTrendData[] }>(
+        `/stats/analytics/occupancy?months=${months}`
+      );
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes (matches backend cache)
+  });
+}
+
+export function useRevenueBreakdown(months = 6) {
+  return useQuery({
+    queryKey: ['analytics', 'revenue', months],
+    queryFn: async (): Promise<{ data: RevenueBreakdownData[] }> => {
+      return apiClient.get<{ data: RevenueBreakdownData[] }>(
+        `/stats/analytics/revenue?months=${months}`
+      );
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useIncidentAnalytics() {
+  return useQuery({
+    queryKey: ['analytics', 'incidents'],
+    queryFn: async (): Promise<{ data: IncidentAnalytics }> => {
+      return apiClient.get<{ data: IncidentAnalytics }>(
+        '/stats/analytics/incidents'
+      );
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+

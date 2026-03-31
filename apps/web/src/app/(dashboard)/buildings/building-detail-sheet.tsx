@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import {
   Building as BuildingIcon,
   MapPin,
@@ -8,6 +9,7 @@ import {
   Home,
   Edit,
   Calendar,
+  Map,
 } from 'lucide-react';
 import { Building } from '@/hooks/use-buildings';
 import { useAuthStore } from '@/stores/authStore';
@@ -44,10 +46,16 @@ export function BuildingDetailSheet({
   onOpenChange,
   onEdit,
 }: BuildingDetailSheetProps) {
+  const router = useRouter();
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'admin';
 
   if (!building) return null;
+
+  const handleViewFloorPlan = () => {
+    router.push(`/buildings/${building.id}`);
+    onOpenChange(false);
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -156,23 +164,36 @@ export function BuildingDetailSheet({
           </motion.div>
         </ScrollArea>
 
-        <div className="flex gap-2 pt-4 border-t">
+        <div className="space-y-2 pt-4 border-t">
+          {/* Primary Action - View Floor Plan */}
           <Button
-            variant="outline"
-            className={isAdmin ? 'flex-1' : 'w-full'}
-            onClick={() => onOpenChange(false)}
+            className="w-full"
+            onClick={handleViewFloorPlan}
           >
-            Close
+            <Map className="h-4 w-4 mr-2" />
+            View Floor Plan & Units
           </Button>
-          {isAdmin && (
+          
+          {/* Secondary Actions */}
+          <div className="flex gap-2">
             <Button
-              className="flex-1"
-              onClick={() => onEdit(building)}
+              variant="outline"
+              className={isAdmin ? 'flex-1' : 'w-full'}
+              onClick={() => onOpenChange(false)}
             >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Building
+              Close
             </Button>
-          )}
+            {isAdmin && (
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => onEdit(building)}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            )}
+          </div>
         </div>
       </SheetContent>
     </Sheet>
