@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { UserProfileDropdown } from '@/components/user-profile-dropdown';
 import { ProtectedRoute } from '@/components/protected-route';
 import { useAuthStore } from '@/stores/authStore';
+import { FloatingChatWidget } from '@/components/floating-chat-widget';
 import { useState } from 'react';
 
 interface NavItem {
@@ -150,6 +151,7 @@ export default function DashboardLayout({
           </main>
         </div>
       </div>
+      <FloatingChatWidget />
     </ProtectedRoute>
   );
 }

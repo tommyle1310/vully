@@ -107,6 +107,7 @@ model User {
   assignedIncidents Incident[]    @relation("AssignedIncidents")
   incidentComments IncidentComment[]
   notifications  Notification[]
+  chatQueries    ChatQuery[]
 
   @@map("users")
 }
@@ -458,6 +459,8 @@ model Document {
   // Relations
   chunks DocumentChunk[]
 
+  @@index([category])
+  @@index([isActive])
   @@map("documents")
 }
 
@@ -465,7 +468,7 @@ model DocumentChunk {
   id         String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   documentId String                         @map("document_id") @db.Uuid
   content    String                         @db.Text
-  embedding  Unsupported("vector(1536)")?
+  embedding  Unsupported("vector(768)")?    // Gemini embedding dimension is 768
   chunkIndex Int                            @map("chunk_index")
   metadata   Json                           @default("{}")
   createdAt  DateTime                       @default(now()) @map("created_at") @db.Timestamptz
@@ -475,4 +478,21 @@ model DocumentChunk {
 
   @@index([documentId])
   @@map("document_chunks")
+}
+
+model ChatQuery {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  query       String   @db.Text
+  response    String   @db.Text
+  sourceDocs  Json     @default("[]") @map("source_docs") // Document IDs used
+  tokensUsed  Int      @default(0) @map("tokens_used")
+  responseTime Int     @default(0) @map("response_time") // milliseconds
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("chat_queries")
 }

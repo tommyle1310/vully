@@ -26,7 +26,8 @@
       "@modules/*": ["src/modules/*"],
       "@common/*": ["src/common/*"],
       "@config/*": ["src/config/*"],
-      "@providers/*": ["src/providers/*"]
+      "@providers/*": ["src/providers/*"],
+      "@vully/shared-types": ["../../packages/shared-types/dist/index"]
     }
   },
   "include": ["src/**/*"],

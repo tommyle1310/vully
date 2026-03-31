@@ -19,9 +19,9 @@ import { ApartmentsModule } from './modules/apartments/apartments.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { StatsModule } from './modules/stats/stats.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
+import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
 // import { NotificationsModule } from './modules/notifications/notifications.module';
 // import { DashboardModule } from './modules/dashboard/dashboard.module';
-// import { AiModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -94,9 +94,9 @@ import { IncidentsModule } from './modules/incidents/incidents.module';
     BillingModule,
     StatsModule,
     IncidentsModule,
+    AiAssistantModule,
     // NotificationsModule,
     // DashboardModule,
-    // AiModule,
   ],
 })
 export class AppModule {}
