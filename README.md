@@ -82,21 +82,23 @@ vully/
 │   │           ├── billing/        # Invoices, meter readings, BullMQ processor, tiered pricing
 │   │           ├── incidents/      # Incident CRUD, comments, WebSocket gateway
 │   │           ├── stats/          # Dashboard analytics (Redis-cached)
-│   │           └── ai-assistant/   # RAG chatbot (Gemini + pgvector + LangChain)
+│   │           ├── ai-assistant/   # RAG chatbot (Gemini + pgvector + LangChain)
+│   │           ├── accounting/     # Journal entries, ledger accounts, vouchers (skeleton)
+│   │           └── management-board/ # Investors, vendors (skeleton)
 │   │
 │   └── web/                        # Next.js 15 frontend (port 3000)
 │       └── src/
 │           ├── app/
 │           │   ├── (auth)/         # /login, /register, /forgot-password, /reset-password
-│           │   └── (dashboard)/    # /dashboard, /buildings, /apartments, /incidents,
-│           │                       # /invoices, /meter-readings, /users
+│           │   └── (dashboard)/    # /dashboard, /buildings, /apartments, /contracts,
+│           │                       # /incidents, /invoices, /meter-readings, /users
 │           ├── components/
 │           │   ├── ui/             # Shadcn/UI (24 components)
 │           │   ├── maps/           # SVG floor plan viewer + builder
 │           │   ├── 3d/             # Three.js building 3D viewer
 │           │   ├── dashboard/      # Chart widgets (occupancy, revenue, incidents, activity)
 │           │   └── users/          # User management dialogs
-│           ├── hooks/              # 13 custom hooks (auth, CRUD, websocket, svg-to-3d, tour)
+│           ├── hooks/              # 14 custom hooks (auth, CRUD, contracts, websocket, svg-to-3d, tour)
 │           ├── stores/             # authStore, mapStore (Zustand)
 │           └── lib/                # api-client, utils, performance, web-vitals
 │
@@ -131,7 +133,7 @@ vully/
 
 ## Database Schema
 
-### Models (16 total)
+### Models (26 total)
 
 | Model | Purpose |
 |-------|---------|
@@ -143,8 +145,9 @@ vully/
 | **Permission** | Permission keys with descriptions |
 | **RolePermission** | Role ↔ permission mapping |
 | **Building** | Building/block: name, address, floorCount, svgMapData, floorHeights, amenities |
-| **Apartment** | Unit within buildings: unit_number, floor, status, areaSqm, bedrooms, bathrooms, svgElementId |
-| **Contract** | Lease agreements: tenant, apartment, dates, rent, deposit |
+| **Apartment** | Unit within buildings: unit_number, floor, status, grossArea, bedrooms, bathrooms, svgElementId, owner, unitType, orientation, billingCycle, metering IDs |
+| **Contract** | Lease agreements: tenant, apartment, dates, rent, deposit, depositMonths, termsNotes, createdBy |
+| **ManagementFeeConfig** | Per-building pricing: unitType, pricePerSqm, effective date range |
 | **UtilityType** | Utility definitions (electricity, water, gas) with unit codes |
 | **UtilityTier** | Tiered pricing per utility per building with effective date ranges |
 | **MeterReading** | Monthly meter readings with image proof |
@@ -167,6 +170,11 @@ vully/
 | `IncidentStatus` | open, assigned, in_progress, pending_review, resolved, closed |
 | `IncidentPriority` | low, medium, high, urgent |
 | `BillingJobStatus` | pending, processing, completed, failed |
+| `UnitType` | studio, one_bedroom, two_bedroom, three_bedroom, duplex, penthouse, shophouse |
+| `OwnershipType` | permanent, fifty_year, leasehold |
+| `Orientation` | north, south, east, west, northeast, northwest, southeast, southwest |
+| `BillingCycle` | monthly, quarterly, yearly |
+| `SyncStatus` | synced, pending, error, disconnected |
 
 ---
 
@@ -254,11 +262,11 @@ Client → CorrelationIdMiddleware → JwtAuthGuard → RolesGuard
 
 ## RBAC
 
-| Role | Apartments | Invoices | Incidents | Users | AI |
-|------|-----------|----------|-----------|-------|----|
-| **Admin** | CRUD | CRUD | CRUD | CRUD | Unlimited |
-| **Technician** | Read | Read | Update* | — | 20/day |
-| **Resident** | Read* | Read* | Create* | — | 20/day |
+| Role | Apartments | Contracts | Invoices | Incidents | Users | AI |
+|------|-----------|-----------|----------|-----------|-------|----|
+| **Admin** | CRUD | CRUD | CRUD | CRUD | CRUD | Unlimited |
+| **Technician** | Read | — | Read | Update* | — | 20/day |
+| **Resident** | Read* | Read* | Read* | Create* | — | 20/day |
 
 \* Scoped to own resources only
 
@@ -279,6 +287,7 @@ All endpoints are auto-documented via Swagger at `/api/docs`.
 ### Key Endpoints
 - `/api/apartments/buildings` — Building CRUD + SVG management
 - `/api/apartments` — Apartment CRUD
+- `/api/contracts` — Contract lifecycle (create, list, update, terminate)
 - `/api/billing/invoices` — Invoice generation + payment tracking
 - `/api/billing/meter-readings` — Meter reading CRUD with image proof
 - `/api/incidents` — Incident lifecycle management (WebSocket events)
@@ -329,12 +338,18 @@ Structured JSON via Pino with correlation IDs
 - [x] Phase 0-6: Core platform features
 - [x] AI Assistant with RAG
 - [x] Real-time WebSocket updates
+- [x] Multi-role RBAC (UserRoleAssignment + Permissions)
+- [x] SVG Floor Plan Builder & 3D Viewer
+- [x] Contracts backend API (CRUD + terminate)
+- [x] Contracts frontend (list, create/edit form, detail sheet)
 
 ### In Progress 🚧
 - [ ] Phase 7.1: Testing (improve coverage)
-- [x] Phase 7.2: Documentation
+- [ ] Accounting module (skeleton created, services TBD)
+- [ ] In-app notifications module
 
 ### Future 🔮
+- [ ] Management board (investors, vendors)
 - [ ] Mobile app (React Native)
 - [ ] Payment gateway integration
 - [ ] Email/SMS notifications
