@@ -48,7 +48,7 @@ const apartmentFormSchema = z.object({
   areaSqm: z.coerce.number().positive('Area must be a positive number').optional(),
   bedroomCount: z.coerce.number().int().min(0, 'Bedrooms must be 0 or higher').optional(),
   bathroomCount: z.coerce.number().int().min(0, 'Bathrooms must be 0 or higher').optional(),
-  status: z.enum(['VACANT', 'OCCUPIED', 'MAINTENANCE']).optional(),
+  status: z.enum(['vacant', 'occupied', 'maintenance', 'reserved']).optional(),
 });
 
 type ApartmentFormValues = z.infer<typeof apartmentFormSchema>;
@@ -125,7 +125,7 @@ export function ApartmentFormDialog({
           areaSqm: values.areaSqm,
           bedroomCount: values.bedroomCount,
           bathroomCount: values.bathroomCount,
-          status: values.status?.toLowerCase(),
+          status: values.status,
         };
 
         await updateApartment.mutateAsync({
@@ -320,9 +320,9 @@ export function ApartmentFormDialog({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="VACANT">Vacant</SelectItem>
-                          <SelectItem value="OCCUPIED">Occupied</SelectItem>
-                          <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                          <SelectItem value="vacant">Vacant</SelectItem>
+                          <SelectItem value="occupied">Occupied</SelectItem>
+                          <SelectItem value="maintenance">Maintenance</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
