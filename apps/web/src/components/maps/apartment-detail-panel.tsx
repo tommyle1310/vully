@@ -17,9 +17,9 @@ interface ApartmentDetailPanelProps {
   apartment: {
     id: string;
     unitNumber: string;
-    floor: number;
+    floorIndex: number;
     status: 'vacant' | 'occupied' | 'maintenance' | 'reserved';
-    areaSqm?: number;
+    grossArea?: number;
     bedroomCount: number;
     bathroomCount: number;
     building?: {
@@ -67,7 +67,7 @@ export function ApartmentDetailPanel({ apartment, open, onOpenChange }: Apartmen
             Apartment {apartment.unitNumber}
           </SheetTitle>
           <SheetDescription>
-            {apartment.building?.name || 'Building'} - Floor {apartment.floor}
+            {apartment.building?.name || 'Building'} - Floor {apartment.floorIndex}
           </SheetDescription>
         </SheetHeader>
 
@@ -97,7 +97,7 @@ export function ApartmentDetailPanel({ apartment, open, onOpenChange }: Apartmen
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Area</span>
                 <span className="font-medium">
-                  {apartment.areaSqm ? `${apartment.areaSqm} m²` : 'N/A'}
+                  {apartment.grossArea ? `${apartment.grossArea} m²` : 'N/A'}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm">

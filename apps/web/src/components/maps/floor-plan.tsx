@@ -14,9 +14,9 @@ interface FloorPlanProps {
   apartments: Array<{
     id: string;
     unitNumber: string;
-    floor: number;
+    floorIndex: number;
     status: 'vacant' | 'occupied' | 'maintenance' | 'reserved';
-    areaSqm?: number;
+    grossArea?: number;
     bedroomCount: number;
     bathroomCount: number;
     svgElementId?: string;
@@ -223,7 +223,7 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
         // Check if apartment matches filters
         const matchesFilter = 
           (filters.status.length === 0 || filters.status.includes(apt.status)) &&
-          (filters.floor === null || filters.floor === apt.floor);
+          (filters.floor === null || filters.floor === apt.floorIndex);
 
         // Base styles
         element.style.cursor = 'pointer';

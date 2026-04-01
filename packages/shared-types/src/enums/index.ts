@@ -55,6 +55,106 @@ export const ApartmentStatus = {
 } as const;
 
 /**
+ * Apartment unit type classification
+ */
+export const UnitTypeSchema = z.enum([
+  'studio',
+  'one_bedroom',
+  'two_bedroom',
+  'three_bedroom',
+  'duplex',
+  'penthouse',
+  'shophouse',
+]);
+export type UnitType = z.infer<typeof UnitTypeSchema>;
+
+export const UnitType = {
+  studio: 'studio' as const,
+  one_bedroom: 'one_bedroom' as const,
+  two_bedroom: 'two_bedroom' as const,
+  three_bedroom: 'three_bedroom' as const,
+  duplex: 'duplex' as const,
+  penthouse: 'penthouse' as const,
+  shophouse: 'shophouse' as const,
+} as const;
+
+/**
+ * Ownership type for Vietnamese real estate
+ */
+export const OwnershipTypeSchema = z.enum([
+  'permanent',
+  'fifty_year',
+  'leasehold',
+]);
+export type OwnershipType = z.infer<typeof OwnershipTypeSchema>;
+
+export const OwnershipType = {
+  permanent: 'permanent' as const,
+  fifty_year: 'fifty_year' as const,
+  leasehold: 'leasehold' as const,
+} as const;
+
+/**
+ * Compass direction for unit/balcony orientation
+ */
+export const OrientationSchema = z.enum([
+  'north',
+  'south',
+  'east',
+  'west',
+  'northeast',
+  'northwest',
+  'southeast',
+  'southwest',
+]);
+export type Orientation = z.infer<typeof OrientationSchema>;
+
+export const Orientation = {
+  north: 'north' as const,
+  south: 'south' as const,
+  east: 'east' as const,
+  west: 'west' as const,
+  northeast: 'northeast' as const,
+  northwest: 'northwest' as const,
+  southeast: 'southeast' as const,
+  southwest: 'southwest' as const,
+} as const;
+
+/**
+ * Billing cycle frequency
+ */
+export const BillingCycleSchema = z.enum([
+  'monthly',
+  'quarterly',
+  'yearly',
+]);
+export type BillingCycle = z.infer<typeof BillingCycleSchema>;
+
+export const BillingCycle = {
+  monthly: 'monthly' as const,
+  quarterly: 'quarterly' as const,
+  yearly: 'yearly' as const,
+} as const;
+
+/**
+ * IoT device synchronization status
+ */
+export const SyncStatusSchema = z.enum([
+  'synced',
+  'pending',
+  'error',
+  'disconnected',
+]);
+export type SyncStatus = z.infer<typeof SyncStatusSchema>;
+
+export const SyncStatus = {
+  synced: 'synced' as const,
+  pending: 'pending' as const,
+  error: 'error' as const,
+  disconnected: 'disconnected' as const,
+} as const;
+
+/**
  * Tenant contract lifecycle status
  */
 export const ContractStatusSchema = z.enum([

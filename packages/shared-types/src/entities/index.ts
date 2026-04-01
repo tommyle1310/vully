@@ -12,6 +12,11 @@ import {
   IncidentCategorySchema,
   IncidentStatusSchema,
   IncidentPrioritySchema,
+  UnitTypeSchema,
+  OwnershipTypeSchema,
+  OrientationSchema,
+  BillingCycleSchema,
+  SyncStatusSchema,
 } from '../enums';
 
 // =============================================================================
@@ -89,15 +94,70 @@ export type CreateBuildingInput = z.infer<typeof CreateBuildingSchema>;
 
 export const ApartmentSchema = z.object({
   id: UUIDSchema,
+  // Architectural & Spatial
+  apartmentCode: z.string().max(30).nullable().optional(),
   buildingId: UUIDSchema,
+  floorIndex: z.number().int().nonnegative(),
+  floorLabel: z.string().max(10).nullable().optional(),
   unitNumber: z.string().min(1).max(20),
-  floor: z.number().int().nonnegative(),
+  unitType: UnitTypeSchema.nullable().optional(),
+  netArea: z.number().positive().nullable().optional(),
+  grossArea: z.number().positive().nullable().optional(),
+  ceilingHeight: z.number().positive().nullable().optional(),
+  svgPathData: z.string().nullable().optional(),
+  svgElementId: z.string().nullable().optional(),
+  centroidX: z.number().nullable().optional(),
+  centroidY: z.number().nullable().optional(),
+  orientation: OrientationSchema.nullable().optional(),
+  balconyDirection: OrientationSchema.nullable().optional(),
+  isCornerUnit: z.boolean(),
+  // Ownership & Legal
+  ownerId: UUIDSchema.nullable().optional(),
+  ownershipType: OwnershipTypeSchema.nullable().optional(),
+  pinkBookId: z.string().max(50).nullable().optional(),
+  handoverDate: z.string().nullable().optional(),
+  warrantyExpiryDate: z.string().nullable().optional(),
+  isRented: z.boolean(),
+  vatRate: z.number().nullable().optional(),
+  // Occupancy
+  maxResidents: z.number().int().positive().nullable().optional(),
+  currentResidentCount: z.number().int().nonnegative(),
+  petAllowed: z.boolean().nullable().optional(),
+  petLimit: z.number().int().nonnegative().nullable().optional(),
+  accessCardLimit: z.number().int().positive().nullable().optional(),
+  intercomCode: z.string().max(20).nullable().optional(),
+  // Utility & Technical
+  electricMeterId: z.string().max(50).nullable().optional(),
+  waterMeterId: z.string().max(50).nullable().optional(),
+  gasMeterId: z.string().max(50).nullable().optional(),
+  powerCapacity: z.number().int().positive().nullable().optional(),
+  acUnitCount: z.number().int().nonnegative().nullable().optional(),
+  fireDetectorId: z.string().max(50).nullable().optional(),
+  sprinklerCount: z.number().int().nonnegative().nullable().optional(),
+  internetTerminalLoc: z.string().max(255).nullable().optional(),
+  // Parking & Assets
+  assignedCarSlot: z.string().max(30).nullable().optional(),
+  assignedMotoSlot: z.string().max(30).nullable().optional(),
+  mailboxNumber: z.string().max(20).nullable().optional(),
+  storageUnitId: z.string().max(30).nullable().optional(),
+  // Billing Config
+  mgmtFeeConfigId: UUIDSchema.nullable().optional(),
+  billingStartDate: z.string().nullable().optional(),
+  billingCycle: BillingCycleSchema,
+  bankAccountVirtual: z.string().max(30).nullable().optional(),
+  lateFeeWaived: z.boolean(),
+  // System Logic
+  parentUnitId: UUIDSchema.nullable().optional(),
+  isMerged: z.boolean(),
+  syncStatus: SyncStatusSchema,
+  portalAccessEnabled: z.boolean(),
+  technicalDrawingUrl: z.string().url().nullable().optional(),
+  notesAdmin: z.string().nullable().optional(),
+  // Existing
   status: ApartmentStatusSchema,
-  areaSqm: z.number().positive().optional(),
   bedroomCount: z.number().int().nonnegative(),
   bathroomCount: z.number().int().nonnegative(),
   features: z.record(z.unknown()).optional(),
-  svgElementId: z.string().optional(),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 });
@@ -106,13 +166,40 @@ export type Apartment = z.infer<typeof ApartmentSchema>;
 export const CreateApartmentSchema = z.object({
   buildingId: UUIDSchema,
   unitNumber: z.string().min(1).max(20),
-  floor: z.number().int().nonnegative(),
-  areaSqm: z.number().positive().optional(),
+  floorIndex: z.number().int().nonnegative(),
+  apartmentCode: z.string().max(30).optional(),
+  floorLabel: z.string().max(10).optional(),
+  unitType: UnitTypeSchema.optional(),
+  netArea: z.number().positive().optional(),
+  grossArea: z.number().positive().optional(),
+  ceilingHeight: z.number().positive().optional(),
+  svgElementId: z.string().optional(),
+  svgPathData: z.string().optional(),
+  centroidX: z.number().optional(),
+  centroidY: z.number().optional(),
+  orientation: OrientationSchema.optional(),
+  balconyDirection: OrientationSchema.optional(),
+  isCornerUnit: z.boolean().optional(),
   bedroomCount: z.number().int().nonnegative().optional().default(1),
   bathroomCount: z.number().int().nonnegative().optional().default(1),
   features: z.record(z.unknown()).optional(),
 });
 export type CreateApartmentInput = z.infer<typeof CreateApartmentSchema>;
+
+// =============================================================================
+// ManagementFeeConfig Entity
+// =============================================================================
+
+export const ManagementFeeConfigSchema = z.object({
+  id: UUIDSchema,
+  buildingId: UUIDSchema,
+  unitType: UnitTypeSchema.nullable().optional(),
+  pricePerSqm: z.number().positive(),
+  effectiveFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  effectiveTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  createdAt: TimestampSchema,
+});
+export type ManagementFeeConfig = z.infer<typeof ManagementFeeConfigSchema>;
 
 // =============================================================================
 // Contract Entity

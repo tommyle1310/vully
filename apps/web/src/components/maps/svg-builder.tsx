@@ -1280,7 +1280,7 @@ ${elementsSvg}
   }, [exportSvg, onSave]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] grid-rows-[minmax(0,1fr)] gap-4 h-full w-full overflow-hidden">
+    <div className="grid grid-cols-[minmax(0,1fr)_300px] grid-rows-[minmax(0,1fr)] gap-4 h-full w-full overflow-hidden">
       {/* Canvas */}
       <Card className="flex flex-col h-full min-h-0">
         <CardHeader className="pb-3 flex-shrink-0">

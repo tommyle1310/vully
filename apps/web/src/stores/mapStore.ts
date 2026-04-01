@@ -3,9 +3,9 @@ import { create } from 'zustand';
 interface Apartment {
   id: string;
   unitNumber: string;
-  floor: number;
+  floorIndex: number;
   status: 'vacant' | 'occupied' | 'maintenance' | 'reserved';
-  areaSqm?: number;
+  grossArea?: number;
   bedroomCount: number;
   bathroomCount: number;
   svgElementId?: string;

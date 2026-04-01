@@ -44,7 +44,7 @@ export default function BuildingDetailPage() {
   const apartmentsByFloor = useMemo(() => {
     const grouped = new Map<number, typeof apartments>();
     apartments.forEach((apt) => {
-      const floor = apt.floor;
+      const floor = apt.floorIndex;
       if (!grouped.has(floor)) {
         grouped.set(floor, []);
       }
@@ -387,9 +387,9 @@ export default function BuildingDetailPage() {
                                   <div className="flex items-center gap-3">
                                     <Home className="h-4 w-4 text-muted-foreground" />
                                     <span className="font-medium text-sm">Unit {apt.unitNumber}</span>
-                                    {apt.areaSqm && (
+                                    {apt.grossArea && (
                                       <span className="text-xs text-muted-foreground">
-                                        {Number(apt.areaSqm).toFixed(0)}m²
+                                        {Number(apt.grossArea).toFixed(0)}m²
                                       </span>
                                     )}
                                     <span className="text-xs text-muted-foreground">

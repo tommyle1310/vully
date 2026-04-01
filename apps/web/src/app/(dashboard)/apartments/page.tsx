@@ -49,11 +49,11 @@ const columns = [
     header: 'Building',
     cell: (info) => info.getValue() || '-',
   }),
-  columnHelper.accessor('floor', {
+  columnHelper.accessor('floorIndex', {
     header: 'Floor',
     cell: (info) => `Floor ${info.getValue()}`,
   }),
-  columnHelper.accessor('areaSqm', {
+  columnHelper.accessor('grossArea', {
     header: 'Area',
     cell: (info) => info.getValue() ? `${info.getValue()} m²` : '-',
   }),

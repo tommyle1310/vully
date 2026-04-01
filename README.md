@@ -1,203 +1,304 @@
-# Vully - Apartment Management Platform
+ # Vully — Apartment Management Platform
 
-> Modern, scalable apartment management platform with real-time features, AI assistance, and comprehensive billing automation.
+> Scalable apartment management with real-time updates, AI assistance, automated billing, and interactive 3D floor plans.
 
-[![License](https://img.shields.io/badge/license-Private-red.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org/)
+---
 
-## 🌟 Features
+## Overview
 
-### Core Modules
-- **🏢 Apartment Management** - Buildings, units, contracts with interactive floor plans
-- **💰 Billing System** - Automated invoice generation with tiered utility pricing
-- **🔧 Incident Tracking** - Real-time incident management with WebSocket notifications
-- **🤖 AI Assistant** - RAG-powered chatbot for building regulations and FAQs
-- **📊 Dashboard** - Real-time analytics with occupancy rates and revenue tracking
-- **👥 Multi-tenant RBAC** - Role-based access (Admin, Technician, Resident)
+Vully is a monorepo apartment management platform built for Vietnamese high-rise complexes. It handles the full lifecycle: building/unit management, tenant contracts, utility billing (tiered pricing), incident tracking, and an AI chatbot for building regulations.
 
-### Technical Highlights
-- **Real-time Updates** - Socket.IO WebSocket gateway for instant notifications
-- **Background Jobs** - BullMQ queue system for invoice generation
-- **Vector Search** - pgvector integration for AI document retrieval
-- **Type-Safe API** - Shared Zod schemas between frontend and backend
-- **Health Monitoring** - @nestjs/terminus endpoints for production readiness
-- **Performance** - TanStack Query caching, virtualized tables, lazy-loaded charts
+---
 
-## 🏗️ Tech Stack
+## Tech Stack
 
-### Backend
-| Category | Technology |
-|----------|-----------|
-| Framework | NestJS (Modular Architecture) |
-| Database | PostgreSQL 15+ with Prisma ORM |
-| Cache/Queue | Redis 7+ with BullMQ |
-| Real-time | Socket.IO WebSocket Gateway |
-| AI | Google Gemini + pgvector (RAG) |
-| Logging | Pino (structured JSON) |
-| Validation | Zod + class-validator |
-| Docs | Swagger/OpenAPI |
-| Health | @nestjs/terminus |
+| Layer | Technology |
+|-------|------------|
+| **Backend** | NestJS (modular), PostgreSQL 15+ (Prisma ORM), Redis 7+ (BullMQ), Socket.IO, Pino logging, @nestjs/terminus health checks |
+| **Frontend** | Next.js 15 (App Router), Shadcn/UI, TanStack Query + Zustand + Nuqs, React-Hook-Form + Zod, Framer Motion, Recharts, Three.js (3D viewer) |
+| **AI** | Google Gemini + LangChain.js + pgvector (RAG) |
+| **Monorepo** | pnpm workspaces + Turborepo |
+| **Infra** | Docker Compose (PostgreSQL, Redis, ClamAV, MinIO) |
 
-### Frontend
-| Category | Technology |
-|----------|-----------|
-| Framework | Next.js 15 (App Router) |
-| UI Components | Shadcn/UI (Radix UI + Tailwind) |
-| State Management | TanStack Query + Zustand + Nuqs |
-| Forms | React-Hook-Form + Zod |
-| Tables | TanStack Table (virtualized) |
-| Animations | Framer Motion |
-| Charts | Recharts |
-| Maps | Custom SVG with D3.js |
-| Styling | Tailwind CSS |
+---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
-- **Node.js** 20+ ([Download](https://nodejs.org))
-- **pnpm** 9+ (Install: `npm install -g pnpm`)
-- **Docker** & Docker Compose ([Download](https://www.docker.com/get-started))
-- **Git** ([Download](https://git-scm.com))
 
-### Installation
+- Node.js 20+, pnpm 9+, Docker & Docker Compose
+
+### Setup
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/yourusername/vully.git
-cd vully
-
-# 2. Install dependencies
+git clone https://github.com/yourusername/vully.git && cd vully
 pnpm install
-
-# 3. Start infrastructure (PostgreSQL, Redis)
-docker-compose up -d
-
-# 4. Configure environment variables
-cp .env.example .env
-# Edit .env and add your GEMINI_API_KEY (see ENVIRONMENT.md)
-
-# 5. Setup database
-pnpm db:generate  # Generate Prisma client
-pnpm db:migrate   # Run migrations
-pnpm db:seed      # (Optional) Seed with test data
-
-# 6. Start development servers
-pnpm dev
+docker-compose up -d                    # PostgreSQL + Redis
+cp .env.example .env                    # then fill in secrets
+pnpm db:generate && pnpm db:migrate    # setup database
+pnpm dev                                # start all apps
 ```
 
-### Development URLs
-- 🌐 **Frontend**: [http://localhost:3000](http://localhost:3000)
-- 🔌 **API**: [http://localhost:3001](http://localhost:3001)
-- 📚 **API Docs**: [http://localhost:3001/api/docs](http://localhost:3001/api/docs)
-- 🗄️ **Prisma Studio**: `pnpm db:studio` → [http://localhost:5555](http://localhost:5555)
+### URLs
 
-### Default Credentials
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:3000 |
+| API | http://localhost:3001 |
+| Swagger Docs | http://localhost:3001/api/docs |
+| Prisma Studio | `pnpm db:studio` → http://localhost:5555 |
+
+### Default Login
+
 ```
-Email: admin@vully.com
-Password: Admin@123
+admin@vully.com / Admin@123
 ```
-⚠️ **Change these immediately in production!**
+
+---
 
 ## Project Structure
 
 ```
-apps/
-├── api/                    # NestJS Backend
-│   └── src/
-│       ├── modules/        # Feature modules
-│       ├── common/         # Shared utilities
-│       ├── providers/      # External services
-│       ├── prisma/         # Database schema
-│       └── config/         # Environment configs
-└── web/                    # Next.js Frontend
-    └── src/
-        ├── app/            # App Router pages
-        ├── components/     # UI components
-        ├── hooks/          # Custom hooks
-        ├── stores/         # Zustand stores
-        └── lib/            # Utilities
-
-packages/
-└── shared-types/           # Shared Zod schemas
+vully/
+├── apps/
+│   ├── api/                        # NestJS backend (port 3001)
+│   │   ├── prisma/
+│   │   │   └── schema.prisma      # Database schema + migrations
+│   │   └── src/
+│   │       ├── main.ts
+│   │       ├── app.module.ts
+│   │       ├── config/             # appConfig, dbConfig, redisConfig, jwtConfig, s3Config
+│   │       ├── common/
+│   │       │   ├── decorators/     # @CurrentUser, @Roles
+│   │       │   ├── filters/        # HttpExceptionFilter (global)
+│   │       │   ├── guards/         # JwtAuthGuard, RolesGuard
+│   │       │   ├── interceptors/   # LoggingInterceptor
+│   │       │   ├── middleware/     # CorrelationIdMiddleware
+│   │       │   ├── prisma/         # PrismaService (global)
+│   │       │   └── health/         # /health, /health/ready
+│   │       └── modules/
+│   │           ├── identity/       # Auth (JWT access+refresh), users CRUD, RBAC
+│   │           ├── apartments/     # Buildings, apartments, contracts
+│   │           ├── billing/        # Invoices, meter readings, BullMQ processor, tiered pricing
+│   │           ├── incidents/      # Incident CRUD, comments, WebSocket gateway
+│   │           ├── stats/          # Dashboard analytics (Redis-cached)
+│   │           └── ai-assistant/   # RAG chatbot (Gemini + pgvector + LangChain)
+│   │
+│   └── web/                        # Next.js 15 frontend (port 3000)
+│       └── src/
+│           ├── app/
+│           │   ├── (auth)/         # /login, /register, /forgot-password, /reset-password
+│           │   └── (dashboard)/    # /dashboard, /buildings, /apartments, /incidents,
+│           │                       # /invoices, /meter-readings, /users
+│           ├── components/
+│           │   ├── ui/             # Shadcn/UI (24 components)
+│           │   ├── maps/           # SVG floor plan viewer + builder
+│           │   ├── 3d/             # Three.js building 3D viewer
+│           │   ├── dashboard/      # Chart widgets (occupancy, revenue, incidents, activity)
+│           │   └── users/          # User management dialogs
+│           ├── hooks/              # 13 custom hooks (auth, CRUD, websocket, svg-to-3d, tour)
+│           ├── stores/             # authStore, mapStore (Zustand)
+│           └── lib/                # api-client, utils, performance, web-vitals
+│
+├── packages/
+│   └── shared-types/               # Shared Zod schemas, entity types, enums, event types
+│
+├── agents/                         # AI agent definitions for Copilot
+│   ├── backend-architect.md
+│   ├── database-architect.md
+│   ├── frontend-developer.md
+│   ├── code-reviewer.md
+│   └── reference-3d-dev.md
+│
+├── openspec/                       # Spec-driven development workflow
+│   ├── AGENTS.md                   # AI instructions for using OpenSpec
+│   ├── project.md                  # Domain context
+│   ├── specs/                      # Living specifications
+│   └── changes/                    # Change proposals (proposal → implement → archive)
+│
+├── .github/
+│   ├── copilot-instructions.md     # Auto-loaded AI coding context
+│   ├── SYSTEM_PROMPT.md            # Session starter prompts
+│   └── prompts/                    # openspec-proposal, openspec-apply, openspec-archive
+│
+├── scripts/                        # DB init, migration, analysis scripts
+├── docker-compose.yml              # PostgreSQL 15, Redis 7, ClamAV, MinIO
+├── turbo.json
+└── pnpm-workspace.yaml
 ```
 
-## Available Scripts
+---
+
+## Database Schema
+
+### Models (16 total)
+
+| Model | Purpose |
+|-------|---------|
+| **User** | All users (admin, technician, resident). Fields: email, passwordHash, role, firstName, lastName, phone, profileData, isActive |
+| **RefreshToken** | JWT refresh token rotation with IP/UA tracking |
+| **PasswordResetToken** | Time-limited password reset flows |
+| **AuditLog** | Immutable audit trail (actor, action, resource, old/new values) |
+| **UserRoleAssignment** | Multi-role support (user ↔ role junction) |
+| **Permission** | Permission keys with descriptions |
+| **RolePermission** | Role ↔ permission mapping |
+| **Building** | Building/block: name, address, floorCount, svgMapData, floorHeights, amenities |
+| **Apartment** | Unit within building: unitNumber, floor, status, areaSqm, bedrooms, bathrooms, svgElementId |
+| **Contract** | Lease agreements: tenant, apartment, dates, rent, deposit |
+| **UtilityType** | Utility definitions (electricity, water, gas) with unit codes |
+| **UtilityTier** | Tiered pricing per utility per building with effective date ranges |
+| **MeterReading** | Monthly meter readings with image proof |
+| **Invoice** / **InvoiceLineItem** | Generated invoices with tier-calculated line items |
+| **BillingJob** | BullMQ job tracking for batch invoice generation |
+| **Incident** / **IncidentComment** | Maintenance requests with category, priority, status lifecycle, comments |
+| **Notification** | In-app notifications (type, resource link, read status) |
+| **Document** / **DocumentChunk** | AI knowledge base documents with pgvector embeddings |
+| **ChatQuery** | AI chat history with token usage and response time tracking |
+
+### Enums
+
+| Enum | Values |
+|------|--------|
+| `UserRole` | admin, technician, resident |
+| `ApartmentStatus` | vacant, occupied, maintenance, reserved |
+| `ContractStatus` | draft, active, expired, terminated |
+| `InvoiceStatus` | draft, pending, paid, overdue, cancelled |
+| `IncidentCategory` | plumbing, electrical, hvac, structural, appliance, pest, noise, security, other |
+| `IncidentStatus` | open, assigned, in_progress, pending_review, resolved, closed |
+| `IncidentPriority` | low, medium, high, urgent |
+| `BillingJobStatus` | pending, processing, completed, failed |
+
+---
+
+## Environment Variables
+
+```bash
+# Database
+DATABASE_URL=postgresql://vully:vully_dev_password@localhost:5432/vully_dev
+
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# JWT (generate with: openssl rand -base64 32)
+JWT_ACCESS_SECRET=<random-32-chars>
+JWT_REFRESH_SECRET=<random-32-chars-different>
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+
+# AI
+GEMINI_API_KEY=<from-google-ai-studio>
+
+# Optional
+S3_ENDPOINT=http://localhost:9000
+S3_ACCESS_KEY=minioadmin
+S3_SECRET_KEY=minioadmin
+S3_BUCKET=vully-uploads
+```
+
+---
+
+## Scripts
 
 ```bash
 # Development
-pnpm dev              # Start all apps in dev mode
+pnpm dev              # Start all apps (turbo)
 pnpm build            # Build all apps
 pnpm lint             # Lint all apps
-pnpm test             # Run tests
+pnpm test             # Run all tests
+pnpm test:cov         # Tests with coverage
 
 # Database
 pnpm db:generate      # Generate Prisma client
-pnpm db:migrate       # Run migrations
-pnpm db:push          # Push schema to DB
-pnpm db:studio        # Open Prisma Studio
+pnpm db:migrate       # Run pending migrations
+pnpm db:push          # Push schema changes (dev only)
+pnpm db:studio        # Open Prisma Studio GUI
 ```
 
-## 🔧 Configuration
+---
 
-### Environment Variables
-See [ENVIRONMENT.md](./ENVIRONMENT.md) for detailed documentation.
+## Architecture
 
-Quick setup:
-1. Copy `.env.example` to `.env`
-2. Add `GEMINI_API_KEY` from [Google AI Studio](https://aistudio.google.com)
-3. Generate JWT secrets: `openssl rand -base64 32`
+### Backend Request Flow
 
-### Database Extensions
-- `uuid-ossp` - UUID generation
-- `pgvector` - Vector similarity search
-
-## 🏛️ Architecture
-
-### Backend Patterns
-```typescript
-// Background Jobs
-@Processor('billing')
-export class BillingProcessor {
-  @Process('generate-invoice')
-  async handleGenerateInvoice(job: Job) { }
-}
-
-// WebSocket Events
-this.socketGateway.server
-  .to(`apartment:${id}`)
-  .emit('incident:updated', payload);
-
-// RBAC Guards
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('admin')
-async updateIncident() { }
+```
+Client → CorrelationIdMiddleware → JwtAuthGuard → RolesGuard
+       → LoggingInterceptor → ValidationPipe → Controller → Service
+       → Prisma/Redis/BullMQ → HttpExceptionFilter → Response
 ```
 
-### Frontend State Management
-- **Server State**: TanStack Query (API caching)
-- **Global State**: Zustand (UI preferences)
-- **URL State**: Nuqs (filters, pagination)
+### Key Patterns
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed diagrams.
+- **Background jobs**: BullMQ processors (billing invoice generation with retry + dead-letter)
+- **Real-time**: Socket.IO rooms per building/apartment/user → incident lifecycle events
+- **Caching**: Redis 5-min TTL for dashboard stats
+- **AI RAG**: Document → chunk → embed (pgvector) → similarity search → Gemini prompt
 
-## 🔐 Security & RBAC
+### Frontend Patterns
 
-| Role       | Apartments | Invoices | Incidents | Users | AI Quota |
-|------------|------------|----------|-----------|-------|----------|
-| Admin      | CRUD       | CRUD     | CRUD      | CRUD  | Unlimited|
-| Technician | Read       | Read     | Update*   | -     | 20/day   |
-| Resident   | Read*      | Read*    | Create*   | -     | 20/day   |
+- **Server Components** by default, Client Components only for interactivity
+- **TanStack Query** for all API calls (never raw fetch/useEffect)
+- **Nuqs** for URL state (filters, pagination, tabs)
+- **Zustand** for global client state (auth, map selection)
+- **Framer Motion** for page transitions and element enter/exit animations
+- **Skeleton loaders** on all async data (CLS = 0)
+- **Dynamic imports** for heavy widgets (charts, 3D viewer)
 
-\* Scoped to own resources
+### SVG / 3D Floor Plans
 
-## 🧪 Testing
+- Buildings store SVG floor plan data in `Building.svgMapData`
+- Each apartment links to its SVG element via `Apartment.svgElementId`
+- Built-in SVG Builder: drag-and-drop apartment templates, grid snapping, download/save
+- Three.js 3D viewer: extrudes SVG floor plans into 3D building model using `Building.floorHeights`
+
+---
+
+## RBAC
+
+| Role | Apartments | Invoices | Incidents | Users | AI |
+|------|-----------|----------|-----------|-------|----|
+| **Admin** | CRUD | CRUD | CRUD | CRUD | Unlimited |
+| **Technician** | Read | Read | Update* | — | 20/day |
+| **Resident** | Read* | Read* | Create* | — | 20/day |
+
+\* Scoped to own resources only
+
+Multi-role supported via `UserRoleAssignment` junction table + `Permission` / `RolePermission` tables.
+
+---
+
+## API Documentation
+
+All endpoints are auto-documented via Swagger at `/api/docs`.
+
+### Auth Flow
+- `POST /api/auth/login` → `{ accessToken, refreshToken, user }`
+- `POST /api/auth/refresh` → rotated tokens
+- `POST /api/auth/logout` → revoke refresh token
+- `GET /api/auth/me` → current user profile
+
+### Key Endpoints
+- `/api/apartments/buildings` — Building CRUD + SVG management
+- `/api/apartments` — Apartment CRUD
+- `/api/billing/invoices` — Invoice generation + payment tracking
+- `/api/billing/meter-readings` — Meter reading CRUD with image proof
+- `/api/incidents` — Incident lifecycle management (WebSocket events)
+- `/api/stats/dashboard` — Cached analytics
+- `/api/ai-assistant/chat` — RAG-powered queries
+- `/health` — Liveness check
+- `/health/ready` — Readiness check (DB + Redis)
+
+---
+
+## Testing
 
 ```bash
-pnpm test              # All unit tests
-pnpm test:cov          # With coverage
-pnpm test:e2e          # E2E tests
+pnpm test              # Unit tests (Jest)
+pnpm test:cov          # Coverage report
 ```
+
+- Unit tests for all billing logic (coverage > 70%)
+- Mock factories: `createMockUser()`, etc.
+- External services (Redis, AI) mocked in unit tests
 
 **Current Coverage:** 16.79% (Target: 70% for billing)
 
