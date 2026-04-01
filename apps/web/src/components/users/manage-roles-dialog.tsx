@@ -41,16 +41,31 @@ export function ManageRolesDialog({
   const { toast } = useToast();
   const [selectedRoles, setSelectedRoles] = useState<UserRole[]>(user.roles);
 
-  const assignRoleMutation = useMutation({
-    mutationFn: async (role: UserRole) => {
-      return apiClient.post(`/users/${user.id}/roles/${role}`);
+  // Reset selected roles when dialog opens with a new user
+  const [prevUser, setPrevUser] = useState(user);
+  if (prevUser.id !== user.id || prevUser.roles !== user.roles) {
+    setPrevUser(user);
+    setSelectedRoles(user.roles);
+  }
+
+  const saveRolesMutation = useMutation({
+    mutationFn: async (roles: { toAssign: UserRole[]; toRevoke: UserRole[] }) => {
+      const promises: Promise<unknown>[] = [];
+      for (const role of roles.toAssign) {
+        promises.push(apiClient.post(`/users/${user.id}/roles/${role}`));
+      }
+      for (const role of roles.toRevoke) {
+        promises.push(apiClient.post(`/users/${user.id}/roles/${role}/revoke`));
+      }
+      await Promise.all(promises);
     },
     onSuccess: () => {
       toast({
-        title: 'Role assigned',
-        description: 'User role has been updated successfully.',
+        title: 'Roles updated',
+        description: 'User roles have been updated successfully.',
       });
       onSuccess();
+      onOpenChange(false);
     },
     onError: (error: Error) => {
       toast({
@@ -61,29 +76,8 @@ export function ManageRolesDialog({
     },
   });
 
-  const revokeRoleMutation = useMutation({
-    mutationFn: async (role: UserRole) => {
-      return apiClient.post(`/users/${user.id}/roles/${role}/revoke`);
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Role revoked',
-        description: 'User role has been removed successfully.',
-      });
-      onSuccess();
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const handleToggleRole = async (role: UserRole, isChecked: boolean) => {
+  const handleToggleRole = (role: UserRole, isChecked: boolean) => {
     if (isChecked) {
-      // Assign role
       if (selectedRoles.length >= 3) {
         toast({
           title: 'Maximum roles reached',
@@ -93,9 +87,7 @@ export function ManageRolesDialog({
         return;
       }
       setSelectedRoles([...selectedRoles, role]);
-      await assignRoleMutation.mutateAsync(role);
     } else {
-      // Revoke role
       if (selectedRoles.length <= 1) {
         toast({
           title: 'Cannot remove role',
@@ -105,12 +97,26 @@ export function ManageRolesDialog({
         return;
       }
       setSelectedRoles(selectedRoles.filter((r) => r !== role));
-      await revokeRoleMutation.mutateAsync(role);
     }
   };
 
+  const handleSave = () => {
+    const toAssign = selectedRoles.filter((r) => !user.roles.includes(r));
+    const toRevoke = user.roles.filter((r) => !selectedRoles.includes(r));
+
+    if (toAssign.length === 0 && toRevoke.length === 0) {
+      onOpenChange(false);
+      return;
+    }
+
+    saveRolesMutation.mutate({ toAssign, toRevoke });
+  };
+
   const allRoles = Object.values(UserRole);
-  const isLoading = assignRoleMutation.isPending || revokeRoleMutation.isPending;
+  const isLoading = saveRolesMutation.isPending;
+  const hasChanges =
+    selectedRoles.length !== user.roles.length ||
+    selectedRoles.some((r) => !user.roles.includes(r));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -188,7 +194,11 @@ export function ManageRolesDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
-            Close
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={isLoading || !hasChanges}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Changes
           </Button>
         </DialogFooter>
       </DialogContent>

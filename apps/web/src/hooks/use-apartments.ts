@@ -4,7 +4,7 @@ import { apiClient } from '@/lib/api-client';
 export interface Apartment {
   id: string;
   buildingId: string;
-  unitNumber: string;
+  unit_number: string;
   floorIndex: number;
   status: 'vacant' | 'occupied' | 'maintenance' | 'reserved';
 
@@ -79,7 +79,7 @@ export interface Apartment {
     name: string;
     address: string;
   };
-  createdAt: string;
+  created_at: string;
   updatedAt: string;
 }
 
@@ -106,7 +106,7 @@ interface ApartmentResponse {
 
 export interface CreateApartmentInput {
   buildingId: string;
-  unitNumber: string;
+  unit_number: string;
   floorIndex: number;
   apartmentCode?: string;
   floorLabel?: string;
@@ -124,9 +124,9 @@ export interface CreateApartmentInput {
 }
 
 export interface UpdateApartmentInput {
-  // Spatial (building-managed: buildingId, unitNumber, floorIndex read-only in edit)
+  // Spatial (building-managed: buildingId, unit_number, floorIndex read-only in edit)
   buildingId?: string;
-  unitNumber?: string;
+  unit_number?: string;
   floorIndex?: number;
   apartmentCode?: string;
   floorLabel?: string;
@@ -271,7 +271,7 @@ export interface Building {
   city: string;
   floorCount: number;
   isActive: boolean;
-  createdAt: string;
+  created_at: string;
   updatedAt: string;
 }
 

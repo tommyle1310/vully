@@ -11,7 +11,7 @@ export interface Building {
   svgMapData?: string;
   amenities: string[];
   isActive: boolean;
-  createdAt: string;
+  created_at: string;
   updatedAt: string;
   apartmentCount?: number;
 }

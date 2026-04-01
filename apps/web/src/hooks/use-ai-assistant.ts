@@ -28,7 +28,7 @@ export interface ChatHistory {
   id: string;
   query: string;
   response: string;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface QueryQuota {

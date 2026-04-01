@@ -19,7 +19,7 @@ export class UtilityTypesService {
 
   async create(dto: CreateUtilityTypeDto): Promise<UtilityTypeResponseDto> {
     // Check for duplicate code
-    const existing = await this.prisma.utilityType.findUnique({
+    const existing = await this.prisma.utility_types.findUnique({
       where: { code: dto.code },
     });
 
@@ -27,7 +27,7 @@ export class UtilityTypesService {
       throw new ConflictException(`Utility type with code "${dto.code}" already exists`);
     }
 
-    const utilityType = await this.prisma.utilityType.create({
+    const utilityType = await this.prisma.utility_types.create({
       data: {
         code: dto.code.toLowerCase(),
         name: dto.name,
@@ -39,7 +39,7 @@ export class UtilityTypesService {
   }
 
   async findAll(): Promise<UtilityTypeResponseDto[]> {
-    const utilityTypes = await this.prisma.utilityType.findMany({
+    const utilityTypes = await this.prisma.utility_types.findMany({
       orderBy: { code: 'asc' },
     });
 
@@ -47,7 +47,7 @@ export class UtilityTypesService {
   }
 
   async findOne(id: string): Promise<UtilityTypeResponseDto> {
-    const utilityType = await this.prisma.utilityType.findUnique({
+    const utilityType = await this.prisma.utility_types.findUnique({
       where: { id },
     });
 
@@ -59,7 +59,7 @@ export class UtilityTypesService {
   }
 
   async findByCode(code: string): Promise<UtilityTypeResponseDto> {
-    const utilityType = await this.prisma.utilityType.findUnique({
+    const utilityType = await this.prisma.utility_types.findUnique({
       where: { code: code.toLowerCase() },
     });
 
@@ -71,7 +71,7 @@ export class UtilityTypesService {
   }
 
   async update(id: string, dto: UpdateUtilityTypeDto): Promise<UtilityTypeResponseDto> {
-    const utilityType = await this.prisma.utilityType.findUnique({
+    const utilityType = await this.prisma.utility_types.findUnique({
       where: { id },
     });
 
@@ -79,12 +79,12 @@ export class UtilityTypesService {
       throw new NotFoundException('Utility type not found');
     }
 
-    const updated = await this.prisma.utilityType.update({
+    const updated = await this.prisma.utility_types.update({
       where: { id },
       data: {
         name: dto.name,
         unit: dto.unit,
-        isActive: dto.isActive,
+        is_active: dto.isActive,
       },
     });
 
@@ -101,13 +101,13 @@ export class UtilityTypesService {
     const results: UtilityTypeResponseDto[] = [];
 
     for (const def of defaults) {
-      const existing = await this.prisma.utilityType.findUnique({
+      const existing = await this.prisma.utility_types.findUnique({
         where: { code: def.code },
       });
 
       if (!existing) {
-        const created = await this.prisma.utilityType.create({
-          data: def,
+        const created = await this.prisma.utility_types.create({
+          data: { ...def },
         });
         results.push(this.toResponseDto(created));
         this.logger.log(`Created default utility type: ${def.code}`);
@@ -125,7 +125,7 @@ export class UtilityTypesService {
       code: utilityType.code,
       name: utilityType.name,
       unit: utilityType.unit,
-      isActive: utilityType.isActive,
+      isActive: utilityType.is_active,
     };
   }
 }

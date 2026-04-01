@@ -39,7 +39,7 @@ export const NotificationPayloadSchema = z.object({
   message: z.string(),
   resourceType: z.string().optional(),
   resourceId: z.string().uuid().optional(),
-  createdAt: z.string().datetime(),
+  created_at: z.string().datetime(),
 });
 export type NotificationPayload = z.infer<typeof NotificationPayloadSchema>;
 
@@ -79,8 +79,8 @@ export type WsEventName = (typeof WS_EVENTS)[keyof typeof WS_EVENTS];
 // =============================================================================
 
 export const WS_ROOMS = {
-  building: (buildingId: string) => `building:${buildingId}`,
-  apartment: (apartmentId: string) => `apartment:${apartmentId}`,
+  buildings: (buildingId: string) => `buildings:${buildingId}`,
+  apartments: (apartmentId: string) => `apartments:${apartmentId}`,
   user: (userId: string) => `user:${userId}`,
   admin: () => 'role:admin',
   technician: () => 'role:technician',

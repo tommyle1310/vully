@@ -95,7 +95,7 @@ function formatDate(dateString: string): string {
 
 function getFullName(user?: { firstName: string; lastName: string }): string {
   if (!user) return '-';
-  return `${user.firstName} ${user.lastName}`;
+  return `${user.first_name} ${user.last_name}`;
 }
 
 const columns = [
@@ -120,9 +120,9 @@ const columns = [
       if (!apartment) return '-';
       return (
         <div>
-          <span className="font-medium">{apartment.unitNumber}</span>
+          <span className="font-medium">{apartments.unit_number}</span>
           <span className="block text-xs text-muted-foreground">
-            {apartment.building?.name || ''}
+            {apartments.building?.name || ''}
           </span>
         </div>
       );
@@ -158,7 +158,7 @@ const columns = [
     header: 'Reported By',
     cell: (info) => getFullName(info.getValue()),
   }),
-  columnHelper.accessor('createdAt', {
+  columnHelper.accessor('created_at', {
     header: 'Created',
     cell: (info) => formatDate(info.getValue()),
   }),

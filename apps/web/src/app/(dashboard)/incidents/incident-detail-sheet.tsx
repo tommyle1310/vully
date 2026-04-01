@@ -94,7 +94,7 @@ function formatDate(dateString: string): string {
 
 function getFullName(user?: { firstName: string; lastName: string }): string {
   if (!user) return 'Unknown';
-  return `${user.firstName} ${user.lastName}`;
+  return `${user.first_name} ${user.last_name}`;
 }
 
 export function IncidentDetailSheet({
@@ -227,16 +227,16 @@ export function IncidentDetailSheet({
               <div className="flex items-center gap-2 text-muted-foreground">
                 <MapPin className="h-4 w-4" />
                 <span>
-                  {currentIncident?.apartment?.unitNumber ?? '-'}
+                  {currentIncident?.apartment?.unit_number ?? '-'}
                   {currentIncident?.apartment?.building?.name &&
-                    ` - ${currentIncident.apartment.building.name}`}
+                    ` - ${currentIncident.apartments.building.name}`}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Calendar className="h-4 w-4" />
                 <span>
-                  {currentIncident?.createdAt
-                    ? formatDate(currentIncident.createdAt)
+                  {currentIncident?.created_at
+                    ? formatDate(currentIncident.created_at)
                     : '-'}
                 </span>
               </div>
@@ -332,7 +332,7 @@ export function IncidentDetailSheet({
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className={`p-3 rounded-lg border ${
-                        comment.isInternal
+                        comment.is_internal
                           ? 'bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800'
                           : 'bg-muted/50'
                       }`}
@@ -347,11 +347,11 @@ export function IncidentDetailSheet({
                           )}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {formatDate(comment.createdAt)}
+                          {formatDate(comment.created_at)}
                         </span>
                       </div>
                       <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
-                      {comment.isInternal && (
+                      {comment.is_internal && (
                         <Badge variant="outline" className="mt-2 text-xs">
                           Internal Note
                         </Badge>

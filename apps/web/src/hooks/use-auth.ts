@@ -27,7 +27,7 @@ interface RegisterResponse {
     lastName: string;
     role: string;
     isActive: boolean;
-    createdAt: string;
+    created_at: string;
     updatedAt: string;
   };
 }

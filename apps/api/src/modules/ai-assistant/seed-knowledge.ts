@@ -169,7 +169,7 @@ A: Log in to the Vully portal, go to "Incidents", and click "New Incident". Prov
 A: Monday to Friday: 8:00 AM – 5:30 PM. Saturday: 8:00 AM – 12:00 PM. Closed on Sundays and public holidays. The security desk is available 24/7.
 
 **Q: How do I get a parking space?**
-A: One parking space is assigned per apartment. Contact management if you need an additional space (subject to availability, extra fee applies).
+A: One parking space is assigned per apartments. Contact management if you need an additional space (subject to availability, extra fee applies).
 
 **Q: Can I have a pet in my apartment?**
 A: Yes, with prior written approval. Submit a pet registration form at the management office. Dogs and cats are allowed; exotic animals are not. A pet deposit may be required.

@@ -76,7 +76,7 @@ export function BuildingFormDialog({
       city: '',
       floorCount: 1,
       amenities: [],
-      isActive: true,
+      is_active: true,
     },
   });
 
@@ -90,7 +90,7 @@ export function BuildingFormDialog({
           city: building.city,
           floorCount: building.floorCount,
           amenities: building.amenities || [],
-          isActive: building.isActive,
+          isActive: building.is_active,
         });
       } else {
         form.reset({
@@ -99,7 +99,7 @@ export function BuildingFormDialog({
           city: '',
           floorCount: 1,
           amenities: [],
-          isActive: true,
+          is_active: true,
         });
       }
     }
@@ -129,7 +129,7 @@ export function BuildingFormDialog({
           city: values.city,
           floorCount: values.floorCount,
           amenities: values.amenities,
-          isActive: values.isActive,
+          isActive: values.is_active,
         };
 
         await updateBuilding.mutateAsync({

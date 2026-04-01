@@ -14,7 +14,7 @@ The system SHALL provide real-time notifications via WebSocket connections.
 #### Scenario: Room subscription
 - **GIVEN** a connected user
 - **WHEN** authenticated as Resident of apartment 101 in building A
-- **THEN** user is subscribed to rooms: `building:A`, `apartment:101`, `user:{userId}`
+- **THEN** user is subscribed to rooms: `buildings:A`, `apartments:101`, `user:{userId}`
 
 ---
 

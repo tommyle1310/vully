@@ -44,7 +44,7 @@ interface ApartmentDetailSheetProps {
   apartment: Apartment | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onEdit?: (apartment: Apartment) => void;
+  onEdit?: (apartments: Apartment) => void;
 }
 
 const statusVariants: Record<string, 'default' | 'success' | 'warning' | 'destructive'> = {
@@ -146,7 +146,7 @@ export function ApartmentDetailSheet({
       });
       toast({
         title: 'Status updated',
-        description: `Apartment ${apartment.unitNumber} is now ${newStatus.toLowerCase()}`,
+        description: `Apartment ${apartment.unit_number} is now ${newStatus.toLowerCase()}`,
       });
     } catch (error) {
       toast({
@@ -165,7 +165,7 @@ export function ApartmentDetailSheet({
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Building className="h-5 w-5" />
-            {apartment.apartmentCode || `Unit ${apartment.unitNumber}`}
+            {apartment.apartmentCode || `Unit ${apartment.unit_number}`}
           </SheetTitle>
           <SheetDescription>
             {apartment.building?.name || 'Building'} · Floor {apartment.floorLabel || apartment.floorIndex}
@@ -381,7 +381,7 @@ export function ApartmentDetailSheet({
 
           {/* Metadata */}
           <div className="text-xs text-muted-foreground pt-4 border-t space-y-1">
-            <p>Created: {new Date(apartment.createdAt).toLocaleDateString()}</p>
+            <p>Created: {new Date(apartment.created_at).toLocaleDateString()}</p>
             <p>Updated: {new Date(apartment.updatedAt).toLocaleDateString()}</p>
           </div>
         </motion.div>

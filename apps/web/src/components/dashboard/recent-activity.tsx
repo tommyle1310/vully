@@ -11,13 +11,13 @@ import { formatDistanceToNow } from 'date-fns';
 const TYPE_ICONS = {
   incident: AlertTriangle,
   invoice: FileText,
-  contract: FileSignature,
+  contracts: FileSignature,
 };
 
 const TYPE_COLORS = {
   incident: 'text-red-500',
   invoice: 'text-blue-500',
-  contract: 'text-green-500',
+  contracts: 'text-green-500',
 };
 
 const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {

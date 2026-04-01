@@ -52,7 +52,7 @@ export interface BillingJob {
   progress: number;
   startedAt?: string;
   completedAt?: string;
-  createdAt: string;
+  created_at: string;
   errorLog?: unknown;
 }
 

@@ -180,7 +180,7 @@ export default function MeterReadingsPage() {
                         <SelectContent>
                           {apartments.map((apt) => (
                             <SelectItem key={apt.id} value={apt.id}>
-                              {apt.building?.name} - Unit {apt.unitNumber}
+                              {apt.building?.name} - Unit {apt.unit_number}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -368,7 +368,7 @@ export default function MeterReadingsPage() {
                   <SelectItem value="all">All Apartments</SelectItem>
                   {apartments.map((apt) => (
                     <SelectItem key={apt.id} value={apt.id}>
-                      {apt.building?.name} - Unit {apt.unitNumber}
+                      {apt.building?.name} - Unit {apt.unit_number}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -461,10 +461,10 @@ export default function MeterReadingsPage() {
                         {reading.apartment ? (
                           <div>
                             <div className="font-medium">
-                              Unit {reading.apartment.unitNumber}
+                              Unit {reading.apartments.unit_number}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {reading.apartment.building?.name}
+                              {reading.apartments.building?.name}
                             </div>
                           </div>
                         ) : (
@@ -503,7 +503,7 @@ export default function MeterReadingsPage() {
                       <TableCell>
                         {reading.recordedBy ? (
                           <span className="text-sm">
-                            {reading.recordedBy.firstName} {reading.recordedBy.lastName}
+                            {reading.recordedBy.first_name} {reading.recordedBy.last_name}
                           </span>
                         ) : (
                           <span className="text-muted-foreground text-sm">System</span>

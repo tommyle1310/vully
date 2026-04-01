@@ -19,7 +19,7 @@ export interface Incident {
   apartmentId: string;
   apartment?: {
     id: string;
-    unitNumber: string;
+    unit_number: string;
     building?: {
       id: string;
       name: string;
@@ -45,9 +45,9 @@ export interface Incident {
   title: string;
   description: string;
   imageUrls: string[];
-  resolvedAt?: string;
+  resolved_at?: string;
   resolutionNotes?: string;
-  createdAt: string;
+  created_at: string;
   updatedAt: string;
   commentsCount?: number;
 }
@@ -64,7 +64,7 @@ export interface IncidentComment {
   };
   content: string;
   isInternal: boolean;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface IncidentFilters {

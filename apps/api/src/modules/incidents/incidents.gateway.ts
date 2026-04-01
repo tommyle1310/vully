@@ -106,8 +106,8 @@ export class IncidentsGateway implements OnGatewayConnection, OnGatewayDisconnec
 
     // Basic validation: only allow known room patterns
     const validPatterns = [
-      /^building:[a-f0-9-]{36}$/,
-      /^apartment:[a-f0-9-]{36}$/,
+      /^buildings:[a-f0-9-]{36}$/,
+      /^apartments:[a-f0-9-]{36}$/,
       /^user:[a-f0-9-]{36}$/,
       /^role:(admin|technician)$/,
     ];
@@ -126,8 +126,8 @@ export class IncidentsGateway implements OnGatewayConnection, OnGatewayDisconnec
     // TODO: Add proper authorization checks:
     // - user:xxx should only be joinable by that user
     // - role:admin should only be joinable by admins
-    // - apartment:xxx should be joinable by residents/assigned technicians
-    // - building:xxx should be joinable by admins/technicians for that building
+    // - apartments:xxx should be joinable by residents/assigned technicians
+    // - buildings:xxx should be joinable by admins/technicians for that building
 
     client.join(room);
 
@@ -164,7 +164,7 @@ export class IncidentsGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   emitIncidentCreated(payload: IncidentEventPayload) {
     // Emit to building room and admin room
-    this.server.to(WS_ROOMS.building(payload.buildingId)).emit(WS_EVENTS.INCIDENT_CREATED, payload);
+    this.server.to(WS_ROOMS.buildings(payload.buildingId)).emit(WS_EVENTS.INCIDENT_CREATED, payload);
     this.server.to(WS_ROOMS.admin()).emit(WS_EVENTS.INCIDENT_CREATED, payload);
 
     this.logger.log({
@@ -176,8 +176,8 @@ export class IncidentsGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   emitIncidentUpdated(payload: IncidentEventPayload) {
     // Emit to building room, apartment room, and admin room
-    this.server.to(WS_ROOMS.building(payload.buildingId)).emit(WS_EVENTS.INCIDENT_UPDATED, payload);
-    this.server.to(WS_ROOMS.apartment(payload.apartmentId)).emit(WS_EVENTS.INCIDENT_UPDATED, payload);
+    this.server.to(WS_ROOMS.buildings(payload.buildingId)).emit(WS_EVENTS.INCIDENT_UPDATED, payload);
+    this.server.to(WS_ROOMS.apartments(payload.apartmentId)).emit(WS_EVENTS.INCIDENT_UPDATED, payload);
     this.server.to(WS_ROOMS.admin()).emit(WS_EVENTS.INCIDENT_UPDATED, payload);
 
     // If assigned to a technician, emit to their personal room
@@ -210,8 +210,8 @@ export class IncidentsGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   emitIncidentResolved(payload: IncidentEventPayload) {
     // Emit to relevant rooms
-    this.server.to(WS_ROOMS.building(payload.buildingId)).emit(WS_EVENTS.INCIDENT_RESOLVED, payload);
-    this.server.to(WS_ROOMS.apartment(payload.apartmentId)).emit(WS_EVENTS.INCIDENT_RESOLVED, payload);
+    this.server.to(WS_ROOMS.buildings(payload.buildingId)).emit(WS_EVENTS.INCIDENT_RESOLVED, payload);
+    this.server.to(WS_ROOMS.apartments(payload.apartmentId)).emit(WS_EVENTS.INCIDENT_RESOLVED, payload);
     this.server.to(WS_ROOMS.admin()).emit(WS_EVENTS.INCIDENT_RESOLVED, payload);
 
     if (payload.assignedTo) {

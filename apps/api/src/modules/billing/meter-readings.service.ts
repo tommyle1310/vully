@@ -26,9 +26,9 @@ export class MeterReadingsService {
     actorRole: string,
   ): Promise<MeterReadingResponseDto> {
     // Verify apartment exists
-    const apartment = await this.prisma.apartment.findUnique({
+    const apartment = await this.prisma.apartments.findUnique({
       where: { id: dto.apartmentId },
-      include: { building: true },
+      include: { buildings: true },
     });
 
     if (!apartment) {
@@ -36,7 +36,7 @@ export class MeterReadingsService {
     }
 
     // Verify utility type exists
-    const utilityType = await this.prisma.utilityType.findUnique({
+    const utilityType = await this.prisma.utility_types.findUnique({
       where: { id: dto.utilityTypeId },
     });
 
@@ -46,10 +46,10 @@ export class MeterReadingsService {
 
     // Check if resident has access to this apartment
     if (actorRole === 'resident') {
-      const contract = await this.prisma.contract.findFirst({
+      const contract = await this.prisma.contracts.findFirst({
         where: {
-          apartmentId: dto.apartmentId,
-          tenantId: actorId,
+          apartment_id: dto.apartmentId,
+          tenant_id: actorId,
           status: 'active',
         },
       });
@@ -60,11 +60,11 @@ export class MeterReadingsService {
     }
 
     // Check for duplicate reading
-    const existing = await this.prisma.meterReading.findFirst({
+    const existing = await this.prisma.meter_readings.findFirst({
       where: {
-        apartmentId: dto.apartmentId,
-        utilityTypeId: dto.utilityTypeId,
-        billingPeriod: dto.billingPeriod,
+        apartment_id: dto.apartmentId,
+        utility_type_id: dto.utilityTypeId,
+        billing_period: dto.billingPeriod,
       },
     });
 
@@ -78,35 +78,35 @@ export class MeterReadingsService {
     // Get previous reading to auto-fill previousValue
     let previousValue = dto.previousValue;
     if (previousValue === undefined) {
-      const lastReading = await this.prisma.meterReading.findFirst({
+      const lastReading = await this.prisma.meter_readings.findFirst({
         where: {
-          apartmentId: dto.apartmentId,
-          utilityTypeId: dto.utilityTypeId,
-          billingPeriod: { lt: dto.billingPeriod },
+          apartment_id: dto.apartmentId,
+          utility_type_id: dto.utilityTypeId,
+          billing_period: { lt: dto.billingPeriod },
         },
-        orderBy: { billingPeriod: 'desc' },
+        orderBy: { billing_period: 'desc' },
       });
 
-      previousValue = lastReading ? Number(lastReading.currentValue) : undefined;
+      previousValue = lastReading ? Number(lastReading.current_value) : undefined;
     }
 
-    const reading = await this.prisma.meterReading.create({
+    const reading = await this.prisma.meter_readings.create({
       data: {
-        apartmentId: dto.apartmentId,
-        utilityTypeId: dto.utilityTypeId,
-        currentValue: dto.currentValue,
-        previousValue,
-        billingPeriod: dto.billingPeriod,
-        readingDate: new Date(dto.readingDate),
-        recordedById: actorId,
-        imageProofUrl: dto.imageProofUrl,
+        apartment_id: dto.apartmentId,
+        utility_type_id: dto.utilityTypeId,
+        current_value: dto.currentValue,
+        previous_value: previousValue,
+        billing_period: dto.billingPeriod,
+        reading_date: new Date(dto.readingDate),
+        recorded_by: actorId,
+        image_proof_url: dto.imageProofUrl,
       },
       include: {
-        apartment: {
-          include: { building: true },
+        apartments: {
+          include: { buildings: true },
         },
-        utilityType: true,
-        recordedBy: true,
+        utility_types: true,
+        users: true,
       },
     });
 
@@ -132,54 +132,54 @@ export class MeterReadingsService {
   ): Promise<{ data: MeterReadingResponseDto[]; total: number }> {
     const skip = (page - 1) * limit;
 
-    const where: Prisma.MeterReadingWhereInput = {};
+    const where: Prisma.meter_readingsWhereInput = {};
 
     if (filters.apartmentId) {
-      where.apartmentId = filters.apartmentId;
+      where.apartment_id = filters.apartmentId;
     }
 
     if (filters.utilityTypeId) {
-      where.utilityTypeId = filters.utilityTypeId;
+      where.utility_type_id = filters.utilityTypeId;
     }
 
     if (filters.billingPeriod) {
-      where.billingPeriod = filters.billingPeriod;
+      where.billing_period = filters.billingPeriod;
     }
 
     // Residents can only see readings for their apartments
     if (userRole === 'resident' && userId) {
-      const contracts = await this.prisma.contract.findMany({
+      const contracts = await this.prisma.contracts.findMany({
         where: {
-          tenantId: userId,
+          tenant_id: userId,
           status: 'active',
         },
-        select: { apartmentId: true },
+        select: { apartment_id: true },
       });
 
-      where.apartmentId = {
-        in: contracts.map((c) => c.apartmentId),
+      where.apartment_id = {
+        in: contracts.map((c: any) => c.apartment_id),
       };
     }
 
     const [readings, total] = await Promise.all([
-      this.prisma.meterReading.findMany({
+      this.prisma.meter_readings.findMany({
         where,
         skip,
         take: limit,
-        orderBy: [{ billingPeriod: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [{ billing_period: 'desc' }, { created_at: 'desc' }],
         include: {
-          apartment: {
-            include: { building: true },
+          apartments: {
+            include: { buildings: true },
           },
-          utilityType: true,
-          recordedBy: true,
+          utility_types: true,
+          users: true,
         },
       }),
-      this.prisma.meterReading.count({ where }),
+      this.prisma.meter_readings.count({ where }),
     ]);
 
     return {
-      data: readings.map(this.toResponseDto),
+      data: readings.map((r: any) => this.toResponseDto(r)),
       total,
     };
   }
@@ -189,14 +189,14 @@ export class MeterReadingsService {
     userId?: string,
     userRole?: string,
   ): Promise<MeterReadingResponseDto> {
-    const reading = await this.prisma.meterReading.findUnique({
+    const reading = await this.prisma.meter_readings.findUnique({
       where: { id },
       include: {
-        apartment: {
-          include: { building: true },
+        apartments: {
+          include: { buildings: true },
         },
-        utilityType: true,
-        recordedBy: true,
+        utility_types: true,
+        users: true,
       },
     });
 
@@ -206,10 +206,10 @@ export class MeterReadingsService {
 
     // Check access for residents
     if (userRole === 'resident' && userId) {
-      const contract = await this.prisma.contract.findFirst({
+      const contract = await this.prisma.contracts.findFirst({
         where: {
-          apartmentId: reading.apartmentId,
-          tenantId: userId,
+          apartment_id: reading.apartment_id,
+          tenant_id: userId,
           status: 'active',
         },
       });
@@ -227,10 +227,10 @@ export class MeterReadingsService {
     dto: UpdateMeterReadingDto,
     actorId: string,
   ): Promise<MeterReadingResponseDto> {
-    const reading = await this.prisma.meterReading.findUnique({
+    const reading = await this.prisma.meter_readings.findUnique({
       where: { id },
       include: {
-        lineItems: true, // Check if already used in an invoice
+        invoice_line_items: true, // Check if already used in an invoice
       },
     });
 
@@ -239,35 +239,35 @@ export class MeterReadingsService {
     }
 
     // Check if reading is already used in an invoice
-    if (reading.lineItems && reading.lineItems.length > 0) {
+    if (reading.invoice_line_items && reading.invoice_line_items.length > 0) {
       throw new ConflictException(
         'Cannot update meter reading that is already used in an invoice',
       );
     }
 
-    const updateData: Prisma.MeterReadingUpdateInput = {};
+    const updateData: Prisma.meter_readingsUpdateInput = {};
 
     if (dto.currentValue !== undefined) {
-      updateData.currentValue = dto.currentValue;
+      updateData.current_value = dto.currentValue;
     }
 
     if (dto.readingDate) {
-      updateData.readingDate = new Date(dto.readingDate);
+      updateData.reading_date = new Date(dto.readingDate);
     }
 
     if (dto.imageProofUrl !== undefined) {
-      updateData.imageProofUrl = dto.imageProofUrl;
+      updateData.image_proof_url = dto.imageProofUrl;
     }
 
-    const updated = await this.prisma.meterReading.update({
+    const updated = await this.prisma.meter_readings.update({
       where: { id },
       data: updateData,
       include: {
-        apartment: {
-          include: { building: true },
+        apartments: {
+          include: { buildings: true },
         },
-        utilityType: true,
-        recordedBy: true,
+        utility_types: true,
+        users: true,
       },
     });
 
@@ -282,10 +282,10 @@ export class MeterReadingsService {
   }
 
   async delete(id: string, actorId: string): Promise<void> {
-    const reading = await this.prisma.meterReading.findUnique({
+    const reading = await this.prisma.meter_readings.findUnique({
       where: { id },
       include: {
-        lineItems: true,
+        invoice_line_items: true,
       },
     });
 
@@ -293,13 +293,13 @@ export class MeterReadingsService {
       throw new NotFoundException('Meter reading not found');
     }
 
-    if (reading.lineItems && reading.lineItems.length > 0) {
+    if (reading.invoice_line_items && reading.invoice_line_items.length > 0) {
       throw new ConflictException(
         'Cannot delete meter reading that is already used in an invoice',
       );
     }
 
-    await this.prisma.meterReading.delete({ where: { id } });
+    await this.prisma.meter_readings.delete({ where: { id } });
 
     this.logger.log({
       event: 'meter_reading_deleted',
@@ -309,25 +309,25 @@ export class MeterReadingsService {
   }
 
   async getLatestReadings(apartmentId: string): Promise<MeterReadingResponseDto[]> {
-    const utilityTypes = await this.prisma.utilityType.findMany({
-      where: { isActive: true },
+    const utilityTypes = await this.prisma.utility_types.findMany({
+      where: { is_active: true },
     });
 
     const readings: MeterReadingResponseDto[] = [];
 
     for (const utilityType of utilityTypes) {
-      const latest = await this.prisma.meterReading.findFirst({
+      const latest = await this.prisma.meter_readings.findFirst({
         where: {
-          apartmentId,
-          utilityTypeId: utilityType.id,
+          apartment_id: apartmentId,
+          utility_type_id: utilityType.id,
         },
-        orderBy: { billingPeriod: 'desc' },
+        orderBy: { billing_period: 'desc' },
         include: {
-          apartment: {
-            include: { building: true },
+          apartments: {
+            include: { buildings: true },
           },
-          utilityType: true,
-          recordedBy: true,
+          utility_types: true,
+          users: true,
         },
       });
 
@@ -340,46 +340,46 @@ export class MeterReadingsService {
   }
 
   private toResponseDto(reading: any): MeterReadingResponseDto {
-    const currentValue = Number(reading.currentValue);
-    const previousValue = reading.previousValue
-      ? Number(reading.previousValue)
+    const currentValue = Number(reading.current_value);
+    const previousValue = reading.previous_value
+      ? Number(reading.previous_value)
       : undefined;
 
     return {
       id: reading.id,
-      apartmentId: reading.apartmentId,
-      utilityTypeId: reading.utilityTypeId,
+      apartmentId: reading.apartment_id,
+      utilityTypeId: reading.utility_type_id,
       currentValue,
       previousValue,
       usage: previousValue !== undefined ? currentValue - previousValue : currentValue,
-      billingPeriod: reading.billingPeriod,
-      readingDate: reading.readingDate,
-      recordedById: reading.recordedById,
-      imageProofUrl: reading.imageProofUrl,
-      createdAt: reading.createdAt,
-      apartment: reading.apartment
+      billingPeriod: reading.billing_period,
+      readingDate: reading.reading_date,
+      recordedById: reading.recorded_by_id,
+      imageProofUrl: reading.image_proof_url,
+      created_at: reading.created_at,
+      apartment: reading.apartments
         ? {
-            id: reading.apartment.id,
-            unitNumber: reading.apartment.unitNumber,
-            building: {
-              id: reading.apartment.building.id,
-              name: reading.apartment.building.name,
+            id: reading.apartments.id,
+            unit_number: reading.apartments.unit_number,
+            buildings: {
+              id: reading.apartments.buildings.id,
+              name: reading.apartments.buildings.name,
             },
           }
         : undefined,
-      utilityType: reading.utilityType
+      utilityType: reading.utility_types
         ? {
-            id: reading.utilityType.id,
-            code: reading.utilityType.code,
-            name: reading.utilityType.name,
-            unit: reading.utilityType.unit,
+            id: reading.utility_types.id,
+            code: reading.utility_types.code,
+            name: reading.utility_types.name,
+            unit: reading.utility_types.unit,
           }
         : undefined,
-      recordedBy: reading.recordedBy
+      recordedBy: reading.users
         ? {
-            id: reading.recordedBy.id,
-            firstName: reading.recordedBy.firstName,
-            lastName: reading.recordedBy.lastName,
+            id: reading.users.id,
+            firstName: reading.users.first_name,
+            lastName: reading.users.last_name,
           }
         : undefined,
     };

@@ -97,7 +97,7 @@ export class UserResponseDto {
   isActive: boolean;
 
   @ApiProperty()
-  createdAt: Date;
+  created_at: Date;
 
   @ApiProperty()
   updatedAt: Date;

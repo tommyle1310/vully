@@ -26,10 +26,10 @@ import {
 } from '@/components/ui/sheet';
 
 interface BuildingDetailSheetProps {
-  building: Building | null;
+  buildings: Building | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onEdit: (building: Building) => void;
+  onEdit: (buildings: Building) => void;
 }
 
 function formatDate(dateString: string): string {
@@ -79,8 +79,8 @@ export function BuildingDetailSheet({
           >
             {/* Status */}
             <div>
-              <Badge variant={building.isActive ? 'success' : 'secondary'}>
-                {building.isActive ? 'Active' : 'Inactive'}
+              <Badge variant={building.is_active ? 'success' : 'secondary'}>
+                {building.is_active ? 'Active' : 'Inactive'}
               </Badge>
             </div>
 
@@ -153,7 +153,7 @@ export function BuildingDetailSheet({
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Calendar className="h-3 w-3" />
-                  <span>Created: {formatDate(building.createdAt)}</span>
+                  <span>Created: {formatDate(building.created_at)}</span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Calendar className="h-3 w-3" />

@@ -24,8 +24,8 @@ describe('AuthService', () => {
     lastName: 'User',
     phone: null,
     profileData: {},
-    isActive: true,
-    createdAt: new Date(),
+    is_active: true,
+    created_at: new Date(),
     updatedAt: new Date(),
   };
 
@@ -37,7 +37,7 @@ describe('AuthService', () => {
     ipAddress: '127.0.0.1',
     userAgent: 'jest',
     isRevoked: false,
-    createdAt: new Date(),
+    created_at: new Date(),
     user: mockUser,
   };
 

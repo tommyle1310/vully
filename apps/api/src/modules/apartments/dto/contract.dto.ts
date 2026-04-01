@@ -21,7 +21,7 @@ export class CreateContractDto {
 
   @ApiProperty({ example: '2024-01-01', description: 'Contract start date' })
   @IsDateString()
-  startDate: string;
+  start_date: string;
 
   @ApiPropertyOptional({ example: '2025-01-01', description: 'Contract end date' })
   @IsOptional()
@@ -75,7 +75,7 @@ export class UpdateContractDto {
 export class TerminateContractDto {
   @ApiProperty({ example: '2024-06-30', description: 'Contract termination date' })
   @IsDateString()
-  endDate: string;
+  end_date: string;
 
   @ApiPropertyOptional({ description: 'Reason for termination' })
   @IsOptional()
@@ -97,7 +97,7 @@ export class ContractResponseDto {
   status: string;
 
   @ApiProperty()
-  startDate: Date;
+  start_date: Date;
 
   @ApiPropertyOptional()
   endDate?: Date;
@@ -115,7 +115,7 @@ export class ContractResponseDto {
   termsNotes?: string;
 
   @ApiProperty()
-  createdAt: Date;
+  created_at: Date;
 
   @ApiProperty()
   updatedAt: Date;
@@ -123,8 +123,8 @@ export class ContractResponseDto {
   @ApiPropertyOptional({ description: 'Apartment info (when included)' })
   apartment?: {
     id: string;
-    unitNumber: string;
-    floor: number;
+    unit_number: string;
+    floorIndex: number;
     buildingId: string;
   };
 

@@ -179,13 +179,13 @@ export class IncidentResponseDto {
   imageUrls: string[];
 
   @ApiPropertyOptional()
-  resolvedAt?: Date;
+  resolved_at?: Date;
 
   @ApiPropertyOptional()
   resolutionNotes?: string;
 
   @ApiProperty()
-  createdAt: Date;
+  created_at: Date;
 
   @ApiProperty()
   updatedAt: Date;
@@ -193,7 +193,7 @@ export class IncidentResponseDto {
   @ApiPropertyOptional()
   apartment?: {
     id: string;
-    unitNumber: string;
+    unit_number: string;
     building?: {
       id: string;
       name: string;

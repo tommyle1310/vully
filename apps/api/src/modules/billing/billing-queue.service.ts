@@ -31,20 +31,20 @@ export class BillingQueueService {
     };
 
     if (buildingId) {
-      whereClause.apartment = { buildingId };
+      whereClause.apartments = { building_id: buildingId };
     }
 
-    const totalContracts = await this.prisma.contract.count({
+    const totalContracts = await this.prisma.contracts.count({
       where: whereClause,
     });
 
     // Create billing job record
-    const billingJob = await this.prisma.billingJob.create({
+    const billingJob = await this.prisma.billing_jobs.create({
       data: {
-        jobType: 'generate-monthly-invoices',
-        billingPeriod,
+        job_type: 'generate-monthly-invoices',
+        billing_period: billingPeriod,
         status: 'pending',
-        totalContracts,
+        total_contracts: totalContracts,
       },
     });
 
@@ -92,7 +92,7 @@ export class BillingQueueService {
   }
 
   async getBillingJobStatus(billingJobId: string) {
-    const billingJob = await this.prisma.billingJob.findUnique({
+    const billingJob = await this.prisma.billing_jobs.findUnique({
       where: { id: billingJobId },
     });
 
@@ -102,20 +102,20 @@ export class BillingQueueService {
 
     return {
       id: billingJob.id,
-      jobType: billingJob.jobType,
-      billingPeriod: billingJob.billingPeriod,
+      jobType: billingJob.job_type,
+      billingPeriod: billingJob.billing_period,
       status: billingJob.status,
-      totalContracts: billingJob.totalContracts,
-      processedCount: billingJob.processedCount,
-      failedCount: billingJob.failedCount,
+      totalContracts: billingJob.total_contracts,
+      processedCount: billingJob.processed_count,
+      failedCount: billingJob.failed_count,
       progress:
-        billingJob.totalContracts > 0
-          ? Math.round((billingJob.processedCount / billingJob.totalContracts) * 100)
+        billingJob.total_contracts > 0
+          ? Math.round((billingJob.processed_count / billingJob.total_contracts) * 100)
           : 0,
-      startedAt: billingJob.startedAt,
-      completedAt: billingJob.completedAt,
-      errorLog: billingJob.errorLog,
-      createdAt: billingJob.createdAt,
+      startedAt: billingJob.started_at,
+      completedAt: billingJob.completed_at,
+      errorLog: billingJob.error_log,
+      created_at: billingJob.created_at,
     };
   }
 
@@ -123,30 +123,30 @@ export class BillingQueueService {
     const skip = (page - 1) * limit;
 
     const [jobs, total] = await Promise.all([
-      this.prisma.billingJob.findMany({
+      this.prisma.billing_jobs.findMany({
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { created_at: 'desc' },
       }),
-      this.prisma.billingJob.count(),
+      this.prisma.billing_jobs.count(),
     ]);
 
     return {
-      data: jobs.map((job) => ({
+      data: jobs.map((job: any) => ({
         id: job.id,
-        jobType: job.jobType,
-        billingPeriod: job.billingPeriod,
+        jobType: job.job_type,
+        billingPeriod: job.billing_period,
         status: job.status,
-        totalContracts: job.totalContracts,
-        processedCount: job.processedCount,
-        failedCount: job.failedCount,
+        totalContracts: job.total_contracts,
+        processedCount: job.processed_count,
+        failedCount: job.failed_count,
         progress:
-          job.totalContracts > 0
-            ? Math.round((job.processedCount / job.totalContracts) * 100)
+          job.total_contracts > 0
+            ? Math.round((job.processed_count / job.total_contracts) * 100)
             : 0,
-        startedAt: job.startedAt,
-        completedAt: job.completedAt,
-        createdAt: job.createdAt,
+        startedAt: job.started_at,
+        completedAt: job.completed_at,
+        created_at: job.created_at,
       })),
       total,
     };

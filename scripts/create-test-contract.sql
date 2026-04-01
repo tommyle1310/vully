@@ -5,7 +5,7 @@
 
 -- Replace these with actual IDs from your database
 -- Find user: SELECT id, email FROM "User" WHERE role = 'RESIDENT';
--- Find apartment: SELECT id, "unitNumber" FROM "Apartment" LIMIT 5;
+-- Find apartments: SELECT id, "unit_number" FROM "Apartment" LIMIT 5;
 
 DO $$
 DECLARE
@@ -36,7 +36,7 @@ BEGIN
     "monthlyRent",
     "depositAmount",
     status,
-    "createdAt",
+    "created_at",
     "updatedAt"
   ) VALUES (
     gen_random_uuid(),
@@ -59,4 +59,4 @@ BEGIN
   RAISE NOTICE 'Apartment ID: %', v_apartment_id;
 END $$;
 
-\echo 'Done! Resident should now see their apartment.'
+\echo 'Done! Resident should now see their apartments.'

@@ -19,8 +19,8 @@ export function UserProfileDropdown() {
 
   if (!user) return null;
 
-  const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || 'U';
-  const displayName = `${user.firstName} ${user.lastName}`.trim() || user.email;
+  const initials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || 'U';
+  const displayName = `${user.first_name} ${user.last_name}`.trim() || user.email;
   const roleLabel = user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase();
 
   return (

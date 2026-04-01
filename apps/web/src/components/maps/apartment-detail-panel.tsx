@@ -16,10 +16,10 @@ import { Separator } from '@/components/ui/separator';
 interface ApartmentDetailPanelProps {
   apartment: {
     id: string;
-    unitNumber: string;
+    unit_number: string;
     floorIndex: number;
     status: 'vacant' | 'occupied' | 'maintenance' | 'reserved';
-    grossArea?: number;
+    grossArea?: number | null;
     bedroomCount: number;
     bathroomCount: number;
     building?: {
@@ -32,7 +32,7 @@ interface ApartmentDetailPanelProps {
         firstName: string;
         lastName: string;
       };
-      startDate: string;
+      start_date: string;
       endDate?: string;
       monthlyRent: number;
     };
@@ -64,7 +64,7 @@ export function ApartmentDetailPanel({ apartment, open, onOpenChange }: Apartmen
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Home className="h-5 w-5" />
-            Apartment {apartment.unitNumber}
+            Apartment {apartment.unit_number}
           </SheetTitle>
           <SheetDescription>
             {apartment.building?.name || 'Building'} - Floor {apartment.floorIndex}
@@ -128,8 +128,8 @@ export function ApartmentDetailPanel({ apartment, open, onOpenChange }: Apartmen
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Name</span>
                     <span className="font-medium">
-                      {apartment.activeContract.tenant.firstName}{' '}
-                      {apartment.activeContract.tenant.lastName}
+                      {apartment.activeContract.tenant.first_name}{' '}
+                      {apartment.activeContract.tenant.last_name}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
@@ -141,14 +141,14 @@ export function ApartmentDetailPanel({ apartment, open, onOpenChange }: Apartmen
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Lease Start</span>
                     <span className="font-medium">
-                      {new Date(apartment.activeContract.startDate).toLocaleDateString()}
+                      {new Date(apartment.activeContract.start_date).toLocaleDateString()}
                     </span>
                   </div>
-                  {apartment.activeContract.endDate && (
+                  {apartment.activeContract.end_date && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Lease End</span>
                       <span className="font-medium">
-                        {new Date(apartment.activeContract.endDate).toLocaleDateString()}
+                        {new Date(apartment.activeContract.end_date).toLocaleDateString()}
                       </span>
                     </div>
                   )}

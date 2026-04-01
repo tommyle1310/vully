@@ -14,11 +14,11 @@ export interface MeterReading {
   readingDate: string;
   recordedById?: string;
   imageProofUrl?: string;
-  createdAt: string;
+  created_at: string;
   apartment?: {
     id: string;
-    unitNumber: string;
-    building: {
+    unit_number: string;
+    buildings: {
       id: string;
       name: string;
     };

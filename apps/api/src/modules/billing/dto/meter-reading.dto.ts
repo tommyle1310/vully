@@ -111,14 +111,14 @@ export class MeterReadingResponseDto {
   imageProofUrl?: string;
 
   @ApiProperty()
-  createdAt: Date;
+  created_at: Date;
 
   // Nested relations
   @ApiPropertyOptional()
   apartment?: {
     id: string;
-    unitNumber: string;
-    building: {
+    unit_number: string;
+    buildings: {
       id: string;
       name: string;
     };

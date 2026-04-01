@@ -191,7 +191,7 @@ export function CreateIncidentDialog({
                       ) : (
                         apartments.map((apt) => (
                           <SelectItem key={apt.id} value={apt.id}>
-                            {apt.unitNumber}
+                            {apt.unit_number}
                             {apt.building?.name && ` - ${apt.building.name}`}
                           </SelectItem>
                         ))

@@ -17,7 +17,7 @@ export interface InvoiceLineItem {
 export interface Invoice {
   id: string;
   contractId: string;
-  invoiceNumber: string;
+  invoice_number: string;
   billingPeriod: string;
   issueDate: string;
   dueDate: string;
@@ -26,17 +26,17 @@ export interface Invoice {
   taxAmount: number;
   totalAmount: number;
   paidAmount: number;
-  paidAt?: string;
+  paid_at?: string;
   notes?: string;
   lineItems: InvoiceLineItem[];
-  createdAt: string;
+  created_at: string;
   updatedAt: string;
   contract?: {
     id: string;
-    apartment: {
+    apartments: {
       id: string;
-      unitNumber: string;
-      building: {
+      unit_number: string;
+      buildings: {
         id: string;
         name: string;
       };

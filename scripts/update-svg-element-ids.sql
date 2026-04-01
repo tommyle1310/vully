@@ -2,7 +2,7 @@
 -- Run this script after uploading an SVG floor plan to link apartments to SVG elements
 
 -- Example: Link apartment unit numbers to SVG element IDs
--- Assumes SVG elements use pattern: apt-{unitNumber}
+-- Assumes SVG elements use pattern: apt-{unit_number}
 
 -- For a specific building, update all apartments with SVG element IDs
 UPDATE apartments

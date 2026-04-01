@@ -518,7 +518,7 @@ function calculateTieredCost(
 
 ```typescript
 // When generating invoice, SNAPSHOT all prices used
-async function generateInvoice(contract: Contract, period: string) {
+async function generateInvoice(contracts: Contract, period: string) {
   // 1. Get current tier prices (at generation time)
   const electricTiers = await getTiersForPeriod('electric', period);
   const waterTiers = await getTiersForPeriod('water', period);
@@ -528,9 +528,9 @@ async function generateInvoice(contract: Contract, period: string) {
   const waterCost = calculateTieredCost(meterReading.water, waterTiers);
   
   // 3. Store SNAPSHOT in invoice (immutable record)
-  const invoice = await prisma.invoice.create({
+  const invoice = await prisma.invoices.create({
     data: {
-      contractId: contract.id,
+      contractId: contracts.id,
       billingPeriod: period,
       priceSnapshot: {
         generatedAt: new Date().toISOString(),
@@ -541,15 +541,15 @@ async function generateInvoice(contract: Contract, period: string) {
           unitPrice: t.unitPrice,
         })),
         waterTiers: waterTiers.map(t => ({ /* same */ })),
-        rentAmount: contract.rentAmount,
+        rentAmount: contracts.rentAmount,
       },
       lineItems: {
         create: [
           {
             type: 'rent',
             description: `Tiền thuê tháng ${period}`,
-            unitPrice: contract.rentAmount, // SNAPSHOT
-            amount: contract.rentAmount,
+            unitPrice: contracts.rentAmount, // SNAPSHOT
+            amount: contracts.rentAmount,
           },
           {
             type: 'utility',
@@ -645,8 +645,8 @@ CREATE INDEX idx_ai_documents_embedding ON ai_documents
 ```typescript
 // Room-based architecture
 rooms:
-  - building:{buildingId}     // All users in building
-  - apartment:{apartmentId}   // Specific unit
+  - buildings:{buildingId}     // All users in building
+  - apartments:{apartmentId}   // Specific unit
   - role:admin               // All admins
   - user:{userId}            // Personal notifications
 ```

@@ -52,7 +52,7 @@ export default function BuildingDetailPage() {
     });
     // Sort each floor's apartments by unit number
     grouped.forEach((apts) => {
-      apts.sort((a, b) => a.unitNumber.localeCompare(b.unitNumber, undefined, { numeric: true }));
+      apts.sort((a, b) => a.unit_number.localeCompare(b.unit_number, undefined, { numeric: true }));
     });
     return grouped;
   }, [apartments]);
@@ -386,7 +386,7 @@ export default function BuildingDetailPage() {
                                 >
                                   <div className="flex items-center gap-3">
                                     <Home className="h-4 w-4 text-muted-foreground" />
-                                    <span className="font-medium text-sm">Unit {apt.unitNumber}</span>
+                                    <span className="font-medium text-sm">Unit {apt.unit_number}</span>
                                     {apt.grossArea && (
                                       <span className="text-xs text-muted-foreground">
                                         {Number(apt.grossArea).toFixed(0)}m²

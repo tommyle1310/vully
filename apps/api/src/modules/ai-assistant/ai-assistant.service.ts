@@ -58,15 +58,15 @@ export class AiAssistantService {
     await this.checkRateLimit(userId);
 
     // Get user info for context
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { id: userId },
       include: {
-        contracts: {
+        contracts_contracts_tenant_idTousers: {
           where: { status: 'active' },
           include: {
-            apartment: {
+            apartments: {
               include: {
-                building: true,
+                buildings: true,
               },
             },
           },
@@ -87,22 +87,22 @@ export class AiAssistantService {
     // Build user context
     let userContext = '';
     if (user) {
-      userContext = `User: ${user.firstName} ${user.lastName} (${user.role})\n`;
-      if (user.contracts.length > 0) {
-        const contract = user.contracts[0];
-        userContext += `Apartment: ${contract.apartment.building.name}, Unit ${contract.apartment.unitNumber}\n`;
-        userContext += `Rent: ${contract.rentAmount} VND/month\n`;
+      userContext = `User: ${user.first_name} ${user.last_name} (${user.role})\n`;
+      if (user.contracts_contracts_tenant_idTousers.length > 0) {
+        const contract = user.contracts_contracts_tenant_idTousers[0];
+        userContext += `Apartment: ${contract.apartments.buildings.name}, Unit ${contract.apartments.unit_number}\n`;
+        userContext += `Rent: ${contract.rent_amount} VND/month\n`;
       }
     }
 
     // If specific apartment or building ID provided, add more context
     if (context?.apartmentId) {
-      const apartment = await this.prisma.apartment.findUnique({
+      const apartment = await this.prisma.apartments.findUnique({
         where: { id: context.apartmentId },
-        include: { building: true },
+        include: { buildings: true },
       });
       if (apartment) {
-        userContext += `\nQuerying about: ${apartment.building.name}, Unit ${apartment.unitNumber}\n`;
+        userContext += `\nQuerying about: ${apartment.buildings.name}, Unit ${apartment.unit_number}\n`;
       }
     }
 
@@ -135,14 +135,14 @@ Answer:`;
       const responseTime = Date.now() - startTime;
 
       // Save query to database
-      await this.prisma.chatQuery.create({
+      await this.prisma.chat_queries.create({
         data: {
-          userId,
+          user_id: userId,
           query,
           response: responseText,
-          sourceDocs: relevantDocs.map((doc) => doc.documentId),
-          tokensUsed: 0, // Gemini doesn't provide token count easily
-          responseTime,
+          source_docs: relevantDocs.map((doc) => doc.documentId),
+          tokens_used: 0, // Gemini doesn't provide token count easily
+          response_time: responseTime,
         },
       });
 
@@ -195,14 +195,14 @@ Answer:`;
       responseText = `Here is what I found in the knowledge base regarding "${query}":\n\n${excerpts}\n\n*(AI summarisation is temporarily unavailable — showing raw knowledge base results)*`;
     }
 
-    await this.prisma.chatQuery.create({
+    await this.prisma.chat_queries.create({
       data: {
-        userId,
+        user_id: userId,
         query,
         response: responseText,
-        sourceDocs: relevantDocs.map((doc) => doc.documentId),
-        tokensUsed: 0,
-        responseTime,
+        source_docs: relevantDocs.map((doc) => doc.documentId),
+        tokens_used: 0,
+        response_time: responseTime,
       },
     });
 
@@ -222,7 +222,7 @@ Answer:`;
    */
   private async checkRateLimit(userId: string): Promise<void> {
     // Admin users have no rate limit
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { id: userId },
       select: { role: true },
     });
@@ -233,10 +233,10 @@ Answer:`;
 
     // Check queries in last 24 hours
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const queryCount = await this.prisma.chatQuery.count({
+    const queryCount = await this.prisma.chat_queries.count({
       where: {
-        userId,
-        createdAt: {
+        user_id: userId,
+        created_at: {
           gte: oneDayAgo,
         },
       },
@@ -258,15 +258,15 @@ Answer:`;
    * @returns Array of past queries
    */
   async getChatHistory(userId: string, limit: number = 10) {
-    return this.prisma.chatQuery.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
+    return this.prisma.chat_queries.findMany({
+      where: { user_id: userId },
+      orderBy: { created_at: 'desc' },
       take: limit,
       select: {
         id: true,
         query: true,
         response: true,
-        createdAt: true,
+        created_at: true,
       },
     });
   }
@@ -278,10 +278,10 @@ Answer:`;
    */
   async getUserQueryCount(userId: string): Promise<number> {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    return this.prisma.chatQuery.count({
+    return this.prisma.chat_queries.count({
       where: {
-        userId,
-        createdAt: {
+        user_id: userId,
+        created_at: {
           gte: oneDayAgo,
         },
       },

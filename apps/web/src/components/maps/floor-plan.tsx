@@ -13,13 +13,13 @@ interface FloorPlanProps {
   buildingId: string;
   apartments: Array<{
     id: string;
-    unitNumber: string;
+    unit_number: string;
     floorIndex: number;
     status: 'vacant' | 'occupied' | 'maintenance' | 'reserved';
-    grossArea?: number;
+    grossArea?: number | null;
     bedroomCount: number;
     bathroomCount: number;
-    svgElementId?: string;
+    svgElementId?: string | null;
     building?: {
       id: string;
       name: string;
@@ -271,7 +271,7 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
       const apartment = getApartmentBySvgId(svgId);
       if (!apartment) return;
 
-      setHoveredApartment(apartment.id);
+      setHoveredApartment(apartments.id);
 
       // Show tooltip (desktop only)
       if (window.innerWidth >= 768) {
@@ -281,7 +281,7 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
         setTooltip({
           x: rect.left + rect.width / 2 - containerRect.left,
           y: rect.top - containerRect.top - 10,
-          content: `${apartment.unitNumber} - ${apartment.status}`,
+          content: `${apartments.unit_number} - ${apartments.status}`,
         });
       }
     };
@@ -300,8 +300,8 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
       const apartment = getApartmentBySvgId(svgId);
       if (!apartment) return;
 
-      setSelectedApartment(apartment.id);
-      onApartmentClick?.(apartment.id);
+      setSelectedApartment(apartments.id);
+      onApartmentClick?.(apartments.id);
     };
 
     // Touch support for mobile
@@ -314,7 +314,7 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
       if (!apartment) return;
 
       // On mobile, tap shows highlight
-      setHoveredApartment(apartment.id);
+      setHoveredApartment(apartments.id);
     };
 
     const handleTouchEnd = (e: Event) => {
@@ -328,8 +328,8 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
 
       // Clear hover and trigger selection
       setHoveredApartment(null);
-      setSelectedApartment(apartment.id);
-      onApartmentClick?.(apartment.id);
+      setSelectedApartment(apartments.id);
+      onApartmentClick?.(apartments.id);
     };
 
     // Attach event listeners to apartment elements

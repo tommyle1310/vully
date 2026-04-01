@@ -41,12 +41,13 @@ export class DocumentService {
     this.logger.log(`Creating document: ${title}`);
 
     // Create document
-    const document = await this.prisma.document.create({
+    const document = await this.prisma.documents.create({
       data: {
         title,
         content,
         category,
         metadata,
+        updated_at: new Date(),
       },
     });
 
@@ -219,21 +220,21 @@ export class DocumentService {
    * @returns Array of documents
    */
   async getDocuments(category?: string) {
-    return this.prisma.document.findMany({
+    return this.prisma.documents.findMany({
       where: {
-        isActive: true,
+        is_active: true,
         ...(category && { category }),
       },
       include: {
-        chunks: {
+        document_chunks: {
           select: {
             id: true,
-            chunkIndex: true,
+            chunk_index: true,
           },
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        created_at: 'desc',
       },
     });
   }
@@ -244,17 +245,17 @@ export class DocumentService {
    * @returns Document with chunks
    */
   async getDocument(id: string) {
-    return this.prisma.document.findUnique({
+    return this.prisma.documents.findUnique({
       where: { id },
       include: {
-        chunks: {
+        document_chunks: {
           select: {
             id: true,
             content: true,
-            chunkIndex: true,
+            chunk_index: true,
           },
           orderBy: {
-            chunkIndex: 'asc',
+            chunk_index: 'asc',
           },
         },
       },
@@ -266,7 +267,7 @@ export class DocumentService {
    * @param id Document ID
    */
   async deleteDocument(id: string) {
-    await this.prisma.document.delete({
+    await this.prisma.documents.delete({
       where: { id },
     });
     this.logger.log(`Document deleted: ${id}`);

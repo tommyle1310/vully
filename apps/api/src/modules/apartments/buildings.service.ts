@@ -14,15 +14,16 @@ export class BuildingsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateBuildingDto): Promise<BuildingResponseDto> {
-    const building = await this.prisma.building.create({
+    const building = await this.prisma.buildings.create({
       data: {
         name: dto.name,
         address: dto.address,
         city: dto.city,
-        floorCount: dto.floorCount,
-        floorHeights: dto.floorHeights ?? Prisma.JsonNull,
-        svgMapData: dto.svgMapData,
+        floor_count: dto.floorCount,
+        floor_heights: dto.floorHeights ?? Prisma.JsonNull,
+        svg_map_data: dto.svgMapData,
         amenities: dto.amenities || [],
+        updated_at: new Date(),
       },
     });
 
@@ -50,10 +51,10 @@ export class BuildingsService {
     includeInactive = false,
   ): Promise<{ data: BuildingResponseDto[]; total: number }> {
     const skip = (page - 1) * limit;
-    const where = includeInactive ? {} : { isActive: true };
+    const where = includeInactive ? {} : { is_active: true };
 
     const [buildings, total] = await Promise.all([
-      this.prisma.building.findMany({
+      this.prisma.buildings.findMany({
         where,
         skip,
         take: limit,
@@ -64,11 +65,11 @@ export class BuildingsService {
           },
         },
       }),
-      this.prisma.building.count({ where }),
+      this.prisma.buildings.count({ where }),
     ]);
 
     return {
-      data: buildings.map((b) => ({
+      data: buildings.map((b: any) => ({
         ...this.toResponseDto(b),
         apartmentCount: b._count.apartments,
       })),
@@ -77,7 +78,7 @@ export class BuildingsService {
   }
 
   async findOne(id: string): Promise<BuildingResponseDto> {
-    const building = await this.prisma.building.findUnique({
+    const building = await this.prisma.buildings.findUnique({
       where: { id },
       include: {
         _count: {
@@ -97,23 +98,23 @@ export class BuildingsService {
   }
 
   async update(id: string, dto: UpdateBuildingDto): Promise<BuildingResponseDto> {
-    const building = await this.prisma.building.findUnique({ where: { id } });
+    const building = await this.prisma.buildings.findUnique({ where: { id } });
 
     if (!building) {
       throw new NotFoundException('Building not found');
     }
 
-    const updated = await this.prisma.building.update({
+    const updated = await this.prisma.buildings.update({
       where: { id },
       data: {
         ...(dto.name && { name: dto.name }),
         ...(dto.address && { address: dto.address }),
         ...(dto.city && { city: dto.city }),
-        ...(dto.floorCount && { floorCount: dto.floorCount }),
-        ...(dto.floorHeights !== undefined && { floorHeights: dto.floorHeights }),
-        ...(dto.svgMapData !== undefined && { svgMapData: dto.svgMapData }),
+        ...(dto.floorCount && { floor_count: dto.floorCount }),
+        ...(dto.floorHeights !== undefined && { floor_heights: dto.floorHeights }),
+        ...(dto.svgMapData !== undefined && { svg_map_data: dto.svgMapData }),
         ...(dto.amenities && { amenities: dto.amenities }),
-        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+        ...(dto.isActive !== undefined && { is_active: dto.isActive }),
       },
     });
 
@@ -126,19 +127,19 @@ export class BuildingsService {
   }
 
   async updateSvgMap(id: string, svgMapData: string): Promise<BuildingResponseDto> {
-    const building = await this.prisma.building.findUnique({ where: { id } });
+    const building = await this.prisma.buildings.findUnique({ where: { id } });
 
     if (!building) {
       throw new NotFoundException('Building not found');
     }
 
-    const updated = await this.prisma.building.update({
+    const updated = await this.prisma.buildings.update({
       where: { id },
-      data: { svgMapData },
+      data: { svg_map_data: svgMapData },
     });
 
     // Auto-sync apartments from SVG floor plan
-    await this.syncApartmentsFromSvg(id, svgMapData, building.floorCount);
+    await this.syncApartmentsFromSvg(id, svgMapData, building.floor_count);
 
     this.logger.log({
       event: 'building_svg_updated',
@@ -201,38 +202,39 @@ export class BuildingsService {
       for (let i = 0; i < templates.length; i++) {
         const template = templates[i];
         const unitIndex = String(i + 1).padStart(2, '0');
-        const unitNumber = `${floor}${unitIndex}`; // e.g., "101", "102", "201", "202"
+        const unit_number = `${floor}${unitIndex}`; // e.g., "101", "102", "201", "202"
 
         const bedroomCount = this.getBedroomCount(template.type);
         const bathroomCount = this.getBathroomCount(template.type);
 
-        await this.prisma.apartment.upsert({
+        await this.prisma.apartments.upsert({
           where: {
-            buildingId_unitNumber: {
-              buildingId,
-              unitNumber,
+            building_id_unit_number: {
+              building_id: buildingId,
+              unit_number: unit_number,
             },
           },
           create: {
-            buildingId,
-            unitNumber,
-            floor,
-            areaSqm: template.areaSqm > 0 ? template.areaSqm : null,
-            bedroomCount,
-            bathroomCount,
-            svgElementId: template.id || null,
+            building_id: buildingId,
+            unit_number: unit_number,
+            floor_index: floor,
+            gross_area: template.areaSqm > 0 ? template.areaSqm : null,
+            bedroom_count: bedroomCount,
+            bathroom_count: bathroomCount,
+            svg_element_id: template.id || null,
             features: {
               apartmentType: template.type,
               apartmentName: template.name,
             } as Prisma.InputJsonValue,
             status: 'vacant',
+            updated_at: new Date(),
           },
           update: {
-            floor,
-            areaSqm: template.areaSqm > 0 ? template.areaSqm : null,
-            bedroomCount,
-            bathroomCount,
-            svgElementId: template.id || null,
+            floor_index: floor,
+            gross_area: template.areaSqm > 0 ? template.areaSqm : null,
+            bedroom_count: bedroomCount,
+            bathroom_count: bathroomCount,
+            svg_element_id: template.id || null,
             features: {
               apartmentType: template.type,
               apartmentName: template.name,
@@ -269,26 +271,26 @@ export class BuildingsService {
     name: string;
     address: string;
     city: string;
-    floorCount: number;
-    floorHeights: unknown;
-    svgMapData: string | null;
+    floor_count: number;
+    floor_heights: unknown;
+    svg_map_data: string | null;
     amenities: unknown;
-    isActive: boolean;
-    createdAt: Date;
-    updatedAt: Date;
+    is_active: boolean;
+    created_at: Date;
+    updated_at: Date;
   }): BuildingResponseDto {
     return {
       id: building.id,
       name: building.name,
       address: building.address,
       city: building.city,
-      floorCount: building.floorCount,
-      floorHeights: building.floorHeights as Record<string, number> | undefined,
-      svgMapData: building.svgMapData || undefined,
+      floorCount: building.floor_count,
+      floorHeights: building.floor_heights as Record<string, number> | undefined,
+      svgMapData: building.svg_map_data || undefined,
       amenities: (building.amenities as string[]) || [],
-      isActive: building.isActive,
-      createdAt: building.createdAt,
-      updatedAt: building.updatedAt,
+      isActive: building.is_active,
+      created_at: building.created_at,
+      updatedAt: building.updated_at,
     };
   }
 }

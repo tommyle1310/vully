@@ -10,24 +10,24 @@ const prisma = new PrismaClient();
  *   npx tsx scripts/update-svg-ids.ts <buildingId> [pattern]
  * 
  * Examples:
- *   npx tsx scripts/update-svg-ids.ts abc-123 apt-{unitNumber}
- *   npx tsx scripts/update-svg-ids.ts abc-123 unit_{unitNumber}
+ *   npx tsx scripts/update-svg-ids.ts abc-123 apt-{unit_number}
+ *   npx tsx scripts/update-svg-ids.ts abc-123 unit_{unit_number}
  */
 
-async function updateSvgElementIds(buildingId: string, pattern: string = 'apt-{unitNumber}') {
+async function updateSvgElementIds(buildingId: string, pattern: string = 'apt-{unit_number}') {
   try {
-    console.log(`📍 Updating SVG element IDs for building: ${buildingId}`);
+    console.log(`📍 Updating SVG element IDs for buildings: ${buildingId}`);
     console.log(`🎨 Pattern: ${pattern}\n`);
 
     // Fetch all apartments for the building
-    const apartments = await prisma.apartment.findMany({
+    const apartments = await prisma.apartments.findMany({
       where: { buildingId },
       select: {
         id: true,
-        unitNumber: true,
+        unit_number: true,
         svgElementId: true,
       },
-      orderBy: { unitNumber: 'asc' },
+      orderBy: { unit_number: 'asc' },
     });
 
     if (apartments.length === 0) {
@@ -43,22 +43,22 @@ async function updateSvgElementIds(buildingId: string, pattern: string = 'apt-{u
 
     for (const apt of apartments) {
       // Generate SVG element ID from pattern
-      const svgElementId = pattern.replace('{unitNumber}', apt.unitNumber);
+      const svgElementId = pattern.replace('{unit_number}', apt.unit_number);
 
       // Skip if already set to the same value
       if (apt.svgElementId === svgElementId) {
-        console.log(`⏭️  ${apt.unitNumber}: Already set to ${svgElementId}`);
+        console.log(`⏭️  ${apt.unit_number}: Already set to ${svgElementId}`);
         skipped++;
         continue;
       }
 
       // Update
-      await prisma.apartment.update({
+      await prisma.apartments.update({
         where: { id: apt.id },
         data: { svgElementId },
       });
 
-      console.log(`✅ ${apt.unitNumber}: ${apt.svgElementId || 'NULL'} → ${svgElementId}`);
+      console.log(`✅ ${apt.unit_number}: ${apt.svgElementId || 'NULL'} → ${svgElementId}`);
       updated++;
     }
 
@@ -83,18 +83,18 @@ Usage: npx tsx scripts/update-svg-ids.ts <buildingId> [pattern]
 
 Arguments:
   buildingId  - UUID of the building
-  pattern     - SVG element ID pattern (default: apt-{unitNumber})
-                Use {unitNumber} as placeholder for apartment unit number
+  pattern     - SVG element ID pattern (default: apt-{unit_number})
+                Use {unit_number} as placeholder for apartment unit number
 
 Examples:
   npx tsx scripts/update-svg-ids.ts abc-123-def-456
-  npx tsx scripts/update-svg-ids.ts abc-123-def-456 "unit_{unitNumber}"
-  npx tsx scripts/update-svg-ids.ts abc-123-def-456 "apt-{unitNumber}"
+  npx tsx scripts/update-svg-ids.ts abc-123-def-456 "unit_{unit_number}"
+  npx tsx scripts/update-svg-ids.ts abc-123-def-456 "apt-{unit_number}"
 
 Patterns:
-  apt-{unitNumber}    → apt-101, apt-102, apt-103
-  unit_{unitNumber}   → unit_101, unit_102, unit_103
-  {unitNumber}        → 101, 102, 103
+  apt-{unit_number}    → apt-101, apt-102, apt-103
+  unit_{unit_number}   → unit_101, unit_102, unit_103
+  {unit_number}        → 101, 102, 103
   `);
   process.exit(0);
 }

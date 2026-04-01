@@ -47,7 +47,7 @@ interface User {
   roles: UserRole[];
   phone?: string;
   isActive: boolean;
-  createdAt: string;
+  created_at: string;
   updatedAt: string;
 }
 

@@ -62,7 +62,7 @@ export class IncidentCommentResponseDto {
   isInternal: boolean;
 
   @ApiProperty()
-  createdAt: Date;
+  created_at: Date;
 
   @ApiPropertyOptional()
   author?: {

@@ -11,8 +11,8 @@
  * - Proper 3D rendering (Three.js uses the meter-based SVG directly)
  * 
  * Examples:
- * - Studio apartment: 60×50 builder units = 6m×5m = 30m² in real life
- * - 3BR apartment: 100×100 builder units = 10m×10m = 100m² in real life
+ * - Studio apartments: 60×50 builder units = 6m×5m = 30m² in real life
+ * - 3BR apartments: 100×100 builder units = 10m×10m = 100m² in real life
  * - Elevator: 25×25 builder units = 2.5m×2.5m in real life
  * 
  * When saving/exporting:
@@ -2099,7 +2099,7 @@ ${elementsSvg}
                         <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
                         <div className="text-xs text-red-800">
                           <p className="font-semibold mb-1">Overlap Detected!</p>
-                          <p>This apartment overlaps with another apartment. Please adjust the position or size.</p>
+                          <p>This apartment overlaps with another apartments. Please adjust the position or size.</p>
                         </div>
                       </div>
                     )}

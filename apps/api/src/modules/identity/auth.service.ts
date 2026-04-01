@@ -20,18 +20,18 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { email },
       include: {
-        roleAssignments: true, // Include roles for JWT payload
+        user_role_assignments: true, // Include roles for JWT payload
       },
     });
 
-    if (!user || !user.isActive) {
+    if (!user || !user.is_active) {
       return null;
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
       return null;
     }
@@ -41,7 +41,7 @@ export class AuthService {
 
   async register(dto: RegisterDto): Promise<UserResponseDto> {
     // Check if email already exists
-    const existing = await this.prisma.user.findUnique({
+    const existing = await this.prisma.users.findUnique({
       where: { email: dto.email },
     });
 
@@ -53,22 +53,23 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
     // Create user with default resident role assignment
-    const user = await this.prisma.user.create({
+    const user = await this.prisma.users.create({
       data: {
         email: dto.email,
-        passwordHash,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
+        password_hash: passwordHash,
+        first_name: dto.firstName,
+        last_name: dto.lastName,
         role: 'resident', // DEPRECATED field, kept for migration
         phone: dto.phone,
-        roleAssignments: {
+        updated_at: new Date(),
+        user_role_assignments: {
           create: {
             role: UserRole.resident, // Default role for public registration
           },
         },
       },
       include: {
-        roleAssignments: true,
+        user_role_assignments: true,
       },
     });
 
@@ -82,14 +83,14 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role, // DEPRECATED, will be removed
-      roles: user.roleAssignments.map(ra => ra.role),
+      firstName: user.first_name,
+      lastName: user.last_name,
+      role: user.role as UserRole, // DEPRECATED, will be removed
+      roles: user.user_role_assignments.map((ra: { role: string }) => ra.role as UserRole),
       phone: user.phone || undefined,
-      isActive: user.isActive,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      isActive: user.is_active,
+      created_at: user.created_at,
+      updatedAt: user.updated_at,
     };
   }
 
@@ -108,8 +109,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Extract roles from roleAssignments (multi-role support)
-    const roles = user.roleAssignments.map(ra => ra.role);
+    // Extract roles from user_role_assignments (multi-role support)
+    const roles = user.user_role_assignments.map((ra: { role: string }) => ra.role as UserRole);
 
     // Generate tokens
     const payload: JwtPayload = {
@@ -137,8 +138,8 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        firstName: user.first_name,
+        lastName: user.last_name,
         role: user.role, // DEPRECATED, kept for backward compatibility
         roles, // New multi-role array
       },
@@ -148,12 +149,12 @@ export class AuthService {
   async refresh(refreshToken: string, ip: string): Promise<RefreshResponseDto> {
     const tokenHash = this.hashToken(refreshToken);
 
-    const storedToken = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash },
+    const storedToken = await this.prisma.refresh_tokens.findUnique({
+      where: { token_hash: tokenHash },
       include: {
-        user: {
+        users: {
           include: {
-            roleAssignments: true, // Include roles for JWT
+            user_role_assignments: true, // Include roles for JWT
           },
         },
       },
@@ -161,34 +162,34 @@ export class AuthService {
 
     if (
       !storedToken ||
-      storedToken.isRevoked ||
-      storedToken.expiresAt < new Date() ||
-      !storedToken.user.isActive
+      storedToken.is_revoked ||
+      storedToken.expires_at < new Date() ||
+      !storedToken.users.is_active
     ) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
     // Revoke old token (token rotation)
-    await this.prisma.refreshToken.update({
+    await this.prisma.refresh_tokens.update({
       where: { id: storedToken.id },
-      data: { isRevoked: true },
+      data: { is_revoked: true },
     });
 
-    // Extract roles from roleAssignments
-    const roles = storedToken.user.roleAssignments.map(ra => ra.role);
+    // Extract roles from user_role_assignments
+    const roles = storedToken.users.user_role_assignments.map((ra: { role: string }) => ra.role as UserRole);
 
     // Generate new tokens
     const payload: JwtPayload = {
-      sub: storedToken.user.id,
-      email: storedToken.user.email,
+      sub: storedToken.users.id,
+      email: storedToken.users.email,
       roles, // Multi-role array
     };
 
     const newAccessToken = await this.generateAccessToken(payload);
     const newRefreshToken = await this.generateRefreshToken(
-      storedToken.user.id,
+      storedToken.users.id,
       ip,
-      storedToken.userAgent || '',
+      storedToken.user_agent || '',
     );
 
     return {
@@ -201,16 +202,16 @@ export class AuthService {
   async logout(refreshToken: string): Promise<void> {
     const tokenHash = this.hashToken(refreshToken);
 
-    await this.prisma.refreshToken.updateMany({
-      where: { tokenHash },
-      data: { isRevoked: true },
+    await this.prisma.refresh_tokens.updateMany({
+      where: { token_hash: tokenHash },
+      data: { is_revoked: true },
     });
   }
 
   async logoutAllDevices(userId: string): Promise<void> {
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, isRevoked: false },
-      data: { isRevoked: true },
+    await this.prisma.refresh_tokens.updateMany({
+      where: { user_id: userId, is_revoked: false },
+      data: { is_revoked: true },
     });
 
     this.logger.log({
@@ -239,13 +240,13 @@ export class AuthService {
       expiresAt.getDate() + this.configService.get<number>('jwt.refreshExpiresInDays', 7),
     );
 
-    await this.prisma.refreshToken.create({
+    await this.prisma.refresh_tokens.create({
       data: {
-        tokenHash,
-        userId,
-        expiresAt,
-        ipAddress: ip,
-        userAgent,
+        token_hash: tokenHash,
+        user_id: userId,
+        expires_at: expiresAt,
+        ip_address: ip,
+        user_agent: userAgent,
       },
     });
 
@@ -260,21 +261,21 @@ export class AuthService {
    * Request a password reset. Generates a token and logs it (in production, would send email).
    */
   async forgotPassword(dto: ResetPasswordRequestDto): Promise<{ message: string }> {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { email: dto.email },
     });
 
     // Always return success message to prevent email enumeration
     const successMessage = 'If an account with that email exists, a password reset link has been sent.';
 
-    if (!user || !user.isActive) {
+    if (!user || !user.is_active) {
       return { message: successMessage };
     }
 
     // Invalidate any existing reset tokens for this user
-    await this.prisma.passwordResetToken.updateMany({
-      where: { userId: user.id, isUsed: false },
-      data: { isUsed: true },
+    await this.prisma.password_reset_tokens.updateMany({
+      where: { user_id: user.id, is_used: false },
+      data: { is_used: true },
     });
 
     // Generate a new reset token
@@ -283,11 +284,11 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour expiry
 
-    await this.prisma.passwordResetToken.create({
+    await this.prisma.password_reset_tokens.create({
       data: {
-        userId: user.id,
-        tokenHash,
-        expiresAt,
+        user_id: user.id,
+        token_hash: tokenHash,
+        expires_at: expiresAt,
       },
     });
 
@@ -311,16 +312,16 @@ export class AuthService {
   async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
     const tokenHash = this.hashToken(dto.token);
 
-    const resetToken = await this.prisma.passwordResetToken.findUnique({
-      where: { tokenHash },
-      include: { user: true },
+    const resetToken = await this.prisma.password_reset_tokens.findUnique({
+      where: { token_hash: tokenHash },
+      include: { users: true },
     });
 
     if (
       !resetToken ||
-      resetToken.isUsed ||
-      resetToken.expiresAt < new Date() ||
-      !resetToken.user.isActive
+      resetToken.is_used ||
+      resetToken.expires_at < new Date() ||
+      !resetToken.users.is_active
     ) {
       throw new BadRequestException('Invalid or expired reset token');
     }
@@ -330,24 +331,24 @@ export class AuthService {
 
     // Update user password and mark token as used
     await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: resetToken.userId },
-        data: { passwordHash },
+      this.prisma.users.update({
+        where: { id: resetToken.user_id },
+        data: { password_hash: passwordHash },
       }),
-      this.prisma.passwordResetToken.update({
+      this.prisma.password_reset_tokens.update({
         where: { id: resetToken.id },
-        data: { isUsed: true },
+        data: { is_used: true },
       }),
       // Revoke all refresh tokens (force logout all devices)
-      this.prisma.refreshToken.updateMany({
-        where: { userId: resetToken.userId, isRevoked: false },
-        data: { isRevoked: true },
+      this.prisma.refresh_tokens.updateMany({
+        where: { user_id: resetToken.user_id, is_revoked: false },
+        data: { is_revoked: true },
       }),
     ]);
 
     this.logger.log({
       event: 'password_reset_completed',
-      userId: resetToken.userId,
+      userId: resetToken.user_id,
       timestamp: new Date().toISOString(),
     });
 

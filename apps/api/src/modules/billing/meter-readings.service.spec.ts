@@ -8,14 +8,14 @@ import { MeterReadingsService } from './meter-readings.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 const mockPrismaService = {
-  apartment: {
+  apartments: {
     findUnique: jest.fn(),
   },
   utilityType: {
     findUnique: jest.fn(),
     findMany: jest.fn(),
   },
-  contract: {
+  contracts: {
     findFirst: jest.fn(),
     findMany: jest.fn(),
   },
@@ -36,9 +36,9 @@ describe('MeterReadingsService', () => {
 
   const mockApartment = {
     id: 'apartment-uuid-1',
-    unitNumber: 'A101',
+    unit_number: 'A101',
     buildingId: 'building-uuid-1',
-    building: {
+    buildings: {
       id: 'building-uuid-1',
       name: 'Building A',
     },
@@ -49,7 +49,7 @@ describe('MeterReadingsService', () => {
     code: 'ELECTRIC',
     name: 'Electric',
     unit: 'kWh',
-    isActive: true,
+    is_active: true,
   };
 
   const mockMeterReading = {
@@ -62,8 +62,8 @@ describe('MeterReadingsService', () => {
     readingDate: new Date('2026-03-28'),
     recordedById: 'user-uuid-1',
     imageProofUrl: null,
-    createdAt: new Date(),
-    apartment: mockApartment,
+    created_at: new Date(),
+    apartments: mockApartment,
     utilityType: mockUtilityType,
     recordedBy: {
       id: 'user-uuid-1',
@@ -99,7 +99,7 @@ describe('MeterReadingsService', () => {
     };
 
     it('should create a meter reading successfully for admin', async () => {
-      prisma.apartment.findUnique.mockResolvedValue(mockApartment);
+      prisma.apartments.findUnique.mockResolvedValue(mockApartment);
       prisma.utilityType.findUnique.mockResolvedValue(mockUtilityType);
       prisma.meterReading.findFirst
         .mockResolvedValueOnce(null) // No existing reading
@@ -115,7 +115,7 @@ describe('MeterReadingsService', () => {
     });
 
     it('should auto-fill previousValue from last reading', async () => {
-      prisma.apartment.findUnique.mockResolvedValue(mockApartment);
+      prisma.apartments.findUnique.mockResolvedValue(mockApartment);
       prisma.utilityType.findUnique.mockResolvedValue(mockUtilityType);
       prisma.meterReading.findFirst
         .mockResolvedValueOnce(null)
@@ -137,7 +137,7 @@ describe('MeterReadingsService', () => {
     });
 
     it('should throw NotFoundException if apartment not found', async () => {
-      prisma.apartment.findUnique.mockResolvedValue(null);
+      prisma.apartments.findUnique.mockResolvedValue(null);
 
       await expect(
         service.create(createDto, 'admin-uuid', 'admin'),
@@ -145,7 +145,7 @@ describe('MeterReadingsService', () => {
     });
 
     it('should throw NotFoundException if utility type not found', async () => {
-      prisma.apartment.findUnique.mockResolvedValue(mockApartment);
+      prisma.apartments.findUnique.mockResolvedValue(mockApartment);
       prisma.utilityType.findUnique.mockResolvedValue(null);
 
       await expect(
@@ -154,9 +154,9 @@ describe('MeterReadingsService', () => {
     });
 
     it('should throw ForbiddenException if resident has no contract for apartment', async () => {
-      prisma.apartment.findUnique.mockResolvedValue(mockApartment);
+      prisma.apartments.findUnique.mockResolvedValue(mockApartment);
       prisma.utilityType.findUnique.mockResolvedValue(mockUtilityType);
-      prisma.contract.findFirst.mockResolvedValue(null);
+      prisma.contracts.findFirst.mockResolvedValue(null);
 
       await expect(
         service.create(createDto, 'resident-uuid', 'resident'),
@@ -164,9 +164,9 @@ describe('MeterReadingsService', () => {
     });
 
     it('should allow resident with active contract', async () => {
-      prisma.apartment.findUnique.mockResolvedValue(mockApartment);
+      prisma.apartments.findUnique.mockResolvedValue(mockApartment);
       prisma.utilityType.findUnique.mockResolvedValue(mockUtilityType);
-      prisma.contract.findFirst.mockResolvedValue({
+      prisma.contracts.findFirst.mockResolvedValue({
         id: 'contract-uuid',
         status: 'active',
       });
@@ -181,7 +181,7 @@ describe('MeterReadingsService', () => {
     });
 
     it('should throw ConflictException if reading already exists for period', async () => {
-      prisma.apartment.findUnique.mockResolvedValue(mockApartment);
+      prisma.apartments.findUnique.mockResolvedValue(mockApartment);
       prisma.utilityType.findUnique.mockResolvedValue(mockUtilityType);
       prisma.meterReading.findFirst.mockResolvedValue(mockMeterReading);
 
@@ -234,13 +234,13 @@ describe('MeterReadingsService', () => {
 
     it('should restrict residents to their apartments', async () => {
       const mockContracts = [{ apartmentId: 'apartment-uuid-1' }];
-      prisma.contract.findMany.mockResolvedValue(mockContracts);
+      prisma.contracts.findMany.mockResolvedValue(mockContracts);
       prisma.meterReading.findMany.mockResolvedValue([mockMeterReading]);
       prisma.meterReading.count.mockResolvedValue(1);
 
       await service.findAll({}, 1, 20, 'resident-uuid', 'resident');
 
-      expect(prisma.contract.findMany).toHaveBeenCalledWith(
+      expect(prisma.contracts.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
             tenantId: 'resident-uuid',
@@ -271,7 +271,7 @@ describe('MeterReadingsService', () => {
 
     it('should throw ForbiddenException for resident without contract', async () => {
       prisma.meterReading.findUnique.mockResolvedValue(mockMeterReading);
-      prisma.contract.findFirst.mockResolvedValue(null);
+      prisma.contracts.findFirst.mockResolvedValue(null);
 
       await expect(
         service.findOne('reading-uuid-1', 'other-resident', 'resident'),

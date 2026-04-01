@@ -45,7 +45,6 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 const UNIT_TYPES = ['studio', 'one_bedroom', 'two_bedroom', 'three_bedroom', 'duplex', 'penthouse', 'shophouse'] as const;
 const ORIENTATIONS = ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest'] as const;
@@ -77,7 +76,7 @@ const optInt = (min = 0) =>
 const apartmentFormSchema = z.object({
   // Spatial (building-managed)
   buildingId: z.string().uuid('Please select a building'),
-  unitNumber: z.string().min(1, 'Unit number is required').max(20),
+  unit_number: z.string().min(1, 'Unit number is required').max(20),
   floorIndex: z.coerce.number().int().min(0, 'Floor must be 0 or higher'),
   // Spatial (apartment-specific)
   apartmentCode: z.string().max(30).optional().or(z.literal('')),
@@ -164,7 +163,7 @@ export function ApartmentFormDialog({
     resolver: zodResolver(apartmentFormSchema),
     defaultValues: {
       buildingId: '',
-      unitNumber: '',
+      unit_number: '',
       floorIndex: 1,
       apartmentCode: '',
       floorLabel: '',
@@ -217,7 +216,7 @@ export function ApartmentFormDialog({
       if (isEditing && apartment) {
         form.reset({
           buildingId: apartment.buildingId,
-          unitNumber: apartment.unitNumber,
+          unit_number: apartment.unit_number,
           floorIndex: apartment.floorIndex,
           apartmentCode: toFormValue(apartment.apartmentCode),
           floorLabel: toFormValue(apartment.floorLabel),
@@ -266,7 +265,7 @@ export function ApartmentFormDialog({
       } else {
         form.reset({
           buildingId: '',
-          unitNumber: '',
+          unit_number: '',
           floorIndex: 1,
           apartmentCode: '',
           floorLabel: '',
@@ -390,12 +389,12 @@ export function ApartmentFormDialog({
 
         toast({
           title: 'Apartment updated',
-          description: `Unit ${apartment.unitNumber} has been updated successfully.`,
+          description: `Unit ${apartment.unit_number} has been updated successfully.`,
         });
       } else {
         const createData: CreateApartmentInput = {
           buildingId: values.buildingId,
-          unitNumber: values.unitNumber,
+          unit_number: values.unit_number,
           floorIndex: values.floorIndex,
           apartmentCode: cleanValue(values.apartmentCode) as string | undefined,
           floorLabel: cleanValue(values.floorLabel) as string | undefined,
@@ -414,7 +413,7 @@ export function ApartmentFormDialog({
 
         toast({
           title: 'Apartment created',
-          description: `Unit ${values.unitNumber} has been created successfully.`,
+          description: `Unit ${values.unit_number} has been created successfully.`,
         });
       }
 
@@ -430,12 +429,12 @@ export function ApartmentFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
-          className="flex flex-col h-full overflow-hidden"
+          className="flex flex-col flex-1 min-h-0 overflow-hidden"
         >
           <DialogHeader>
             <DialogTitle>
@@ -449,8 +448,8 @@ export function ApartmentFormDialog({
           </DialogHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
-              <Tabs defaultValue="spatial" className="flex-1 overflow-hidden flex flex-col">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+              <Tabs defaultValue="spatial" className="flex-1 min-h-0 flex flex-col">
                 <TabsList className="w-full flex-shrink-0 grid grid-cols-4 mb-2">
                   <TabsTrigger value="spatial" className="text-xs">Spatial</TabsTrigger>
                   <TabsTrigger value="occupancy" className="text-xs">Occupancy</TabsTrigger>
@@ -458,7 +457,7 @@ export function ApartmentFormDialog({
                   <TabsTrigger value="billing" className="text-xs">Billing</TabsTrigger>
                 </TabsList>
 
-                <ScrollArea className="flex-1 pr-4" style={{ maxHeight: 'calc(90vh - 250px)' }}>
+                <div className="flex-1 min-h-0 overflow-y-auto pr-4">
                   {/* ===== SPATIAL TAB ===== */}
                   <TabsContent value="spatial" className="space-y-4 mt-0">
                     {/* Building Selection - disabled in edit mode */}
@@ -496,7 +495,7 @@ export function ApartmentFormDialog({
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
-                        name="unitNumber"
+                        name="unit_number"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Unit Number</FormLabel>
@@ -1252,7 +1251,7 @@ export function ApartmentFormDialog({
                       )}
                     />
                   </TabsContent>
-                </ScrollArea>
+                </div>
               </Tabs>
 
               <DialogFooter className="mt-4 pt-4 border-t flex-shrink-0">

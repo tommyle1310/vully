@@ -9,7 +9,7 @@
 The current `Apartment` model in Prisma is minimal:
 
 ```
-id, buildingId, unitNumber, floor, status, areaSqm, bedroomCount, bathroomCount, features (JSON), svgElementId
+id, buildingId, unit_number, floor, status, areaSqm, bedroomCount, bathroomCount, features (JSON), svgElementId
 ```
 
 This spec defines the **complete target model** spanning 7 domains. Fields marked `[NEW]` need to be added; fields marked `[EXISTS]` are already in the schema.
@@ -126,7 +126,7 @@ Fields for physical assets assigned to the unit.
 | `assigned_car_slot` | String | No | `[NEW]` ID/code of the assigned car parking spot (e.g. `"B1-A-023"` = Basement 1, Zone A, Slot 23). Null if no fixed slot |
 | `assigned_moto_slot` | String | No | `[NEW]` ID/code of the assigned motorbike parking spot. Very common in Vietnam |
 | `mailbox_number` | String | No | `[NEW]` Physical mailbox number in the ground-floor mailroom. Usually matches apartment_code but can differ in older buildings |
-| `storage_unit_id` | String | No | `[NEW]` ID of the basement storage locker/unit assigned to this apartment. Some developments include a storage cage per unit |
+| `storage_unit_id` | String | No | `[NEW]` ID of the basement storage locker/unit assigned to this apartments. Some developments include a storage cage per unit |
 
 ### Notes
 
@@ -183,7 +183,7 @@ Fields for system behavior, unit merging, IoT sync, and admin tools.
   - SVG floor plans should render merged units as a single shape
   - The `features` JSON on the parent should include `{ mergedUnits: ["child-uuid-1"] }`
 - `sync_status` prepares for IoT integration (smart meters, fire alarm panels). Currently informational; future phases will implement actual device sync
-- `portal_access_enabled` is a quick kill-switch. Different from `User.isActive` — this is per-unit, not per-user
+- `portal_access_enabled` is a quick kill-switch. Different from `User.is_active` — this is per-unit, not per-user
 - `technical_drawing_url` should be served through a signed URL with expiry (S3 presigned URL pattern)
 - `notes_admin` must NEVER be exposed to resident/technician API responses
 
@@ -264,7 +264,7 @@ model Apartment {
   buildingId           String           @map("building_id") @db.Uuid
   floorIndex           Int              @map("floor_index")
   floorLabel           String?          @map("floor_label") @db.VarChar(10)
-  unitNumber           String           @map("unit_number") @db.VarChar(20)
+  unit_number           String           @map("unit_number") @db.VarChar(20)
   unitType             UnitType         @map("unit_type")
   netArea              Decimal?         @map("net_area") @db.Decimal(10, 2)
   grossArea            Decimal?         @map("gross_area") @db.Decimal(10, 2)
@@ -330,7 +330,7 @@ model Apartment {
   bedroomCount         Int              @default(1) @map("bedroom_count")
   bathroomCount        Int              @default(1) @map("bathroom_count")
   features             Json             @default("{}")
-  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  created_at            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // === Relations ===
@@ -343,7 +343,7 @@ model Apartment {
   incidents            Incident[]
   meterReadings        MeterReading[]
 
-  @@unique([buildingId, unitNumber])
+  @@unique([buildingId, unit_number])
   @@unique([buildingId, apartmentCode])
   @@index([buildingId])
   @@index([status])
@@ -371,7 +371,7 @@ model ManagementFeeConfig {
   pricePerSqm   Decimal     @map("price_per_sqm") @db.Decimal(12, 2)
   effectiveFrom DateTime    @map("effective_from") @db.Date
   effectiveTo   DateTime?   @map("effective_to") @db.Date
-  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  created_at     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
 
   building      Building    @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   apartments    Apartment[]
@@ -453,18 +453,18 @@ class UpdateApartmentDto extends PartialType(CreateApartmentDto) {}
 
 ```typescript
 // In ApartmentsService
-serializeForRole(apartment: Apartment, role: UserRole) {
+serializeForRole(apartments: Apartment, role: UserRole) {
   if (role === 'resident') {
-    delete apartment.pinkBookId;
-    delete apartment.bankAccountVirtual;
-    delete apartment.notesAdmin;
-    delete apartment.vatRate;
-    delete apartment.lateFeeWaived;
+    delete apartments.pinkBookId;
+    delete apartments.bankAccountVirtual;
+    delete apartments.notesAdmin;
+    delete apartments.vatRate;
+    delete apartments.lateFeeWaived;
   }
   if (role === 'technician') {
-    delete apartment.pinkBookId;
-    delete apartment.bankAccountVirtual;
-    delete apartment.notesAdmin;
+    delete apartments.pinkBookId;
+    delete apartments.bankAccountVirtual;
+    delete apartments.notesAdmin;
   }
   return apartment;
 }

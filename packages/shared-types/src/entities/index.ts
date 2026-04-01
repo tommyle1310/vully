@@ -41,7 +41,7 @@ export const UserBaseSchema = z.object({
   phone: PhoneSchema,
   profileData: z.record(z.unknown()).optional(),
   isActive: z.boolean(),
-  createdAt: TimestampSchema,
+  created_at: TimestampSchema,
   updatedAt: TimestampSchema,
 });
 
@@ -74,7 +74,7 @@ export const BuildingSchema = z.object({
   svgMapData: z.string().optional(),
   amenities: z.array(z.string()).optional(),
   isActive: z.boolean(),
-  createdAt: TimestampSchema,
+  created_at: TimestampSchema,
   updatedAt: TimestampSchema,
 });
 export type Building = z.infer<typeof BuildingSchema>;
@@ -99,7 +99,7 @@ export const ApartmentSchema = z.object({
   buildingId: UUIDSchema,
   floorIndex: z.number().int().nonnegative(),
   floorLabel: z.string().max(10).nullable().optional(),
-  unitNumber: z.string().min(1).max(20),
+  unit_number: z.string().min(1).max(20),
   unitType: UnitTypeSchema.nullable().optional(),
   netArea: z.number().positive().nullable().optional(),
   grossArea: z.number().positive().nullable().optional(),
@@ -158,14 +158,14 @@ export const ApartmentSchema = z.object({
   bedroomCount: z.number().int().nonnegative(),
   bathroomCount: z.number().int().nonnegative(),
   features: z.record(z.unknown()).optional(),
-  createdAt: TimestampSchema,
+  created_at: TimestampSchema,
   updatedAt: TimestampSchema,
 });
 export type Apartment = z.infer<typeof ApartmentSchema>;
 
 export const CreateApartmentSchema = z.object({
   buildingId: UUIDSchema,
-  unitNumber: z.string().min(1).max(20),
+  unit_number: z.string().min(1).max(20),
   floorIndex: z.number().int().nonnegative(),
   apartmentCode: z.string().max(30).optional(),
   floorLabel: z.string().max(10).optional(),
@@ -197,7 +197,7 @@ export const ManagementFeeConfigSchema = z.object({
   pricePerSqm: z.number().positive(),
   effectiveFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   effectiveTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  createdAt: TimestampSchema,
+  created_at: TimestampSchema,
 });
 export type ManagementFeeConfig = z.infer<typeof ManagementFeeConfigSchema>;
 
@@ -210,14 +210,14 @@ export const ContractSchema = z.object({
   apartmentId: UUIDSchema,
   tenantId: UUIDSchema,
   status: ContractStatusSchema,
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   rentAmount: z.number().positive(),
   depositMonths: z.number().int().nonnegative(),
   depositAmount: z.number().nonnegative().optional(),
   termsNotes: z.string().optional(),
   createdBy: UUIDSchema.optional(),
-  createdAt: TimestampSchema,
+  created_at: TimestampSchema,
   updatedAt: TimestampSchema,
 });
 export type Contract = z.infer<typeof ContractSchema>;
@@ -225,8 +225,8 @@ export type Contract = z.infer<typeof ContractSchema>;
 export const CreateContractSchema = z.object({
   apartmentId: UUIDSchema,
   tenantId: UUIDSchema,
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   rentAmount: z.number().positive(),
   depositMonths: z.number().int().nonnegative().optional().default(2),
   termsNotes: z.string().optional(),
@@ -270,7 +270,7 @@ export type InvoicePriceSnapshot = z.infer<typeof InvoicePriceSnapshotSchema>;
 export const InvoiceSchema = z.object({
   id: UUIDSchema,
   contractId: UUIDSchema,
-  invoiceNumber: z.string().min(1),
+  invoice_number: z.string().min(1),
   billingPeriod: z.string().regex(/^\d{4}-\d{2}$/),
   issueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -279,11 +279,11 @@ export const InvoiceSchema = z.object({
   taxAmount: z.number().nonnegative(),
   totalAmount: z.number().nonnegative(),
   paidAmount: z.number().nonnegative(),
-  paidAt: TimestampSchema.optional(),
+  paid_at: TimestampSchema.optional(),
   notes: z.string().optional(),
   priceSnapshot: InvoicePriceSnapshotSchema.optional(),
   lineItems: z.array(InvoiceLineItemSchema).optional(),
-  createdAt: TimestampSchema,
+  created_at: TimestampSchema,
   updatedAt: TimestampSchema,
 });
 export type Invoice = z.infer<typeof InvoiceSchema>;
@@ -303,9 +303,9 @@ export const IncidentSchema = z.object({
   title: z.string().min(1).max(255),
   description: z.string().min(1),
   imageUrls: z.array(z.string().url()).optional(),
-  resolvedAt: TimestampSchema.optional(),
+  resolved_at: TimestampSchema.optional(),
   resolutionNotes: z.string().optional(),
-  createdAt: TimestampSchema,
+  created_at: TimestampSchema,
   updatedAt: TimestampSchema,
 });
 export type Incident = z.infer<typeof IncidentSchema>;

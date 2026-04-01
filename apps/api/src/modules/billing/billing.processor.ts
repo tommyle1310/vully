@@ -41,11 +41,11 @@ export class BillingProcessor extends WorkerHost {
     });
 
     // Update billing job status to processing
-    await this.prisma.billingJob.update({
+    await this.prisma.billing_jobs.update({
       where: { id: billingJobId },
       data: {
         status: 'processing',
-        startedAt: new Date(),
+        started_at: new Date(),
       },
     });
 
@@ -56,22 +56,22 @@ export class BillingProcessor extends WorkerHost {
       };
 
       if (buildingId) {
-        whereClause.apartment = { buildingId };
+        whereClause.apartments = { building_id: buildingId };
       }
 
-      const contracts = await this.prisma.contract.findMany({
+      const contracts = await this.prisma.contracts.findMany({
         where: whereClause,
         include: {
-          apartment: {
-            include: { building: true },
+          apartments: {
+            include: { buildings: true },
           },
         },
       });
 
       // Update total contracts in billing job
-      await this.prisma.billingJob.update({
+      await this.prisma.billing_jobs.update({
         where: { id: billingJobId },
-        data: { totalContracts: contracts.length },
+        data: { total_contracts: contracts.length },
       });
 
       await job.updateProgress(5);
@@ -86,10 +86,10 @@ export class BillingProcessor extends WorkerHost {
 
         try {
           // Check if invoice already exists
-          const existing = await this.prisma.invoice.findFirst({
+          const existing = await this.prisma.invoices.findFirst({
             where: {
-              contractId: contract.id,
-              billingPeriod,
+              contract_id: contract.id,
+              billing_period: billingPeriod,
             },
           });
 
@@ -136,24 +136,24 @@ export class BillingProcessor extends WorkerHost {
         await job.updateProgress(progress);
 
         // Update processed count
-        await this.prisma.billingJob.update({
+        await this.prisma.billing_jobs.update({
           where: { id: billingJobId },
           data: {
-            processedCount: i + 1,
-            failedCount,
+            processed_count: i + 1,
+            failed_count: failedCount,
           },
         });
       }
 
       // Update billing job as completed
-      await this.prisma.billingJob.update({
+      await this.prisma.billing_jobs.update({
         where: { id: billingJobId },
         data: {
           status: failedCount === 0 ? 'completed' : 'failed',
-          completedAt: new Date(),
-          processedCount: contracts.length,
-          failedCount,
-          errorLog: errors.length > 0 ? errors : undefined,
+          completed_at: new Date(),
+          processed_count: contracts.length,
+          failed_count: failedCount,
+          error_log: errors.length > 0 ? errors : undefined,
         },
       });
 
@@ -171,12 +171,12 @@ export class BillingProcessor extends WorkerHost {
       return { success: successCount, failed: failedCount };
     } catch (error) {
       // Update billing job as failed
-      await this.prisma.billingJob.update({
+      await this.prisma.billing_jobs.update({
         where: { id: billingJobId },
         data: {
           status: 'failed',
-          completedAt: new Date(),
-          errorLog: {
+          completed_at: new Date(),
+          error_log: {
             globalError: error instanceof Error ? error.message : 'Unknown error',
           },
         },

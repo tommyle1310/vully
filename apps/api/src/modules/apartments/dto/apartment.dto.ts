@@ -29,7 +29,7 @@ export class CreateApartmentDto {
   @ApiProperty({ example: 'A-1201' })
   @IsString()
   @MaxLength(20)
-  unitNumber: string;
+  unit_number: string;
 
   @ApiProperty({ example: 12, description: 'Zero-based floor index for 3D positioning' })
   @IsInt()
@@ -350,7 +350,7 @@ export class ApartmentResponseDto {
   buildingId!: string;
 
   @ApiProperty()
-  unitNumber!: string;
+  unit_number!: string;
 
   @ApiProperty()
   floorIndex!: number;
@@ -515,7 +515,7 @@ export class ApartmentResponseDto {
   technicalDrawingUrl?: string | null;
 
   @ApiProperty()
-  createdAt!: Date;
+  created_at!: Date;
 
   @ApiProperty()
   updatedAt!: Date;

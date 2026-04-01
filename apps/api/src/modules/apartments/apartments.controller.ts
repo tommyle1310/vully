@@ -133,15 +133,15 @@ export class ApartmentsController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: AuthUser,
   ): Promise<{ data: ApartmentResponseDto }> {
-    let apartment: ApartmentResponseDto;
+    let apartments: ApartmentResponseDto;
 
     if (user.role === 'resident') {
-      apartment = await this.apartmentsService.findOneForResident(id, user.id);
+      apartments = await this.apartmentsService.findOneForResident(id, user.id);
     } else {
-      apartment = await this.apartmentsService.findOne(id);
+      apartments = await this.apartmentsService.findOne(id);
     }
 
-    return { data: apartment };
+    return { data: apartments };
   }
 
   @Patch(':id')

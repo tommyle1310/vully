@@ -25,7 +25,7 @@ export class IncidentCommentsService {
     actorRole: UserRole,
   ): Promise<IncidentCommentResponseDto> {
     // Verify incident exists
-    const incident = await this.prisma.incident.findUnique({
+    const incident = await this.prisma.incidents.findUnique({
       where: { id: incidentId },
     });
 
@@ -34,12 +34,12 @@ export class IncidentCommentsService {
     }
 
     // Check access: residents can only comment on their own incidents
-    if (actorRole === UserRole.resident && incident.reportedById !== actorId) {
+    if (actorRole === UserRole.resident && incident.reported_by !== actorId) {
       throw new ForbiddenException('You can only comment on your own incidents');
     }
 
     // Check access: technicians can only comment on assigned incidents
-    if (actorRole === UserRole.technician && incident.assignedToId !== actorId) {
+    if (actorRole === UserRole.technician && incident.assigned_to !== actorId) {
       throw new ForbiddenException(
         'You can only comment on incidents assigned to you',
       );
@@ -49,16 +49,16 @@ export class IncidentCommentsService {
     const isInternal =
       dto.isInternal && (actorRole === UserRole.admin || actorRole === UserRole.technician);
 
-    const comment = await this.prisma.incidentComment.create({
+    const comment = await this.prisma.incident_comments.create({
       data: {
-        incidentId,
-        authorId: actorId,
+        incident_id: incidentId,
+        author_id: actorId,
         content: dto.content,
-        isInternal,
+        is_internal: isInternal,
       },
       include: {
-        author: {
-          select: { id: true, firstName: true, lastName: true, email: true, role: true },
+        users: {
+          select: { id: true, first_name: true, last_name: true, email: true, role: true },
         },
       },
     });
@@ -80,7 +80,7 @@ export class IncidentCommentsService {
     actorRole: UserRole,
   ): Promise<IncidentCommentResponseDto[]> {
     // Verify incident exists and user has access
-    const incident = await this.prisma.incident.findUnique({
+    const incident = await this.prisma.incidents.findUnique({
       where: { id: incidentId },
     });
 
@@ -89,31 +89,31 @@ export class IncidentCommentsService {
     }
 
     // Check access
-    if (actorRole === UserRole.resident && incident.reportedById !== actorId) {
+    if (actorRole === UserRole.resident && incident.reported_by !== actorId) {
       throw new ForbiddenException('You can only view comments on your own incidents');
     }
 
-    if (actorRole === UserRole.technician && incident.assignedToId !== actorId) {
+    if (actorRole === UserRole.technician && incident.assigned_to !== actorId) {
       throw new ForbiddenException(
         'You can only view comments on incidents assigned to you',
       );
     }
 
-    const whereClause: any = { incidentId };
+    const whereClause: any = { incident_id: incidentId };
 
     // Residents cannot see internal comments
     if (actorRole === UserRole.resident) {
-      whereClause.isInternal = false;
+      whereClause.is_internal = false;
     }
 
-    const comments = await this.prisma.incidentComment.findMany({
+    const comments = await this.prisma.incident_comments.findMany({
       where: whereClause,
       include: {
-        author: {
-          select: { id: true, firstName: true, lastName: true, email: true, role: true },
+        users: {
+          select: { id: true, first_name: true, last_name: true, email: true, role: true },
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { created_at: 'asc' },
     });
 
     return comments.map((c) => this.toResponseDto(c));
@@ -125,7 +125,7 @@ export class IncidentCommentsService {
     actorId: string,
     actorRole: UserRole,
   ): Promise<IncidentCommentResponseDto> {
-    const comment = await this.prisma.incidentComment.findUnique({
+    const comment = await this.prisma.incident_comments.findUnique({
       where: { id: commentId },
     });
 
@@ -134,27 +134,27 @@ export class IncidentCommentsService {
     }
 
     // Only author or admin can update
-    if (actorRole !== UserRole.admin && comment.authorId !== actorId) {
+    if (actorRole !== UserRole.admin && comment.author_id !== actorId) {
       throw new ForbiddenException('You can only edit your own comments');
     }
 
     // Determine isInternal: admin/technician can toggle, residents always false
-    let isInternal = comment.isInternal;
+    let isInternal = comment.is_internal;
     if (dto.isInternal !== undefined) {
       if (actorRole === UserRole.admin || actorRole === UserRole.technician) {
         isInternal = dto.isInternal;
       }
     }
 
-    const updated = await this.prisma.incidentComment.update({
+    const updated = await this.prisma.incident_comments.update({
       where: { id: commentId },
       data: {
         content: dto.content ?? comment.content,
-        isInternal,
+        is_internal: isInternal,
       },
       include: {
-        author: {
-          select: { id: true, firstName: true, lastName: true, email: true, role: true },
+        users: {
+          select: { id: true, first_name: true, last_name: true, email: true, role: true },
         },
       },
     });
@@ -173,7 +173,7 @@ export class IncidentCommentsService {
     actorId: string,
     actorRole: UserRole,
   ): Promise<void> {
-    const comment = await this.prisma.incidentComment.findUnique({
+    const comment = await this.prisma.incident_comments.findUnique({
       where: { id: commentId },
     });
 
@@ -182,11 +182,11 @@ export class IncidentCommentsService {
     }
 
     // Only author or admin can delete
-    if (actorRole !== UserRole.admin && comment.authorId !== actorId) {
+    if (actorRole !== UserRole.admin && comment.author_id !== actorId) {
       throw new ForbiddenException('You can only delete your own comments');
     }
 
-    await this.prisma.incidentComment.delete({
+    await this.prisma.incident_comments.delete({
       where: { id: commentId },
     });
 
@@ -200,19 +200,19 @@ export class IncidentCommentsService {
   private toResponseDto(comment: any): IncidentCommentResponseDto {
     return {
       id: comment.id,
-      incidentId: comment.incidentId,
-      authorId: comment.authorId,
-      author: comment.author
+      incidentId: comment.incident_id,
+      authorId: comment.author_id,
+      author: comment.users
         ? {
-            id: comment.author.id,
-            firstName: comment.author.firstName,
-            lastName: comment.author.lastName,
-            role: comment.author.role,
+            id: comment.users.id,
+            firstName: comment.users.first_name,
+            lastName: comment.users.last_name,
+            role: comment.users.role,
           }
         : undefined,
       content: comment.content,
-      isInternal: comment.isInternal,
-      createdAt: comment.createdAt,
+      isInternal: comment.is_internal,
+      created_at: comment.created_at,
     };
   }
 }

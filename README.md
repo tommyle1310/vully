@@ -143,7 +143,7 @@ vully/
 | **Permission** | Permission keys with descriptions |
 | **RolePermission** | Role ↔ permission mapping |
 | **Building** | Building/block: name, address, floorCount, svgMapData, floorHeights, amenities |
-| **Apartment** | Unit within building: unitNumber, floor, status, areaSqm, bedrooms, bathrooms, svgElementId |
+| **Apartment** | Unit within buildings: unit_number, floor, status, areaSqm, bedrooms, bathrooms, svgElementId |
 | **Contract** | Lease agreements: tenant, apartment, dates, rent, deposit |
 | **UtilityType** | Utility definitions (electricity, water, gas) with unit codes |
 | **UtilityTier** | Tiered pricing per utility per building with effective date ranges |

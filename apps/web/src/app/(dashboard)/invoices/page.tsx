@@ -75,34 +75,34 @@ function formatDate(dateString: string): string {
 }
 
 const columns = [
-  columnHelper.accessor('invoiceNumber', {
+  columnHelper.accessor('invoice_number', {
     header: 'Invoice #',
     cell: (info) => (
       <span className="font-mono text-sm font-medium">{info.getValue()}</span>
     ),
   }),
-  columnHelper.accessor('contract.apartment.unitNumber', {
+  columnHelper.accessor('contract.apartments.unit_number', {
     header: 'Unit',
     cell: (info) => {
       const invoice = info.row.original;
       return (
         <div>
           <span className="font-medium">
-            {invoice.contract?.apartment.unitNumber || '-'}
+            {invoice.contracts?.apartments.unit_number || '-'}
           </span>
           <span className="block text-xs text-muted-foreground">
-            {invoice.contract?.apartment.building.name || ''}
+            {invoice.contracts?.apartments.building.name || ''}
           </span>
         </div>
       );
     },
   }),
-  columnHelper.accessor('contract.tenant.firstName', {
+  columnHelper.accessor('contract.tenant.first_name', {
     header: 'Tenant',
     cell: (info) => {
       const tenant = info.row.original.contract?.tenant;
       if (!tenant) return '-';
-      return `${tenant.firstName} ${tenant.lastName}`;
+      return `${tenant.first_name} ${tenant.last_name}`;
     },
   }),
   columnHelper.accessor('billingPeriod', {

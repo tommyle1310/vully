@@ -39,7 +39,7 @@ const statusVariants: Record<string, 'default' | 'success' | 'warning' | 'destru
 };
 
 const columns = [
-  columnHelper.accessor('unitNumber', {
+  columnHelper.accessor('unit_number', {
     header: 'Unit',
     cell: (info) => (
       <span className="font-medium">{info.getValue()}</span>

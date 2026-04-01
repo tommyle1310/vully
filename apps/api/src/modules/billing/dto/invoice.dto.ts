@@ -112,7 +112,7 @@ export class InvoiceResponseDto {
   contractId: string;
 
   @ApiProperty()
-  invoiceNumber: string;
+  invoice_number: string;
 
   @ApiProperty()
   billingPeriod: string;
@@ -139,7 +139,7 @@ export class InvoiceResponseDto {
   paidAmount: number;
 
   @ApiPropertyOptional()
-  paidAt?: Date;
+  paid_at?: Date;
 
   @ApiPropertyOptional()
   notes?: string;
@@ -148,7 +148,7 @@ export class InvoiceResponseDto {
   lineItems: InvoiceLineItemDto[];
 
   @ApiProperty()
-  createdAt: Date;
+  created_at: Date;
 
   @ApiProperty()
   updatedAt: Date;
@@ -157,10 +157,10 @@ export class InvoiceResponseDto {
   @ApiPropertyOptional()
   contract?: {
     id: string;
-    apartment: {
+    apartments: {
       id: string;
-      unitNumber: string;
-      building: {
+      unit_number: string;
+      buildings: {
         id: string;
         name: string;
       };

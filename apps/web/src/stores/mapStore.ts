@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 interface Apartment {
   id: string;
-  unitNumber: string;
+  unit_number: string;
   floorIndex: number;
   status: 'vacant' | 'occupied' | 'maintenance' | 'reserved';
   grossArea?: number;

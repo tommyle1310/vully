@@ -24,7 +24,7 @@ export class UsersService {
 
   async create(dto: CreateUserDto, actorId: string): Promise<UserResponseDto> {
     // Check if email already exists
-    const existing = await this.prisma.user.findUnique({
+    const existing = await this.prisma.users.findUnique({
       where: { email: dto.email },
     });
 
@@ -43,29 +43,30 @@ export class UsersService {
 
     // Create user with role assignments in a transaction
     const user = await this.prisma.$transaction(async (tx) => {
-      const newUser = await tx.user.create({
+      const newUser = await tx.users.create({
         data: {
           email: dto.email,
-          passwordHash,
-          firstName: dto.firstName,
-          lastName: dto.lastName,
+          password_hash: passwordHash,
+          first_name: dto.firstName,
+          last_name: dto.lastName,
           role: roles[0], // Keep for backward compatibility
           phone: dto.phone,
-          profileData: (dto.profileData || {}) as Prisma.InputJsonValue,
+          profile_data: (dto.profileData || {}) as Prisma.InputJsonValue,
+          updated_at: new Date(),
         },
       });
 
       // Create role assignments
-      await tx.userRoleAssignment.createMany({
+      await tx.user_role_assignments.createMany({
         data: roles.map((role) => ({
-          userId: newUser.id,
+          user_id: newUser.id,
           role,
         })),
       });
 
-      return tx.user.findUnique({
+      return tx.users.findUnique({
         where: { id: newUser.id },
-        include: { roleAssignments: true },
+        include: { user_role_assignments: true },
       });
     });
 
@@ -85,13 +86,13 @@ export class UsersService {
     const skip = (page - 1) * limit;
 
     const [users, total] = await Promise.all([
-      this.prisma.user.findMany({
+      this.prisma.users.findMany({
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: { roleAssignments: true },
+        orderBy: { created_at: 'desc' },
+        include: { user_role_assignments: true },
       }),
-      this.prisma.user.count(),
+      this.prisma.users.count(),
     ]);
 
     return {
@@ -101,9 +102,9 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<UserResponseDto> {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { id },
-      include: { roleAssignments: true },
+      include: { user_role_assignments: true },
     });
 
     if (!user) {
@@ -119,9 +120,9 @@ export class UsersService {
     actorId: string,
     actorRoles: UserRoleEnum[],
   ): Promise<UserResponseDto> {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { id },
-      include: { roleAssignments: true },
+      include: { user_role_assignments: true },
     });
 
     if (!user) {
@@ -144,20 +145,20 @@ export class UsersService {
     const updateData: Record<string, unknown> = {};
 
     if (dto.email) updateData.email = dto.email;
-    if (dto.firstName) updateData.firstName = dto.firstName;
-    if (dto.lastName) updateData.lastName = dto.lastName;
+    if (dto.firstName) updateData.first_name = dto.firstName;
+    if (dto.lastName) updateData.last_name = dto.lastName;
     if (dto.phone !== undefined) updateData.phone = dto.phone;
-    if (dto.profileData) updateData.profileData = dto.profileData;
-    if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
+    if (dto.profileData) updateData.profile_data = dto.profileData;
+    if (dto.isActive !== undefined) updateData.is_active = dto.isActive;
 
     // Hash new password if provided
     if (dto.password) {
-      updateData.passwordHash = await bcrypt.hash(dto.password, this.SALT_ROUNDS);
+      updateData.password_hash = await bcrypt.hash(dto.password, this.SALT_ROUNDS);
     }
 
     // Update user and roles in transaction
     const updated = await this.prisma.$transaction(async (tx) => {
-      const updatedUser = await tx.user.update({
+      const updatedUser = await tx.users.update({
         where: { id },
         data: updateData,
       });
@@ -165,34 +166,34 @@ export class UsersService {
       // Update roles if provided
       if (dto.roles) {
         // Delete old role assignments
-        await tx.userRoleAssignment.deleteMany({
-          where: { userId: id },
+        await tx.user_role_assignments.deleteMany({
+          where: { user_id: id },
         });
 
         // Create new role assignments
-        await tx.userRoleAssignment.createMany({
+        await tx.user_role_assignments.createMany({
           data: dto.roles.map((role) => ({
-            userId: id,
+            user_id: id,
             role,
           })),
         });
 
         // Update primary role for backward compatibility
-        await tx.user.update({
+        await tx.users.update({
           where: { id },
           data: { role: dto.roles[0] },
         });
       }
 
-      return tx.user.findUnique({
+      return tx.users.findUnique({
         where: { id },
-        include: { roleAssignments: true },
+        include: { user_role_assignments: true },
       });
     });
 
     // Audit log for role change
     if (dto.roles) {
-      const oldRoles = user.roleAssignments.map((ra) => ra.role);
+      const oldRoles = user.user_role_assignments.map((ra: { role: UserRoleEnum }) => ra.role);
       this.logger.log({
         event: 'roles_changed',
         actorId,
@@ -204,7 +205,7 @@ export class UsersService {
     }
 
     // If user was deactivated, invalidate all sessions
-    if (dto.isActive === false && user.isActive === true) {
+    if (dto.isActive === false && user.is_active === true) {
       await this.authService.logoutAllDevices(id);
 
       this.logger.log({
@@ -226,9 +227,9 @@ export class UsersService {
     role: UserRoleEnum,
     actorId: string,
   ): Promise<UserResponseDto> {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { id: userId },
-      include: { roleAssignments: true },
+      include: { user_role_assignments: true },
     });
 
     if (!user) {
@@ -236,19 +237,19 @@ export class UsersService {
     }
 
     // Check if user already has this role
-    const hasRole = user.roleAssignments.some((ra) => ra.role === role);
+    const hasRole = user.user_role_assignments.some((ra: { role: UserRoleEnum }) => ra.role === role);
     if (hasRole) {
       throw new ConflictException('User already has this role');
     }
 
     // Check max roles limit
-    if (user.roleAssignments.length >= 3) {
+    if (user.user_role_assignments.length >= 3) {
       throw new BadRequestException('User cannot have more than 3 roles');
     }
 
-    await this.prisma.userRoleAssignment.create({
+    await this.prisma.user_role_assignments.create({
       data: {
-        userId,
+        user_id: userId,
         role,
       },
     });
@@ -272,9 +273,9 @@ export class UsersService {
     role: UserRoleEnum,
     actorId: string,
   ): Promise<UserResponseDto> {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { id: userId },
-      include: { roleAssignments: true },
+      include: { user_role_assignments: true },
     });
 
     if (!user) {
@@ -282,31 +283,31 @@ export class UsersService {
     }
 
     // Ensure user has at least 2 roles before revoking
-    if (user.roleAssignments.length <= 1) {
+    if (user.user_role_assignments.length <= 1) {
       throw new BadRequestException('User must have at least 1 role');
     }
 
     // Check if user has this role
-    const hasRole = user.roleAssignments.some((ra) => ra.role === role);
+    const hasRole = user.user_role_assignments.some((ra: { role: UserRoleEnum }) => ra.role === role);
     if (!hasRole) {
       throw new NotFoundException('User does not have this role');
     }
 
-    await this.prisma.userRoleAssignment.deleteMany({
+    await this.prisma.user_role_assignments.deleteMany({
       where: {
-        userId,
+        user_id: userId,
         role,
       },
     });
 
     // Update primary role if needed
     if (user.role === role) {
-      const remainingRoles = user.roleAssignments
-        .filter((ra) => ra.role !== role)
-        .map((ra) => ra.role);
+      const remainingRoles = user.user_role_assignments
+        .filter((ra: { role: UserRoleEnum }) => ra.role !== role)
+        .map((ra: { role: UserRoleEnum }) => ra.role);
       
       if (remainingRoles.length > 0) {
-        await this.prisma.user.update({
+        await this.prisma.users.update({
           where: { id: userId },
           data: { role: remainingRoles[0] },
         });
@@ -328,16 +329,16 @@ export class UsersService {
    * Get all roles for a user
    */
   async getUserRoles(userId: string): Promise<UserRoleEnum[]> {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { id: userId },
-      include: { roleAssignments: true },
+      include: { user_role_assignments: true },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    return user.roleAssignments.map((ra) => ra.role);
+    return user.user_role_assignments.map((ra: { role: UserRoleEnum }) => ra.role);
   }
 
   async changePassword(
@@ -345,7 +346,7 @@ export class UsersService {
     currentPassword: string,
     newPassword: string,
   ): Promise<void> {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { id: userId },
     });
 
@@ -353,16 +354,16 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    const isValid = await bcrypt.compare(currentPassword, user.password_hash);
     if (!isValid) {
       throw new ForbiddenException('Current password is incorrect');
     }
 
     const passwordHash = await bcrypt.hash(newPassword, this.SALT_ROUNDS);
 
-    await this.prisma.user.update({
+    await this.prisma.users.update({
       where: { id: userId },
-      data: { passwordHash },
+      data: { password_hash: passwordHash },
     });
 
     // Invalidate all other sessions
@@ -378,31 +379,31 @@ export class UsersService {
   private toResponseDto(user: {
     id: string;
     email: string;
-    firstName: string;
-    lastName: string;
-    role: string;
+    first_name: string;
+    last_name: string;
+    role: UserRoleEnum;
     phone: string | null;
-    isActive: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-    roleAssignments?: Array<{ role: UserRoleEnum }>;
+    is_active: boolean;
+    created_at: Date;
+    updated_at: Date;
+    user_role_assignments?: Array<{ role: UserRoleEnum }>;
   }): UserResponseDto {
-    // Extract roles from roleAssignments, fallback to legacy role field
-    const roles = user.roleAssignments
-      ? user.roleAssignments.map((ra) => ra.role)
-      : [user.role as UserRoleEnum];
+    // Extract roles from user_role_assignments, fallback to legacy role field
+    const roles = user.user_role_assignments
+      ? user.user_role_assignments.map((ra) => ra.role)
+      : [user.role];
 
     return {
       id: user.id,
       email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role as UserRoleEnum, // DEPRECATED: For backward compatibility
+      firstName: user.first_name,
+      lastName: user.last_name,
+      role: user.role, // DEPRECATED: For backward compatibility
       roles: roles,
       phone: user.phone || undefined,
-      isActive: user.isActive,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      isActive: user.is_active,
+      created_at: user.created_at,
+      updatedAt: user.updated_at,
     };
   }
 }

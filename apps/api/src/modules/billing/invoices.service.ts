@@ -38,15 +38,15 @@ export class InvoicesService {
 
   async create(dto: CreateInvoiceDto, actorId: string): Promise<InvoiceResponseDto> {
     // Verify contract exists and is active
-    const contract = await this.prisma.contract.findUnique({
+    const contract = await this.prisma.contracts.findUnique({
       where: { id: dto.contractId },
       include: {
-        apartment: {
+        apartments: {
           include: {
-            building: true,
+            buildings: true,
           },
         },
-        tenant: true,
+        users_contracts_tenant_idTousers: true,
       },
     });
 
@@ -59,10 +59,10 @@ export class InvoicesService {
     }
 
     // Check for duplicate invoice
-    const existing = await this.prisma.invoice.findFirst({
+    const existing = await this.prisma.invoices.findFirst({
       where: {
-        contractId: dto.contractId,
-        billingPeriod: dto.billingPeriod,
+        contract_id: dto.contractId,
+        billing_period: dto.billingPeriod,
       },
     });
 
@@ -75,14 +75,14 @@ export class InvoicesService {
     // Calculate invoice
     const calculation = await this.calculateInvoice(
       dto.contractId,
-      contract.apartment.id,
-      contract.apartment.buildingId,
+      contract.apartments.id,
+      contract.apartments.building_id,
       dto.billingPeriod,
-      Number(contract.rentAmount),
+      Number(contract.rent_amount),
     );
 
     // Generate invoice number
-    const invoiceNumber = await this.generateInvoiceNumber(dto.billingPeriod);
+    const invoice_number = await this.generateInvoiceNumber(dto.billingPeriod);
 
     // Parse billing period to get issue and due dates
     const [year, month] = dto.billingPeriod.split('-').map(Number);
@@ -90,42 +90,44 @@ export class InvoicesService {
     const dueDate = new Date(year, month - 1, 15); // Due on 15th of billing month
 
     // Create invoice with line items
-    const invoice = await this.prisma.invoice.create({
+    const invoice = await this.prisma.invoices.create({
       data: {
-        contractId: dto.contractId,
-        invoiceNumber,
-        billingPeriod: dto.billingPeriod,
-        issueDate,
-        dueDate,
+        contract_id: dto.contractId,
+        invoice_number: invoice_number,
+        billing_period: dto.billingPeriod,
+        issue_date: issueDate,
+        due_date: dueDate,
         status: 'pending',
         subtotal: calculation.subtotal,
-        taxAmount: calculation.taxAmount,
-        totalAmount: calculation.totalAmount,
+        tax_amount: calculation.taxAmount,
+        total_amount: calculation.totalAmount,
         notes: dto.notes,
-        priceSnapshot: {
-          rentAmount: Number(contract.rentAmount),
+        price_snapshot: {
+          rentAmount: Number(contract.rent_amount),
           calculatedAt: new Date().toISOString(),
         },
-        lineItems: {
-          create: calculation.lineItems.map((item) => ({
+        updated_at: new Date(),
+        invoice_line_items: {
+          create: calculation.lineItems.map((item: any) => ({
             description: item.description,
             quantity: item.quantity,
-            unitPrice: item.unitPrice,
+            unit_price: item.unitPrice,
             amount: item.amount,
-            utilityTypeId: item.utilityTypeId,
-            meterReadingId: item.meterReadingId,
-            tierBreakdown: item.tierBreakdown as Prisma.InputJsonValue,
+            utility_type_id: item.utilityTypeId,
+            meter_reading_id: item.meterReadingId,
+            tier_breakdown: item.tierBreakdown as Prisma.InputJsonValue,
+            updated_at: new Date(),
           })),
         },
       },
       include: {
-        lineItems: true,
-        contract: {
+        invoice_line_items: true,
+        contracts: {
           include: {
-            apartment: {
-              include: { building: true },
+            apartments: {
+              include: { buildings: true },
             },
-            tenant: true,
+            users_contracts_tenant_idTousers: true,
           },
         },
       },
@@ -135,7 +137,7 @@ export class InvoicesService {
       event: 'invoice_created',
       actorId,
       invoiceId: invoice.id,
-      invoiceNumber,
+      invoice_number,
       billingPeriod: dto.billingPeriod,
       totalAmount: calculation.totalAmount,
     });
@@ -152,21 +154,21 @@ export class InvoicesService {
   ): Promise<{ data: InvoiceResponseDto[]; total: number }> {
     const skip = (page - 1) * limit;
 
-    const where: Prisma.InvoiceWhereInput = {};
+    const where: Prisma.invoicesWhereInput = {};
 
     // Filter by contract
     if (filters.contractId) {
-      where.contractId = filters.contractId;
+      where.contract_id = filters.contractId;
     }
 
     // Filter by apartment (via contract)
     if (filters.apartmentId) {
-      where.contract = { apartmentId: filters.apartmentId };
+      where.contracts = { apartment_id: filters.apartmentId };
     }
 
     // Filter by billing period
     if (filters.billingPeriod) {
-      where.billingPeriod = filters.billingPeriod;
+      where.billing_period = filters.billingPeriod;
     }
 
     // Filter by status
@@ -176,66 +178,66 @@ export class InvoicesService {
 
     // Filter by due date range
     if (filters.dueDateFrom || filters.dueDateTo) {
-      where.dueDate = {};
+      where.due_date = {};
       if (filters.dueDateFrom) {
-        where.dueDate.gte = new Date(filters.dueDateFrom);
+        where.due_date.gte = new Date(filters.dueDateFrom);
       }
       if (filters.dueDateTo) {
-        where.dueDate.lte = new Date(filters.dueDateTo);
+        where.due_date.lte = new Date(filters.dueDateTo);
       }
     }
 
     // Residents can only see their own invoices
     if (userRole === 'resident' && userId) {
-      where.contract = {
-        ...(where.contract as Prisma.ContractWhereInput),
-        tenant: { id: userId },
+      where.contracts = {
+        ...(where.contracts as Prisma.contractsWhereInput),
+        users_contracts_tenant_idTousers: { id: userId },
       };
     }
 
     const [invoices, total] = await Promise.all([
-      this.prisma.invoice.findMany({
+      this.prisma.invoices.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { created_at: 'desc' },
         include: {
-          lineItems: true,
-          contract: {
+          invoice_line_items: true,
+          contracts: {
             include: {
-              apartment: {
-                include: { building: true },
+              apartments: {
+                include: { buildings: true },
               },
-              tenant: true,
+              users_contracts_tenant_idTousers: true,
             },
           },
         },
       }),
-      this.prisma.invoice.count({ where }),
+      this.prisma.invoices.count({ where }),
     ]);
 
     return {
-      data: invoices.map(this.toResponseDto),
+      data: invoices.map((i: any) => this.toResponseDto(i)),
       total,
     };
   }
 
   async findOne(id: string, userId?: string, userRole?: string): Promise<InvoiceResponseDto> {
-    const invoice = await this.prisma.invoice.findUnique({
+    const invoice = await this.prisma.invoices.findUnique({
       where: { id },
       include: {
-        lineItems: {
+        invoice_line_items: {
           include: {
-            utilityType: true,
-            meterReading: true,
+            utility_types: true,
+            meter_readings: true,
           },
         },
-        contract: {
+        contracts: {
           include: {
-            apartment: {
-              include: { building: true },
+            apartments: {
+              include: { buildings: true },
             },
-            tenant: true,
+            users_contracts_tenant_idTousers: true,
           },
         },
       },
@@ -246,7 +248,7 @@ export class InvoicesService {
     }
 
     // Check access for residents
-    if (userRole === 'resident' && userId !== invoice.contract.tenantId) {
+    if (userRole === 'resident' && userId !== invoice.contracts.tenant_id) {
       throw new ForbiddenException('Access denied');
     }
 
@@ -258,7 +260,7 @@ export class InvoicesService {
     dto: UpdateInvoiceDto,
     actorId: string,
   ): Promise<InvoiceResponseDto> {
-    const invoice = await this.prisma.invoice.findUnique({
+    const invoice = await this.prisma.invoices.findUnique({
       where: { id },
     });
 
@@ -266,37 +268,37 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    const updateData: Prisma.InvoiceUpdateInput = {};
+    const updateData: Prisma.invoicesUpdateInput = {};
 
     if (dto.status) {
       updateData.status = dto.status;
       
-      // If marking as paid, set paidAt and paidAmount
+      // If marking as paid, set paid_at and paidAmount
       if (dto.status === 'paid') {
-        updateData.paidAt = new Date();
-        updateData.paidAmount = dto.paidAmount ?? invoice.totalAmount;
+        updateData.paid_at = new Date();
+        updateData.paid_amount = dto.paidAmount ?? invoice.total_amount;
       }
     }
 
     if (dto.paidAmount !== undefined) {
-      updateData.paidAmount = dto.paidAmount;
+      updateData.paid_amount = dto.paidAmount;
     }
 
     if (dto.notes !== undefined) {
       updateData.notes = dto.notes;
     }
 
-    const updated = await this.prisma.invoice.update({
+    const updated = await this.prisma.invoices.update({
       where: { id },
       data: updateData,
       include: {
-        lineItems: true,
-        contract: {
+        invoice_line_items: true,
+        contracts: {
           include: {
-            apartment: {
-              include: { building: true },
+            apartments: {
+              include: { buildings: true },
             },
-            tenant: true,
+            users_contracts_tenant_idTousers: true,
           },
         },
       },
@@ -317,19 +319,19 @@ export class InvoicesService {
   async getOverdueInvoices(): Promise<InvoiceResponseDto[]> {
     const now = new Date();
 
-    const overdueInvoices = await this.prisma.invoice.findMany({
+    const overdueInvoices = await this.prisma.invoices.findMany({
       where: {
         status: 'pending',
-        dueDate: { lt: now },
+        due_date: { lt: now },
       },
       include: {
-        lineItems: true,
-        contract: {
+        invoice_line_items: true,
+        contracts: {
           include: {
-            apartment: {
-              include: { building: true },
+            apartments: {
+              include: { buildings: true },
             },
-            tenant: true,
+            users_contracts_tenant_idTousers: true,
           },
         },
       },
@@ -337,15 +339,15 @@ export class InvoicesService {
 
     // Update status to overdue
     if (overdueInvoices.length > 0) {
-      await this.prisma.invoice.updateMany({
+      await this.prisma.invoices.updateMany({
         where: {
-          id: { in: overdueInvoices.map((i) => i.id) },
+          id: { in: overdueInvoices.map((i: any) => i.id) },
         },
         data: { status: 'overdue' },
       });
     }
 
-    return overdueInvoices.map(this.toResponseDto);
+    return overdueInvoices.map((i: any) => this.toResponseDto(i));
   }
 
   private async calculateInvoice(
@@ -366,36 +368,36 @@ export class InvoicesService {
     });
 
     // Get meter readings for the period
-    const readings = await this.prisma.meterReading.findMany({
+    const readings = await this.prisma.meter_readings.findMany({
       where: {
-        apartmentId,
-        billingPeriod,
+        apartment_id: apartmentId,
+        billing_period: billingPeriod,
       },
       include: {
-        utilityType: true,
+        utility_types: true,
       },
     });
 
     // Calculate utility charges with tiered pricing
     for (const reading of readings) {
-      if (reading.previousValue === null) continue;
+      if (reading.previous_value === null) continue;
 
-      const usage = Number(reading.currentValue) - Number(reading.previousValue);
+      const usage = Number(reading.current_value) - Number(reading.previous_value);
       if (usage <= 0) continue;
 
       const { amount, breakdown } = await this.calculateTieredAmount(
-        reading.utilityTypeId,
+        reading.utility_type_id,
         buildingId,
         usage,
         billingPeriod,
       );
 
       lineItems.push({
-        description: `${reading.utilityType.name} - ${usage} ${reading.utilityType.unit}`,
+        description: `${reading.utility_types.name} - ${usage} ${reading.utility_types.unit}`,
         quantity: usage,
         unitPrice: amount / usage,
         amount,
-        utilityTypeId: reading.utilityTypeId,
+        utilityTypeId: reading.utility_type_id,
         meterReadingId: reading.id,
         tierBreakdown: breakdown,
       });
@@ -418,26 +420,26 @@ export class InvoicesService {
     const periodDate = new Date(year, month - 1, 15);
 
     // Get tiers for this utility type and building
-    const tiers = await this.prisma.utilityTier.findMany({
+    const tiers = await this.prisma.utility_tiers.findMany({
       where: {
-        utilityTypeId,
-        effectiveFrom: { lte: periodDate },
+        utility_type_id: utilityTypeId,
+        effective_from: { lte: periodDate },
         AND: [
           {
             OR: [
-              { buildingId }, // Building-specific tiers
-              { buildingId: null }, // Global tiers
+              { building_id: buildingId }, // Building-specific tiers
+              { building_id: null }, // Global tiers
             ],
           },
           {
             OR: [
-              { effectiveTo: null },
-              { effectiveTo: { gte: periodDate } },
+              { effective_to: null },
+              { effective_to: { gte: periodDate } },
             ],
           },
         ],
       },
-      orderBy: { tierNumber: 'asc' },
+      orderBy: { tier_number: 'asc' },
     });
 
     // If no tiers found, use flat rate
@@ -454,9 +456,9 @@ export class InvoicesService {
     const breakdown: Record<string, unknown> = { tiers: [] };
 
     for (const tier of tiers) {
-      const tierMin = Number(tier.minUsage);
-      const tierMax = tier.maxUsage ? Number(tier.maxUsage) : Infinity;
-      const tierPrice = Number(tier.unitPrice);
+      const tierMin = Number(tier.min_usage);
+      const tierMax = tier.max_usage ? Number(tier.max_usage) : Infinity;
+      const tierPrice = Number(tier.unit_price);
 
       const tierUsage = Math.min(
         Math.max(0, remainingUsage - tierMin),
@@ -467,7 +469,7 @@ export class InvoicesService {
         const tierAmount = tierUsage * tierPrice;
         totalAmount += tierAmount;
         (breakdown.tiers as unknown[]).push({
-          tier: tier.tierNumber,
+          tier: tier.tier_number,
           usage: tierUsage,
           unitPrice: tierPrice,
           amount: tierAmount,
@@ -484,64 +486,64 @@ export class InvoicesService {
   private async generateInvoiceNumber(billingPeriod: string): Promise<string> {
     const prefix = `INV-${billingPeriod.replace('-', '')}`;
     
-    const lastInvoice = await this.prisma.invoice.findFirst({
+    const lastInvoice = await this.prisma.invoices.findFirst({
       where: {
-        invoiceNumber: { startsWith: prefix },
+        invoice_number: { startsWith: prefix },
       },
-      orderBy: { invoiceNumber: 'desc' },
+      orderBy: { invoice_number: 'desc' },
     });
 
     if (!lastInvoice) {
       return `${prefix}-0001`;
     }
 
-    const lastNumber = parseInt(lastInvoice.invoiceNumber.split('-').pop() || '0', 10);
+    const lastNumber = parseInt(lastInvoice.invoice_number.split('-').pop() || '0', 10);
     return `${prefix}-${String(lastNumber + 1).padStart(4, '0')}`;
   }
 
   private toResponseDto(invoice: any): InvoiceResponseDto {
     return {
       id: invoice.id,
-      contractId: invoice.contractId,
-      invoiceNumber: invoice.invoiceNumber,
-      billingPeriod: invoice.billingPeriod,
-      issueDate: invoice.issueDate,
-      dueDate: invoice.dueDate,
+      contractId: invoice.contract_id,
+      invoice_number: invoice.invoice_number,
+      billingPeriod: invoice.billing_period,
+      issueDate: invoice.issue_date,
+      dueDate: invoice.due_date,
       status: invoice.status,
       subtotal: Number(invoice.subtotal),
-      taxAmount: Number(invoice.taxAmount),
-      totalAmount: Number(invoice.totalAmount),
-      paidAmount: Number(invoice.paidAmount),
-      paidAt: invoice.paidAt,
+      taxAmount: Number(invoice.tax_amount),
+      totalAmount: Number(invoice.total_amount),
+      paidAmount: Number(invoice.paid_amount),
+      paid_at: invoice.paid_at,
       notes: invoice.notes,
-      lineItems: invoice.lineItems?.map((item: any) => ({
+      lineItems: invoice.invoice_line_items?.map((item: any) => ({
         id: item.id,
         description: item.description,
         quantity: Number(item.quantity),
-        unitPrice: Number(item.unitPrice),
+        unitPrice: Number(item.unit_price),
         amount: Number(item.amount),
-        utilityTypeId: item.utilityTypeId,
-        meterReadingId: item.meterReadingId,
-        tierBreakdown: item.tierBreakdown,
+        utilityTypeId: item.utility_type_id,
+        meterReadingId: item.meter_reading_id,
+        tierBreakdown: item.tier_breakdown,
       })) || [],
-      createdAt: invoice.createdAt,
-      updatedAt: invoice.updatedAt,
-      contract: invoice.contract
+      created_at: invoice.created_at,
+      updatedAt: invoice.updated_at,
+      contract: invoice.contracts
         ? {
-            id: invoice.contract.id,
-            apartment: {
-              id: invoice.contract.apartment.id,
-              unitNumber: invoice.contract.apartment.unitNumber,
-              building: {
-                id: invoice.contract.apartment.building.id,
-                name: invoice.contract.apartment.building.name,
+            id: invoice.contracts.id,
+            apartments: {
+              id: invoice.contracts.apartments.id,
+              unit_number: invoice.contracts.apartments.unit_number,
+              buildings: {
+                id: invoice.contracts.apartments.buildings.id,
+                name: invoice.contracts.apartments.buildings.name,
               },
             },
             tenant: {
-              id: invoice.contract.tenant.id,
-              firstName: invoice.contract.tenant.firstName,
-              lastName: invoice.contract.tenant.lastName,
-              email: invoice.contract.tenant.email,
+              id: invoice.contracts.users_contracts_tenant_idTousers.id,
+              firstName: invoice.contracts.users_contracts_tenant_idTousers.first_name,
+              lastName: invoice.contracts.users_contracts_tenant_idTousers.last_name,
+              email: invoice.contracts.users_contracts_tenant_idTousers.email,
             },
           }
         : undefined,

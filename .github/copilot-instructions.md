@@ -143,7 +143,7 @@ export class BillingProcessor {
 ```typescript
 // Emit after state change
 this.socketGateway.server
-  .to(`apartment:${apartmentId}`)
+  .to(`apartments:${apartmentId}`)
   .emit('incident:updated', { incidentId, status });
 ```
 

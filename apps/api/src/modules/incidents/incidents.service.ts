@@ -42,9 +42,9 @@ export class IncidentsService {
     actorRole: UserRole,
   ): Promise<IncidentResponseDto> {
     // Verify apartment exists
-    const apartment = await this.prisma.apartment.findUnique({
+    const apartment = await this.prisma.apartments.findUnique({
       where: { id: dto.apartmentId },
-      include: { building: true },
+      include: { buildings: true },
     });
 
     if (!apartment) {
@@ -53,10 +53,10 @@ export class IncidentsService {
 
     // If reporter is a resident, verify they have an active contract for this apartment
     if (actorRole === UserRole.resident) {
-      const activeContract = await this.prisma.contract.findFirst({
+      const activeContract = await this.prisma.contracts.findFirst({
         where: {
-          tenantId: actorId,
-          apartmentId: dto.apartmentId,
+          tenant_id: actorId,
+          apartment_id: dto.apartmentId,
           status: 'active',
         },
       });
@@ -68,29 +68,30 @@ export class IncidentsService {
       }
     }
 
-    const incident = await this.prisma.incident.create({
+    const incident = await this.prisma.incidents.create({
       data: {
-        apartmentId: dto.apartmentId,
-        reportedById: actorId,
+        apartment_id: dto.apartmentId,
+        reported_by: actorId,
         category: dto.category,
         title: dto.title,
         description: dto.description,
         priority: dto.priority,
         status: IncidentStatus.open,
-        imageUrls: dto.imageUrls ?? [],
+        image_urls: dto.imageUrls ?? [],
+        updated_at: new Date(),
       },
       include: {
-        apartment: {
-          include: { building: true },
+        apartments: {
+          include: { buildings: true },
         },
-        reportedBy: {
-          select: { id: true, firstName: true, lastName: true, email: true },
+        users_incidents_reported_byTousers: {
+          select: { id: true, first_name: true, last_name: true, email: true },
         },
-        assignedTo: {
-          select: { id: true, firstName: true, lastName: true, email: true },
+        users_incidents_assigned_toTousers: {
+          select: { id: true, first_name: true, last_name: true, email: true },
         },
         _count: {
-          select: { comments: true },
+          select: { incident_comments: true },
         },
       },
     });
@@ -106,12 +107,12 @@ export class IncidentsService {
     // Emit WebSocket event (use apartment from earlier fetch)
     this.gateway.emitIncidentCreated({
       incidentId: incident.id,
-      apartmentId: incident.apartmentId,
-      buildingId: apartment.buildingId,
+      apartmentId: incident.apartment_id,
+      buildingId: apartment.buildings.id,
       status: incident.status,
       title: incident.title,
-      assignedTo: incident.assignedToId ?? undefined,
-      updatedAt: incident.updatedAt.toISOString(),
+      assignedTo: incident.assigned_to ?? undefined,
+      updatedAt: incident.updated_at.toISOString(),
     });
 
     return this.toResponseDto(incident);
@@ -124,16 +125,16 @@ export class IncidentsService {
     userId?: string,
     userRole?: UserRole,
   ): Promise<{ data: IncidentResponseDto[]; total: number; pages: number }> {
-    const where: Prisma.IncidentWhereInput = {};
+    const where: Prisma.incidentsWhereInput = {};
 
     // Residents can only see their own reported incidents
     if (userRole === UserRole.resident && userId) {
-      where.reportedById = userId;
+      where.reported_by = userId;
     }
 
     // Technicians can see their assigned incidents
     if (userRole === UserRole.technician && userId) {
-      where.assignedToId = userId;
+      where.assigned_to = userId;
     }
 
     // Apply filters
@@ -154,19 +155,19 @@ export class IncidentsService {
     }
 
     if (filters.apartmentId) {
-      where.apartmentId = filters.apartmentId;
+      where.apartment_id = filters.apartmentId;
     }
 
     if (filters.buildingId) {
-      where.apartment = { buildingId: filters.buildingId };
+      where.apartments = { building_id: filters.buildingId };
     }
 
     if (filters.assignedToId) {
-      where.assignedToId = filters.assignedToId;
+      where.assigned_to = filters.assignedToId;
     }
 
     if (filters.reportedById) {
-      where.reportedById = filters.reportedById;
+      where.reported_by = filters.reportedById;
     }
 
     if (filters.search) {
@@ -177,34 +178,34 @@ export class IncidentsService {
     }
 
     const [incidents, total] = await Promise.all([
-      this.prisma.incident.findMany({
+      this.prisma.incidents.findMany({
         where,
         include: {
-          apartment: {
-            include: { building: true },
+          apartments: {
+            include: { buildings: true },
           },
-          reportedBy: {
-            select: { id: true, firstName: true, lastName: true, email: true },
+          users_incidents_reported_byTousers: {
+            select: { id: true, first_name: true, last_name: true, email: true },
           },
-          assignedTo: {
-            select: { id: true, firstName: true, lastName: true, email: true },
+          users_incidents_assigned_toTousers: {
+            select: { id: true, first_name: true, last_name: true, email: true },
           },
           _count: {
-            select: { comments: true },
+            select: { incident_comments: true },
           },
         },
         orderBy: [
           { priority: 'desc' }, // Urgent/high priority first
-          { createdAt: 'desc' },
+          { created_at: 'desc' },
         ],
         skip: (page - 1) * limit,
         take: limit,
       }),
-      this.prisma.incident.count({ where }),
+      this.prisma.incidents.count({ where }),
     ]);
 
     return {
-      data: incidents.map((i) => this.toResponseDto(i)),
+      data: incidents.map((i: any) => this.toResponseDto(i)),
       total,
       pages: Math.ceil(total / limit),
     };
@@ -215,28 +216,28 @@ export class IncidentsService {
     userId?: string,
     userRole?: UserRole,
   ): Promise<IncidentResponseDto> {
-    const incident = await this.prisma.incident.findUnique({
+    const incident = await this.prisma.incidents.findUnique({
       where: { id },
       include: {
-        apartment: {
-          include: { building: true },
+        apartments: {
+          include: { buildings: true },
         },
-        reportedBy: {
-          select: { id: true, firstName: true, lastName: true, email: true },
+        users_incidents_reported_byTousers: {
+          select: { id: true, first_name: true, last_name: true, email: true },
         },
-        assignedTo: {
-          select: { id: true, firstName: true, lastName: true, email: true },
+        users_incidents_assigned_toTousers: {
+          select: { id: true, first_name: true, last_name: true, email: true },
         },
-        comments: {
+        incident_comments: {
           include: {
-            author: {
-              select: { id: true, firstName: true, lastName: true, email: true, role: true },
+            users: {
+              select: { id: true, first_name: true, last_name: true, email: true, role: true },
             },
           },
-          orderBy: { createdAt: 'asc' },
+          orderBy: { created_at: 'asc' },
         },
         _count: {
-          select: { comments: true },
+          select: { incident_comments: true },
         },
       },
     });
@@ -246,11 +247,11 @@ export class IncidentsService {
     }
 
     // Access control
-    if (userRole === UserRole.resident && incident.reportedById !== userId) {
+    if (userRole === UserRole.resident && incident.reported_by !== userId) {
       throw new ForbiddenException('You can only view your own incidents');
     }
 
-    if (userRole === UserRole.technician && incident.assignedToId !== userId) {
+    if (userRole === UserRole.technician && incident.assigned_to !== userId) {
       throw new ForbiddenException('You can only view incidents assigned to you');
     }
 
@@ -263,7 +264,7 @@ export class IncidentsService {
     actorId: string,
     actorRole: UserRole,
   ): Promise<IncidentResponseDto> {
-    const incident = await this.prisma.incident.findUnique({
+    const incident = await this.prisma.incidents.findUnique({
       where: { id },
     });
 
@@ -273,7 +274,7 @@ export class IncidentsService {
 
     // Only admin can update all fields; residents can only update their own open incidents
     if (actorRole === UserRole.resident) {
-      if (incident.reportedById !== actorId) {
+      if (incident.reported_by !== actorId) {
         throw new ForbiddenException('You can only update your own incidents');
       }
       if (incident.status !== IncidentStatus.open) {
@@ -288,27 +289,27 @@ export class IncidentsService {
       throw new ForbiddenException('Technicians cannot update incident details');
     }
 
-    const updated = await this.prisma.incident.update({
+    const updated = await this.prisma.incidents.update({
       where: { id },
       data: {
         title: dto.title,
         description: dto.description,
         category: dto.category,
         priority: dto.priority,
-        imageUrls: dto.imageUrls,
+        image_urls: dto.imageUrls,
       },
       include: {
-        apartment: {
-          include: { building: true },
+        apartments: {
+          include: { buildings: true },
         },
-        reportedBy: {
-          select: { id: true, firstName: true, lastName: true, email: true },
+        users_incidents_reported_byTousers: {
+          select: { id: true, first_name: true, last_name: true, email: true },
         },
-        assignedTo: {
-          select: { id: true, firstName: true, lastName: true, email: true },
+        users_incidents_assigned_toTousers: {
+          select: { id: true, first_name: true, last_name: true, email: true },
         },
         _count: {
-          select: { comments: true },
+          select: { incident_comments: true },
         },
       },
     });
@@ -334,7 +335,7 @@ export class IncidentsService {
       throw new ForbiddenException('Only administrators can assign technicians');
     }
 
-    const incident = await this.prisma.incident.findUnique({
+    const incident = await this.prisma.incidents.findUnique({
       where: { id },
     });
 
@@ -343,7 +344,7 @@ export class IncidentsService {
     }
 
     // Verify technician exists and has technician role
-    const technician = await this.prisma.user.findUnique({
+    const technician = await this.prisma.users.findUnique({
       where: { id: dto.technicianId },
     });
 
@@ -351,24 +352,24 @@ export class IncidentsService {
       throw new BadRequestException('Invalid technician');
     }
 
-    const updated = await this.prisma.incident.update({
+    const updated = await this.prisma.incidents.update({
       where: { id },
       data: {
-        assignedToId: dto.technicianId,
+        assigned_to: dto.technicianId,
         status: IncidentStatus.assigned,
       },
       include: {
-        apartment: {
-          include: { building: true },
+        apartments: {
+          include: { buildings: true },
         },
-        reportedBy: {
-          select: { id: true, firstName: true, lastName: true, email: true },
+        users_incidents_reported_byTousers: {
+          select: { id: true, first_name: true, last_name: true, email: true },
         },
-        assignedTo: {
-          select: { id: true, firstName: true, lastName: true, email: true },
+        users_incidents_assigned_toTousers: {
+          select: { id: true, first_name: true, last_name: true, email: true },
         },
         _count: {
-          select: { comments: true },
+          select: { incident_comments: true },
         },
       },
     });
@@ -383,12 +384,12 @@ export class IncidentsService {
     // Emit WebSocket event
     this.gateway.emitIncidentAssigned({
       incidentId: updated.id,
-      apartmentId: updated.apartmentId,
-      buildingId: updated.apartment.buildingId,
+      apartmentId: updated.apartment_id,
+      buildingId: updated.apartments.building_id,
       status: updated.status,
       title: updated.title,
-      assignedTo: updated.assignedToId ?? undefined,
-      updatedAt: updated.updatedAt.toISOString(),
+      assignedTo: updated.assigned_to ?? undefined,
+      updatedAt: updated.updated_at.toISOString(),
     });
 
     return this.toResponseDto(updated);
@@ -400,7 +401,7 @@ export class IncidentsService {
     actorId: string,
     actorRole: UserRole,
   ): Promise<IncidentResponseDto> {
-    const incident = await this.prisma.incident.findUnique({
+    const incident = await this.prisma.incidents.findUnique({
       where: { id },
     });
 
@@ -422,52 +423,52 @@ export class IncidentsService {
       dto.status,
       actorRole,
       actorId,
-      incident.assignedToId,
+      incident.assigned_to,
     );
 
-    const updateData: Prisma.IncidentUpdateInput = {
+    const updateData: Prisma.incidentsUpdateInput = {
       status: dto.status,
     };
 
-    // Set resolvedAt when moving to resolved state
+    // Set resolved_at when moving to resolved state
     if (dto.status === IncidentStatus.resolved) {
-      updateData.resolvedAt = new Date();
-      updateData.resolutionNotes = dto.resolutionNotes;
+      updateData.resolved_at = new Date();
+      updateData.resolution_notes = dto.resolutionNotes;
     }
 
-    // Clear resolvedAt if reopening
+    // Clear resolved_at if reopening
     if (dto.status === IncidentStatus.open || dto.status === IncidentStatus.in_progress) {
-      updateData.resolvedAt = null;
-      updateData.resolutionNotes = null;
+      updateData.resolved_at = null;
+      updateData.resolution_notes = null;
     }
 
     // Add resolution note as a comment if provided
     if (dto.resolutionNotes) {
-      await this.prisma.incidentComment.create({
+      await this.prisma.incident_comments.create({
         data: {
-          incidentId: id,
-          authorId: actorId,
+          incident_id: id,
+          author_id: actorId,
           content: `Status changed to ${dto.status}: ${dto.resolutionNotes}`,
-          isInternal: false,
+          is_internal: false,
         },
       });
     }
 
-    const updated = await this.prisma.incident.update({
+    const updated = await this.prisma.incidents.update({
       where: { id },
       data: updateData,
       include: {
-        apartment: {
-          include: { building: true },
+        apartments: {
+          include: { buildings: true },
         },
-        reportedBy: {
-          select: { id: true, firstName: true, lastName: true, email: true },
+        users_incidents_reported_byTousers: {
+          select: { id: true, first_name: true, last_name: true, email: true },
         },
-        assignedTo: {
-          select: { id: true, firstName: true, lastName: true, email: true },
+        users_incidents_assigned_toTousers: {
+          select: { id: true, first_name: true, last_name: true, email: true },
         },
         _count: {
-          select: { comments: true },
+          select: { incident_comments: true },
         },
       },
     });
@@ -483,12 +484,12 @@ export class IncidentsService {
     // Emit WebSocket event based on status
     const payload = {
       incidentId: updated.id,
-      apartmentId: updated.apartmentId,
-      buildingId: updated.apartment.buildingId,
+      apartmentId: updated.apartment_id,
+      buildingId: updated.apartments.building_id,
       status: updated.status,
       title: updated.title,
-      assignedTo: updated.assignedToId ?? undefined,
-      updatedAt: updated.updatedAt.toISOString(),
+      assignedTo: updated.assigned_to ?? undefined,
+      updatedAt: updated.updated_at.toISOString(),
     };
 
     if (dto.status === IncidentStatus.resolved || dto.status === IncidentStatus.closed) {
@@ -548,7 +549,7 @@ export class IncidentsService {
       throw new ForbiddenException('Only administrators can delete incidents');
     }
 
-    const incident = await this.prisma.incident.findUnique({
+    const incident = await this.prisma.incidents.findUnique({
       where: { id },
     });
 
@@ -556,7 +557,7 @@ export class IncidentsService {
       throw new NotFoundException('Incident not found');
     }
 
-    await this.prisma.incident.delete({
+    await this.prisma.incidents.delete({
       where: { id },
     });
 
@@ -574,12 +575,12 @@ export class IncidentsService {
     page = 1,
     limit = 20,
   ): Promise<{ data: IncidentResponseDto[]; total: number; pages: number }> {
-    const where: Prisma.IncidentWhereInput = {};
+    const where: Prisma.incidentsWhereInput = {};
 
     if (userRole === UserRole.resident) {
-      where.reportedById = userId;
+      where.reported_by = userId;
     } else if (userRole === UserRole.technician) {
-      where.assignedToId = userId;
+      where.assigned_to = userId;
     }
 
     // Apply additional filters
@@ -600,31 +601,31 @@ export class IncidentsService {
     }
 
     const [incidents, total] = await Promise.all([
-      this.prisma.incident.findMany({
+      this.prisma.incidents.findMany({
         where,
         include: {
-          apartment: {
-            include: { building: true },
+          apartments: {
+            include: { buildings: true },
           },
-          reportedBy: {
-            select: { id: true, firstName: true, lastName: true, email: true },
+          users_incidents_reported_byTousers: {
+            select: { id: true, first_name: true, last_name: true, email: true },
           },
-          assignedTo: {
-            select: { id: true, firstName: true, lastName: true, email: true },
+          users_incidents_assigned_toTousers: {
+            select: { id: true, first_name: true, last_name: true, email: true },
           },
           _count: {
-            select: { comments: true },
+            select: { incident_comments: true },
           },
         },
-        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [{ priority: 'desc' }, { created_at: 'desc' }],
         skip: (page - 1) * limit,
         take: limit,
       }),
-      this.prisma.incident.count({ where }),
+      this.prisma.incidents.count({ where }),
     ]);
 
     return {
-      data: incidents.map((i) => this.toResponseDto(i)),
+      data: incidents.map((i: any) => this.toResponseDto(i)),
       total,
       pages: Math.ceil(total / limit),
     };
@@ -633,34 +634,48 @@ export class IncidentsService {
   private toResponseDto(incident: any): IncidentResponseDto {
     return {
       id: incident.id,
-      apartmentId: incident.apartmentId,
-      apartment: incident.apartment
+      apartmentId: incident.apartment_id,
+      apartment: incident.apartments
         ? {
-            id: incident.apartment.id,
-            unitNumber: incident.apartment.unitNumber,
-            building: incident.apartment.building
+            id: incident.apartments.id,
+            unit_number: incident.apartments.unit_number,
+            building: incident.apartments.buildings
               ? {
-                  id: incident.apartment.building.id,
-                  name: incident.apartment.building.name,
+                  id: incident.apartments.buildings.id,
+                  name: incident.apartments.buildings.name,
                 }
               : undefined,
           }
         : undefined,
-      reportedById: incident.reportedById,
-      reportedBy: incident.reportedBy,
-      assignedToId: incident.assignedToId,
-      assignedTo: incident.assignedTo,
+      reportedById: incident.reported_by,
+      reportedBy: incident.users_incidents_reported_byTousers
+        ? {
+            id: incident.users_incidents_reported_byTousers.id,
+            firstName: incident.users_incidents_reported_byTousers.first_name,
+            lastName: incident.users_incidents_reported_byTousers.last_name,
+            email: incident.users_incidents_reported_byTousers.email,
+          }
+        : undefined,
+      assignedToId: incident.assigned_to,
+      assignedTo: incident.users_incidents_assigned_toTousers
+        ? {
+            id: incident.users_incidents_assigned_toTousers.id,
+            firstName: incident.users_incidents_assigned_toTousers.first_name,
+            lastName: incident.users_incidents_assigned_toTousers.last_name,
+            email: incident.users_incidents_assigned_toTousers.email,
+          }
+        : undefined,
       category: incident.category,
       title: incident.title,
       description: incident.description,
       priority: incident.priority,
       status: incident.status,
-      imageUrls: incident.imageUrls ?? [],
-      resolvedAt: incident.resolvedAt,
-      resolutionNotes: incident.resolutionNotes,
-      createdAt: incident.createdAt,
-      updatedAt: incident.updatedAt,
-      commentsCount: incident._count?.comments ?? 0,
+      imageUrls: incident.image_urls ?? [],
+      resolved_at: incident.resolved_at,
+      resolutionNotes: incident.resolution_notes,
+      created_at: incident.created_at,
+      updatedAt: incident.updated_at,
+      commentsCount: incident._count?.incident_comments ?? 0,
     };
   }
 }

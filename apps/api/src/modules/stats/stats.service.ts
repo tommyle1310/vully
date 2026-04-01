@@ -59,7 +59,7 @@ export class StatsService {
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
     // Apartment stats
-    const apartmentStats = await this.prisma.apartment.groupBy({
+    const apartmentStats = await this.prisma.apartments.groupBy({
       by: ['status'],
       _count: { id: true },
     });
@@ -79,43 +79,43 @@ export class StatsService {
     }
 
     // Resident stats
-    const totalResidents = await this.prisma.user.count({
+    const totalResidents = await this.prisma.users.count({
       where: { role: 'resident' },
     });
-    const activeResidents = await this.prisma.user.count({
-      where: { role: 'resident', isActive: true },
+    const activeResidents = await this.prisma.users.count({
+      where: { role: 'resident', is_active: true },
     });
 
     // Invoice stats
-    const pendingInvoices = await this.prisma.invoice.count({
+    const pendingInvoices = await this.prisma.invoices.count({
       where: { status: 'pending' },
     });
-    const overdueInvoices = await this.prisma.invoice.count({
+    const overdueInvoices = await this.prisma.invoices.count({
       where: { status: 'overdue' },
     });
-    const paidThisMonth = await this.prisma.invoice.count({
+    const paidThisMonth = await this.prisma.invoices.count({
       where: {
         status: 'paid',
-        paidAt: { gte: startOfMonth },
+        paid_at: { gte: startOfMonth },
       },
     });
-    const outstandingAgg = await this.prisma.invoice.aggregate({
+    const outstandingAgg = await this.prisma.invoices.aggregate({
       where: { status: { in: ['pending', 'overdue'] } },
-      _sum: { totalAmount: true },
+      _sum: { total_amount: true },
     });
-    const totalOutstanding = outstandingAgg._sum.totalAmount?.toNumber() || 0;
+    const totalOutstanding = outstandingAgg._sum.total_amount?.toNumber() || 0;
 
     // Incident stats
-    const openIncidents = await this.prisma.incident.count({
+    const openIncidents = await this.prisma.incidents.count({
       where: { status: 'open' },
     });
-    const inProgressIncidents = await this.prisma.incident.count({
+    const inProgressIncidents = await this.prisma.incidents.count({
       where: { status: 'in_progress' },
     });
-    const resolvedThisMonth = await this.prisma.incident.count({
+    const resolvedThisMonth = await this.prisma.incidents.count({
       where: {
         status: 'resolved',
-        resolvedAt: { gte: startOfMonth },
+        resolved_at: { gte: startOfMonth },
       },
     });
 
@@ -152,34 +152,34 @@ export class StatsService {
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
     // Revenue this month
-    const thisMonthRevenue = await this.prisma.invoice.aggregate({
+    const thisMonthRevenue = await this.prisma.invoices.aggregate({
       where: {
         status: 'paid',
-        paidAt: { gte: startOfMonth },
+        paid_at: { gte: startOfMonth },
       },
-      _sum: { totalAmount: true },
+      _sum: { total_amount: true },
     });
 
     // Revenue last month
-    const lastMonthRevenue = await this.prisma.invoice.aggregate({
+    const lastMonthRevenue = await this.prisma.invoices.aggregate({
       where: {
         status: 'paid',
-        paidAt: {
+        paid_at: {
           gte: startOfLastMonth,
           lte: endOfLastMonth,
         },
       },
-      _sum: { totalAmount: true },
+      _sum: { total_amount: true },
     });
 
-    const thisMonth = thisMonthRevenue._sum.totalAmount?.toNumber() || 0;
-    const lastMonth = lastMonthRevenue._sum.totalAmount?.toNumber() || 0;
+    const thisMonth = thisMonthRevenue._sum.total_amount?.toNumber() || 0;
+    const lastMonth = lastMonthRevenue._sum.total_amount?.toNumber() || 0;
     const percentChange = lastMonth > 0
       ? Math.round(((thisMonth - lastMonth) / lastMonth) * 100)
       : thisMonth > 0 ? 100 : 0;
 
     // Building count
-    const totalBuildings = await this.prisma.building.count();
+    const totalBuildings = await this.prisma.buildings.count();
 
     return {
       ...baseStats,
@@ -211,20 +211,20 @@ export class StatsService {
       const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
 
       // Count apartments
-      const total = await this.prisma.apartment.count({
+      const total = await this.prisma.apartments.count({
         where: {
-          createdAt: { lt: nextMonth },
+          created_at: { lt: nextMonth },
         },
       });
 
       // Count active contracts in that month
-      const occupied = await this.prisma.contract.count({
+      const occupied = await this.prisma.contracts.count({
         where: {
           status: 'active',
-          startDate: { lt: nextMonth },
+          start_date: { lt: nextMonth },
           OR: [
-            { endDate: null },
-            { endDate: { gte: month } },
+            { end_date: null },
+            { end_date: { gte: month } },
           ],
         },
       });
@@ -256,16 +256,16 @@ export class StatsService {
       const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
 
       // Get paid invoices for this month
-      const invoices = await this.prisma.invoice.findMany({
+      const invoices = await this.prisma.invoices.findMany({
         where: {
           status: 'paid',
-          paidAt: {
+          paid_at: {
             gte: monthStart,
             lt: monthEnd,
           },
         },
         include: {
-          lineItems: true,
+          invoice_line_items: true,
         },
       });
 
@@ -274,7 +274,7 @@ export class StatsService {
       let fees = 0;
 
       for (const invoice of invoices) {
-        for (const item of invoice.lineItems) {
+        for (const item of invoice.invoice_line_items) {
           const amount = item.amount.toNumber();
           if (item.description.toLowerCase().includes('rent')) {
             rent += amount;
@@ -314,33 +314,33 @@ export class StatsService {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     // Group by category with avg resolution time
-    const byCategory = await this.prisma.incident.groupBy({
+    const byCategory = await this.prisma.incidents.groupBy({
       by: ['category'],
       where: {
-        createdAt: { gte: thirtyDaysAgo },
+        created_at: { gte: thirtyDaysAgo },
       },
       _count: { id: true },
     });
 
     const categoryStats = await Promise.all(
       byCategory.map(async (cat) => {
-        const resolvedIncidents = await this.prisma.incident.findMany({
+        const resolvedIncidents = await this.prisma.incidents.findMany({
           where: {
             category: cat.category,
             status: 'resolved',
-            resolvedAt: { not: null },
-            createdAt: { gte: thirtyDaysAgo },
+            resolved_at: { not: null },
+            created_at: { gte: thirtyDaysAgo },
           },
           select: {
-            createdAt: true,
-            resolvedAt: true,
+            created_at: true,
+            resolved_at: true,
           },
         });
 
         let avgResolutionTime = 0;
         if (resolvedIncidents.length > 0) {
           const totalTime = resolvedIncidents.reduce((sum, inc) => {
-            const resTime = inc.resolvedAt!.getTime() - inc.createdAt.getTime();
+            const resTime = inc.resolved_at!.getTime() - inc.created_at.getTime();
             return sum + resTime;
           }, 0);
           avgResolutionTime = Math.round(totalTime / resolvedIncidents.length / (1000 * 60 * 60)); // hours
@@ -355,10 +355,10 @@ export class StatsService {
     );
 
     // Group by priority
-    const byPriority = await this.prisma.incident.groupBy({
+    const byPriority = await this.prisma.incidents.groupBy({
       by: ['priority'],
       where: {
-        createdAt: { gte: thirtyDaysAgo },
+        created_at: { gte: thirtyDaysAgo },
       },
       _count: { id: true },
     });
@@ -369,7 +369,7 @@ export class StatsService {
     }));
 
     // Group by status
-    const byStatus = await this.prisma.incident.groupBy({
+    const byStatus = await this.prisma.incidents.groupBy({
       by: ['status'],
       _count: { id: true },
     });
@@ -407,16 +407,16 @@ export class StatsService {
     // Recent incidents (last 7 days)
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     
-    const recentIncidents = await this.prisma.incident.findMany({
+    const recentIncidents = await this.prisma.incidents.findMany({
       where: {
-        createdAt: { gte: sevenDaysAgo },
+        created_at: { gte: sevenDaysAgo },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { created_at: 'desc' },
       take: Math.ceil(limit / 3),
       include: {
-        apartment: {
+        apartments: {
           include: {
-            building: true,
+            buildings: true,
           },
         },
       },
@@ -427,26 +427,26 @@ export class StatsService {
         id: incident.id,
         type: 'incident' as const,
         title: incident.title,
-        description: `${incident.category} - ${incident.apartment.building.name}, ${incident.apartment.floorIndex}F-${incident.apartment.unitNumber}`,
-        timestamp: incident.createdAt,
+        description: `${incident.category} - ${incident.apartments.buildings.name}, ${incident.apartments.floor_index}F-${incident.apartments.unit_number}`,
+        timestamp: incident.created_at,
         status: incident.status,
         priority: incident.priority,
       });
     }
 
     // Recent invoices (last 7 days)
-    const recentInvoices = await this.prisma.invoice.findMany({
+    const recentInvoices = await this.prisma.invoices.findMany({
       where: {
-        createdAt: { gte: sevenDaysAgo },
+        created_at: { gte: sevenDaysAgo },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { created_at: 'desc' },
       take: Math.ceil(limit / 3),
       include: {
-        contract: {
+        contracts: {
           include: {
-            apartment: {
+            apartments: {
               include: {
-                building: true,
+                buildings: true,
               },
             },
           },
@@ -455,31 +455,31 @@ export class StatsService {
     });
 
     for (const invoice of recentInvoices) {
-      const amount = invoice.totalAmount.toNumber();
+      const amount = invoice.total_amount.toNumber();
       activities.push({
         id: invoice.id,
         type: 'invoice' as const,
-        title: `Invoice #${invoice.invoiceNumber}`,
-        description: `${invoice.contract.apartment.building.name}, ${invoice.contract.apartment.floorIndex}F-${invoice.contract.apartment.unitNumber} - ${amount.toLocaleString('vi-VN')} VND`,
-        timestamp: invoice.createdAt,
+        title: `Invoice #${invoice.invoice_number}`,
+        description: `${invoice.contracts.apartments.buildings.name}, ${invoice.contracts.apartments.floor_index}F-${invoice.contracts.apartments.unit_number} - ${amount.toLocaleString('vi-VN')} VND`,
+        timestamp: invoice.created_at,
         status: invoice.status,
       });
     }
 
     // Recent contracts (last 7 days)
-    const recentContracts = await this.prisma.contract.findMany({
+    const recentContracts = await this.prisma.contracts.findMany({
       where: {
-        createdAt: { gte: sevenDaysAgo },
+        created_at: { gte: sevenDaysAgo },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { created_at: 'desc' },
       take: Math.ceil(limit / 3),
       include: {
-        apartment: {
+        apartments: {
           include: {
-            building: true,
+            buildings: true,
           },
         },
-        tenant: true,
+        users_contracts_tenant_idTousers: true,
       },
     });
 
@@ -488,8 +488,8 @@ export class StatsService {
         id: contract.id,
         type: 'contract' as const,
         title: `New Contract`,
-        description: `${contract.tenant.firstName} ${contract.tenant.lastName} - ${contract.apartment.building.name}, ${contract.apartment.floorIndex}F-${contract.apartment.unitNumber}`,
-        timestamp: contract.createdAt,
+        description: `${contract.users_contracts_tenant_idTousers.first_name} ${contract.users_contracts_tenant_idTousers.last_name} - ${contract.apartments.buildings.name}, ${contract.apartments.floor_index}F-${contract.apartments.unit_number}`,
+        timestamp: contract.created_at,
         status: contract.status,
       });
     }
