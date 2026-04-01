@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsString, MinLength } from 'class-validator';
+import { UserRole } from '@vully/shared-types';
 
 export class LoginDto {
   @ApiProperty({ example: 'admin@vully.vn', description: 'User email address' })
@@ -16,6 +17,9 @@ export class LoginResponseDto {
   @ApiProperty({ description: 'JWT access token' })
   accessToken: string;
 
+  @ApiProperty({ description: 'Refresh token for obtaining new access tokens' })
+  refreshToken: string;
+
   @ApiProperty({ description: 'Token expiration in seconds' })
   expiresIn: number;
 
@@ -25,7 +29,8 @@ export class LoginResponseDto {
     email: string;
     firstName: string;
     lastName: string;
-    role: string;
+    role: string; // DEPRECATED
+    roles: UserRole[]; // Multi-role support
   };
 }
 

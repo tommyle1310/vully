@@ -7,6 +7,7 @@ export interface Building {
   address: string;
   city: string;
   floorCount: number;
+  floorHeights?: Record<string, number>;
   svgMapData?: string;
   amenities: string[];
   isActive: boolean;
@@ -39,6 +40,7 @@ export interface CreateBuildingInput {
   address: string;
   city: string;
   floorCount: number;
+  floorHeights?: Record<string, number>;
   svgMapData?: string;
   amenities?: string[];
 }
@@ -48,6 +50,7 @@ export interface UpdateBuildingInput {
   address?: string;
   city?: string;
   floorCount?: number;
+  floorHeights?: Record<string, number>;
   svgMapData?: string;
   amenities?: string[];
   isActive?: boolean;
@@ -87,6 +90,8 @@ export function useCreateBuilding() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['buildings'] });
+      // Apartments are auto-created from SVG on the backend, invalidate cache
+      queryClient.invalidateQueries({ queryKey: ['apartments'] });
     },
   });
 }
@@ -115,6 +120,8 @@ export function useUpdateBuildingSvgMap() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['buildings'] });
       queryClient.invalidateQueries({ queryKey: ['buildings', variables.id] });
+      // Apartments are auto-synced from SVG on the backend, invalidate cache
+      queryClient.invalidateQueries({ queryKey: ['apartments'] });
     },
   });
 }

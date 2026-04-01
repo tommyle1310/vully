@@ -4,8 +4,9 @@ import {
   NotFoundException,
   ForbiddenException,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserRole as UserRoleEnum } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateUserDto, UpdateUserDto, UserResponseDto } from './dto/user.dto';
 import * as bcrypt from 'bcrypt';
@@ -31,31 +32,53 @@ export class UsersService {
       throw new ConflictException('Email already registered');
     }
 
+    // Validate roles (max 3)
+    const roles = dto.roles || [UserRoleEnum.resident];
+    if (roles.length === 0 || roles.length > 3) {
+      throw new BadRequestException('User must have 1-3 roles');
+    }
+
     // Hash password
     const passwordHash = await bcrypt.hash(dto.password, this.SALT_ROUNDS);
 
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        passwordHash,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        role: dto.role || 'resident',
-        phone: dto.phone,
-        profileData: (dto.profileData || {}) as Prisma.InputJsonValue,
-      },
+    // Create user with role assignments in a transaction
+    const user = await this.prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          email: dto.email,
+          passwordHash,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          role: roles[0], // Keep for backward compatibility
+          phone: dto.phone,
+          profileData: (dto.profileData || {}) as Prisma.InputJsonValue,
+        },
+      });
+
+      // Create role assignments
+      await tx.userRoleAssignment.createMany({
+        data: roles.map((role) => ({
+          userId: newUser.id,
+          role,
+        })),
+      });
+
+      return tx.user.findUnique({
+        where: { id: newUser.id },
+        include: { roleAssignments: true },
+      });
     });
 
     // Audit log
     this.logger.log({
       event: 'user_created',
       actorId,
-      targetUserId: user.id,
-      role: user.role,
+      targetUserId: user!.id,
+      roles: roles,
       timestamp: new Date().toISOString(),
     });
 
-    return this.toResponseDto(user);
+    return this.toResponseDto(user!);
   }
 
   async findAll(page = 1, limit = 20): Promise<{ data: UserResponseDto[]; total: number }> {
@@ -66,12 +89,13 @@ export class UsersService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
+        include: { roleAssignments: true },
       }),
       this.prisma.user.count(),
     ]);
 
     return {
-      data: users.map(this.toResponseDto),
+      data: users.map((u) => this.toResponseDto(u)),
       total,
     };
   }
@@ -79,6 +103,7 @@ export class UsersService {
   async findOne(id: string): Promise<UserResponseDto> {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: { roleAssignments: true },
     });
 
     if (!user) {
@@ -92,19 +117,27 @@ export class UsersService {
     id: string,
     dto: UpdateUserDto,
     actorId: string,
-    actorRole: string,
+    actorRoles: UserRoleEnum[],
   ): Promise<UserResponseDto> {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: { roleAssignments: true },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
+    const isAdmin = actorRoles.includes(UserRoleEnum.admin);
+
     // Prevent non-admins from changing roles
-    if (dto.role && actorRole !== 'admin') {
+    if (dto.roles && !isAdmin) {
       throw new ForbiddenException('Only admins can change user roles');
+    }
+
+    // Validate roles (1-3)
+    if (dto.roles && (dto.roles.length === 0 || dto.roles.length > 3)) {
+      throw new BadRequestException('User must have 1-3 roles');
     }
 
     // Prepare update data
@@ -115,7 +148,6 @@ export class UsersService {
     if (dto.lastName) updateData.lastName = dto.lastName;
     if (dto.phone !== undefined) updateData.phone = dto.phone;
     if (dto.profileData) updateData.profileData = dto.profileData;
-    if (dto.role) updateData.role = dto.role;
     if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
 
     // Hash new password if provided
@@ -123,20 +155,50 @@ export class UsersService {
       updateData.passwordHash = await bcrypt.hash(dto.password, this.SALT_ROUNDS);
     }
 
-    const oldRole = user.role;
-    const updated = await this.prisma.user.update({
-      where: { id },
-      data: updateData,
+    // Update user and roles in transaction
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedUser = await tx.user.update({
+        where: { id },
+        data: updateData,
+      });
+
+      // Update roles if provided
+      if (dto.roles) {
+        // Delete old role assignments
+        await tx.userRoleAssignment.deleteMany({
+          where: { userId: id },
+        });
+
+        // Create new role assignments
+        await tx.userRoleAssignment.createMany({
+          data: dto.roles.map((role) => ({
+            userId: id,
+            role,
+          })),
+        });
+
+        // Update primary role for backward compatibility
+        await tx.user.update({
+          where: { id },
+          data: { role: dto.roles[0] },
+        });
+      }
+
+      return tx.user.findUnique({
+        where: { id },
+        include: { roleAssignments: true },
+      });
     });
 
     // Audit log for role change
-    if (dto.role && dto.role !== oldRole) {
+    if (dto.roles) {
+      const oldRoles = user.roleAssignments.map((ra) => ra.role);
       this.logger.log({
-        event: 'role_changed',
+        event: 'roles_changed',
         actorId,
         targetUserId: id,
-        oldRole,
-        newRole: dto.role,
+        oldRoles,
+        newRoles: dto.roles,
         timestamp: new Date().toISOString(),
       });
     }
@@ -153,7 +215,129 @@ export class UsersService {
       });
     }
 
-    return this.toResponseDto(updated);
+    return this.toResponseDto(updated!);
+  }
+
+  /**
+   * Assign a role to a user (max 3 roles total)
+   */
+  async assignRole(
+    userId: string,
+    role: UserRoleEnum,
+    actorId: string,
+  ): Promise<UserResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { roleAssignments: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check if user already has this role
+    const hasRole = user.roleAssignments.some((ra) => ra.role === role);
+    if (hasRole) {
+      throw new ConflictException('User already has this role');
+    }
+
+    // Check max roles limit
+    if (user.roleAssignments.length >= 3) {
+      throw new BadRequestException('User cannot have more than 3 roles');
+    }
+
+    await this.prisma.userRoleAssignment.create({
+      data: {
+        userId,
+        role,
+      },
+    });
+
+    this.logger.log({
+      event: 'role_assigned',
+      actorId,
+      targetUserId: userId,
+      role,
+      timestamp: new Date().toISOString(),
+    });
+
+    return this.findOne(userId);
+  }
+
+  /**
+   * Revoke a role from a user (must have at least 1 role remaining)
+   */
+  async revokeRole(
+    userId: string,
+    role: UserRoleEnum,
+    actorId: string,
+  ): Promise<UserResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { roleAssignments: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Ensure user has at least 2 roles before revoking
+    if (user.roleAssignments.length <= 1) {
+      throw new BadRequestException('User must have at least 1 role');
+    }
+
+    // Check if user has this role
+    const hasRole = user.roleAssignments.some((ra) => ra.role === role);
+    if (!hasRole) {
+      throw new NotFoundException('User does not have this role');
+    }
+
+    await this.prisma.userRoleAssignment.deleteMany({
+      where: {
+        userId,
+        role,
+      },
+    });
+
+    // Update primary role if needed
+    if (user.role === role) {
+      const remainingRoles = user.roleAssignments
+        .filter((ra) => ra.role !== role)
+        .map((ra) => ra.role);
+      
+      if (remainingRoles.length > 0) {
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { role: remainingRoles[0] },
+        });
+      }
+    }
+
+    this.logger.log({
+      event: 'role_revoked',
+      actorId,
+      targetUserId: userId,
+      role,
+      timestamp: new Date().toISOString(),
+    });
+
+    return this.findOne(userId);
+  }
+
+  /**
+   * Get all roles for a user
+   */
+  async getUserRoles(userId: string): Promise<UserRoleEnum[]> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { roleAssignments: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user.roleAssignments.map((ra) => ra.role);
   }
 
   async changePassword(
@@ -201,13 +385,20 @@ export class UsersService {
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
+    roleAssignments?: Array<{ role: UserRoleEnum }>;
   }): UserResponseDto {
+    // Extract roles from roleAssignments, fallback to legacy role field
+    const roles = user.roleAssignments
+      ? user.roleAssignments.map((ra) => ra.role)
+      : [user.role as UserRoleEnum];
+
     return {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      role: user.role as UserResponseDto['role'],
+      role: user.role as UserRoleEnum, // DEPRECATED: For backward compatibility
+      roles: roles,
       phone: user.phone || undefined,
       isActive: user.isActive,
       createdAt: user.createdAt,

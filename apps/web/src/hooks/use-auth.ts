@@ -41,6 +41,7 @@ interface AuthResponse {
     role: string;
   };
   accessToken: string;
+  refreshToken: string;
   expiresIn: string;
 }
 
@@ -68,13 +69,14 @@ export function useLogin() {
       return apiClient.post<AuthResponse>('/auth/login', credentials);
     },
     onSuccess: (data) => {
-      const { user, accessToken } = data;
+      const { user, accessToken, refreshToken } = data;
       
       // Store token in api client for subsequent requests
       apiClient.setAccessToken(accessToken);
+      apiClient.setRefreshToken(refreshToken);
       
-      // Store user in zustand (token will be stored in memory only for security)
-      setAuth(user, accessToken);
+      // Store user + tokens in zustand
+      setAuth(user, accessToken, refreshToken);
       
       // Store refresh token in httpOnly cookie (handled by backend)
       // accessToken stored in memory for XSS protection
@@ -101,18 +103,19 @@ export function useRegister() {
 export function useLogout() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { clearAuth, accessToken } = useAuthStore();
+  const { clearAuth, accessToken, refreshToken } = useAuthStore();
 
   return useMutation({
     mutationFn: async () => {
       // Only call logout API if we have a token
-      if (accessToken) {
-        await apiClient.post('/auth/logout');
+      if (accessToken && refreshToken) {
+        await apiClient.post('/auth/logout', { refreshToken });
       }
     },
     onSettled: () => {
       // Always clear local state, even if API call fails
       apiClient.setAccessToken(null);
+      apiClient.setRefreshToken(null);
       clearAuth();
       queryClient.clear();
       router.push('/login' as string);
@@ -121,18 +124,16 @@ export function useLogout() {
 }
 
 export function useRefreshToken() {
-  const { setAuth, user } = useAuthStore();
+  const { setTokens, refreshToken } = useAuthStore();
 
   return useMutation({
     mutationFn: async (): Promise<RefreshResponse> => {
-      return apiClient.post<RefreshResponse>('/auth/refresh');
+      return apiClient.post<RefreshResponse>('/auth/refresh', { refreshToken });
     },
     onSuccess: (data) => {
-      const { accessToken } = data;
-      apiClient.setAccessToken(accessToken);
-      if (user) {
-        setAuth(user, accessToken);
-      }
+      apiClient.setAccessToken(data.accessToken);
+      apiClient.setRefreshToken(data.refreshToken);
+      setTokens(data.accessToken, data.refreshToken);
     },
   });
 }

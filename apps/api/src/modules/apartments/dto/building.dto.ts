@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsBoolean,
   IsArray,
+  IsObject,
   Min,
   MaxLength,
 } from 'class-validator';
@@ -28,6 +29,14 @@ export class CreateBuildingDto {
   @IsInt()
   @Min(1)
   floorCount: number;
+
+  @ApiPropertyOptional({ 
+    description: 'Floor heights in meters per floor number', 
+    example: { "1": 3.5, "2": 3.2, "3": 3.0 } 
+  })
+  @IsOptional()
+  @IsObject()
+  floorHeights?: Record<string, number>;
 
   @ApiPropertyOptional({ description: 'SVG map data for floor plan' })
   @IsOptional()
@@ -64,6 +73,9 @@ export class BuildingResponseDto {
   @ApiProperty()
   floorCount: number;
 
+  @ApiPropertyOptional({ description: 'Floor heights in meters per floor number' })
+  floorHeights?: Record<string, number>;
+
   @ApiPropertyOptional()
   svgMapData?: string;
 
@@ -87,4 +99,12 @@ export class UpdateSvgMapDto {
   @ApiProperty({ description: 'SVG map data as string' })
   @IsString()
   svgMapData: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Floor heights in meters per floor number',
+    example: { "1": 3.5, "2": 3.2 }
+  })
+  @IsOptional()
+  @IsObject()
+  floorHeights?: Record<string, number>;
 }

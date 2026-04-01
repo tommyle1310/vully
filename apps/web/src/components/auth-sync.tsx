@@ -1,22 +1,38 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/authStore';
 
 /**
  * Syncs the Zustand auth store with the API client.
- * This ensures the access token is available for API calls after page reloads.
+ * Sets up auto-refresh: on 401, the API client silently refreshes the token.
  */
 export function AuthSync({ children }: { children: React.ReactNode }) {
-  const { accessToken, _hasHydrated } = useAuthStore();
+  const { accessToken, refreshToken, _hasHydrated, setTokens, clearAuth } = useAuthStore();
+  const router = useRouter();
 
   useEffect(() => {
     if (_hasHydrated) {
-      // Sync the access token to the API client
       apiClient.setAccessToken(accessToken);
+      apiClient.setRefreshToken(refreshToken);
     }
-  }, [accessToken, _hasHydrated]);
+  }, [accessToken, refreshToken, _hasHydrated]);
+
+  // Wire up callbacks once
+  useEffect(() => {
+    apiClient.setOnTokenRefreshed((newAccess, newRefresh) => {
+      setTokens(newAccess, newRefresh);
+    });
+
+    apiClient.setOnAuthFailure(() => {
+      apiClient.setAccessToken(null);
+      apiClient.setRefreshToken(null);
+      clearAuth();
+      router.push('/login');
+    });
+  }, [setTokens, clearAuth, router]);
 
   return <>{children}</>;
 }

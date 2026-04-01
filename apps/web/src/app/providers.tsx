@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { AnimatePresence } from 'framer-motion';
@@ -9,6 +10,7 @@ import { AuthSync } from '@/components/auth-sync';
 import { Toaster } from '@/components/ui/toaster';
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -31,7 +33,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       >
         <AuthSync>
           <AnimatePresence mode="wait">
-            {children}
+            <div key={pathname}>
+              {children}
+            </div>
           </AnimatePresence>
         </AuthSync>
         <Toaster />

@@ -3,9 +3,9 @@
 ## Phase 0: Bug Fix & Foundation
 
 ### 0.1 Fix providers.tsx React Key Warning
-- [ ] Add unique `key` prop to children wrapped in AnimatePresence
-- [ ] Test that no duplicate key warnings appear in console
-- [ ] Verify page transitions still work with Framer Motion
+- [x] Add unique `key` prop to children wrapped in AnimatePresence
+- [x] Test that no duplicate key warnings appear in console
+- [x] Verify page transitions still work with Framer Motion
 
 **Dependencies**: None - can be done immediately
 
@@ -14,18 +14,18 @@
 ## Phase 1: SVG Builder Template Enhancements
 
 ### 1.1 Add Complex Apartment Shape Templates
-- [ ] Define polygon point arrays for L-shape, U-shape, T-shape, Z-shape, Plus-shape templates
-- [ ] Update `APARTMENT_TEMPLATES` array with new entries (type: 'polygon')
-- [ ] Render polygon elements in SVG canvas
-- [ ] Add distinct icons for each shape in template picker (use lucide-react icons or custom SVG)
-- [ ] Test that complex shapes can be added, moved, and selected
+- [x] Define polygon point arrays for L-shape, U-shape, T-shape, Z-shape, Plus-shape templates
+- [x] Update `APARTMENT_TEMPLATES` array with new entries (type: 'polygon')
+- [x] Render polygon elements in SVG canvas
+- [x] Add distinct icons for each shape in template picker (use lucide-react icons or custom SVG)
+- [x] Test that complex shapes can be added, moved, and selected
 
 ### 1.2 Add Utility Room Templates
-- [ ] Create `UTILITY_TEMPLATES` constant with: Elevator, Stairwell, Electric Room, Trash Room, Water Room
-- [ ] Assign distinct colors/fills: Elevator (gray), Stairwell (light blue), Electric (yellow),Trash (brown), Water (cyan)
-- [ ] Add icon representations for each utility type
-- [ ] Create separate tab or section in template sidebar
-- [ ] Test adding utility rooms alongside apartments
+- [x] Create `UTILITY_TEMPLATES` constant with: Elevator, Stairwell, Electric Room, Trash Room, Water Room
+- [x] Assign distinct colors/fills: Elevator (gray), Stairwell (light blue), Electric (yellow),Trash (brown), Water (cyan)
+- [x] Add icon representations for each utility type
+- [x] Create separate tab or section in template sidebar
+- [x] Test adding utility rooms alongside apartments
 
 **Dependencies**: None
 
@@ -34,16 +34,16 @@
 ## Phase 2: Camera Pan Mode
 
 ### 2.1 Implement Pan Mode State Management
-- [ ] Add `panMode` boolean state to SvgBuilder component
-- [ ] Add toolbar toggle button with Move/Hand icon (lucide-react)
-- [ ] Update button style to show active state when pan mode enabled
+- [x] Add `panMode` boolean state to SvgBuilder component
+- [x] Add toolbar toggle button with Move/Hand icon (lucide-react)
+- [x] Update button style to show active state when pan mode enabled
 
 ### 2.2 Implement Canvas Panning Logic
-- [ ] Add `viewBox` state to track current viewport position
-- [ ] When pan mode ON + mouse drag: translate viewBox instead of elements
-- [ ] Prevent element selection/drag when pan mode is active
-- [ ] Add visual cursor change (grab/grabbing) during pan
-- [ ] Test panning large canvases (1600x1200 viewBox)
+- [x] Add `viewBox` state to track current viewport position
+- [x] When pan mode ON + mouse drag: translate viewBox instead of elements
+- [x] Prevent element selection/drag when pan mode is active
+- [x] Add visual cursor change (grab/grabbing) during pan
+- [x] Test panning large canvases (1600x1200 viewBox)
 
 **Dependencies**: 2.1 must complete before 2.2
 
@@ -52,16 +52,16 @@
 ## Phase 3: Enhanced Export with Metadata
 
 ### 3.1 Modify SVG Export Function
-- [ ] Update `exportSvg()` to include `data-apartment-type` attribute on rect elements
-- [ ] Update `exportSvg()` to include `data-apartment-name` attribute on rect elements
-- [ ] Add embedded `<metadata>` block in SVG root with structured data (JSON)
-- [ ] Update download function to use building name + timestamp in filename
+- [x] Update `exportSvg()` to include `data-apartment-type` attribute on rect elements
+- [x] Update `exportSvg()` to include `data-apartment-name` attribute on rect elements
+- [x] Add embedded `<metadata>` block in SVG root with structured data (JSON)
+- [x] Update download function to use building name + timestamp in filename
 
 ### 3.2 Improve Label Rendering in Export
-- [ ] Ensure apartment type renders as sub-label in exported SVG
-- [ ] Ensure apartment name renders above/below unit number
-- [ ] Add styling to make labels readable (stroke outline for contrast)
-- [ ] Test that exported SVG opens in browsers and vector editors correctly
+- [x] Ensure apartment type renders as sub-label in exported SVG
+- [x] Ensure apartment name renders above/below unit number
+- [x] Add styling to make labels readable (stroke outline for contrast)
+- [x] Test that exported SVG opens in browsers and vector editors correctly
 
 **Dependencies**: None
 
@@ -70,18 +70,18 @@
 ## Phase 4: Floor Height Property
 
 ### 4.1 Backend Schema Update
-- [ ] Add `floorHeights` JSONB field to Building entity in Prisma schema
-- [ ] Create migration: `20260401_add_floor_heights_to_buildings.sql`
-- [ ] Update BuildingDto to include `floorHeights?: Record<string, number>`
-- [ ] Update building update endpoint to accept floor height data
-- [ ] Test API accepts and returns floor height data
+- [x] Add `floorHeights` JSONB field to Building entity in Prisma schema
+- [x] Create migration: `20260401_add_floor_heights_to_buildings.sql`
+- [x] Update BuildingDto to include `floorHeights?: Record<string, number>`
+- [x] Update building update endpoint to accept floor height data
+- [x] Test API accepts and returns floor height data
 
 ### 4.2 Frontend Floor Height UI
-- [ ] Add "Floor Height (m)" input field in SVG builder properties panel
-- [ ] Store floor height in component state and pass to export function
-- [ ] Include floor height in metadata block of exported SVG
-- [ ] Add default value of 3.0m if not specified
-- [ ] Test that height persists when saving and reloading floor plan
+- [x] Add "Floor Height (m)" input field in SVG builder properties panel
+- [x] Store floor height in component state and pass to export function
+- [x] Include floor height in metadata block of exported SVG
+- [x] Add default value of 3.0m if not specified
+- [x] Test that height persists when saving and reloading floor plan
 
 **Dependencies**: 4.1 must complete before 4.2
 
@@ -90,18 +90,18 @@
 ## Phase 5: 3D Viewer Foundation
 
 ### 5.1 Install Three.js Dependencies
-- [ ] Install: `three`, `@react-three/fiber`, `@react-three/drei`
-- [ ] Install types: `@types/three`
-- [ ] Verify bundle size impact (should be ~100KB gzipped)
-- [ ] Test that Three.js renders basic scene in Next.js App Router
+- [x] Install: `three`, `@react-three/fiber`, `@react-three/drei`
+- [x] Install types: `@types/three`
+- [x] Verify bundle size impact (should be ~100KB gzipped)
+- [x] Test that Three.js renders basic scene in Next.js App Router
 
 ### 5.2 Create Building3DViewer Component Skeleton
-- [ ] Create `apps/web/src/components/maps/building-3d-viewer.tsx`
-- [ ] Setup Canvas component from @react-three/fiber
-- [ ] Add OrbitControls from @react-three/drei
-- [ ] Add basic lighting (ambient + directional)
-- [ ] Render a simple test cube to verify 3D is working
-- [ ] Add WebGL support detection with fallback message
+- [x] Create `apps/web/src/components/maps/building-3d-viewer.tsx`
+- [x] Setup Canvas component from @react-three/fiber
+- [x] Add OrbitControls from @react-three/drei
+- [x] Add basic lighting (ambient + directional)
+- [x] Render a simple test cube to verify 3D is working
+- [x] Add WebGL support detection with fallback message
 
 **Dependencies**: 5.1 must complete before 5.2
 
@@ -110,24 +110,24 @@
 ## Phase 6: SVG to 3D Conversion
 
 ### 6.1 Create SVG Parsing Hook
-- [ ] Create `apps/web/src/hooks/use-svg-to-3d.ts`
-- [ ] Use DOMParser to parse SVG string
-- [ ] Extract rect elements and convert to THREE.Shape
-- [ ] Extract polygon/path elements and convert to THREE.Shape
-- [ ] Handle SVG coordinate system flip (Y-axis inversion)
-- [ ] Return array of shapes with metadata (apartmentId, type, fill color)
+- [x] Create `apps/web/src/hooks/use-svg-to-3d.ts`
+- [x] Use DOMParser to parse SVG string
+- [x] Extract rect elements and convert to THREE.Shape
+- [x] Extract polygon/path elements and convert to THREE.Shape
+- [x] Handle SVG coordinate system flip (Y-axis inversion)
+- [x] Return array of shapes with metadata (apartmentId, type, fill color)
 
 ### 6.2 Implement Extrude Geometry for Walls
-- [ ] Use ExtrudeGeometry to add depth to wall shapes
-- [ ] Apply extrude depth based on floor height parameter
-- [ ] Create THREE.Mesh for each wall with appropriate material
-- [ ] Group walls by floor level for organization
+- [x] Use ExtrudeGeometry to add depth to wall shapes
+- [x] Apply extrude depth based on floor height parameter
+- [x] Create THREE.Mesh for each wall with appropriate material
+- [x] Group walls by floor level for organization
 
 ### 6.3 Create Floor Geometry
-- [ ] Generate floor plane geometry (thin ExtrudeGeometry or PlaneGeometry)
-- [ ] Position floor at base of each level
-- [ ] Apply distinct material (lighter color than walls)
-- [ ] Test floor rendering with multiple levels
+- [x] Generate floor plane geometry (thin ExtrudeGeometry or PlaneGeometry)
+- [x] Position floor at base of each level
+- [x] Apply distinct material (lighter color than walls)
+- [x] Test floor rendering with multiple levels
 
 **Dependencies**: 6.1 must complete before 6.2 and 6.3
 
@@ -136,16 +136,16 @@
 ## Phase 7: Multi-Floor Rendering
 
 ### 7.1 Implement Floor Stacking Logic
-- [ ] Create `<Floor>` sub-component that takes floor data + height + index
-- [ ] Position each floor vertically: `y = index * height`
-- [ ] Use `useMemo` to prevent re-computation of geometry on re-renders
-- [ ] Test with 10+ floors to verify performance
+- [x] Create `<Floor>` sub-component that takes floor data + height + index
+- [x] Position each floor vertically: `y = index * height`
+- [x] Use `useMemo` to prevent re-computation of geometry on re-renders
+- [x] Test with 10+ floors to verify performance
 
 ### 7.2 Material System
-- [ ] Define material presets: wall (gray MeshStandardMaterial), floor (beige), apartment (semi-transparent)
-- [ ] Apply different materials based on apartment vs utility room type
-- [ ] Add slight emissive glow to highlight selected apartment in 3D
-- [ ] Test that materials look good under scene lighting
+- [x] Define material presets: wall (gray MeshStandardMaterial), floor (beige), apartment (semi-transparent)
+- [x] Apply different materials based on apartment vs utility room type
+- [x] Add slight emissive glow to highlight selected apartment in 3D
+- [x] Test that materials look good under scene lighting
 
 ### 7.3 Optimize with InstancedMesh
 - [ ] Identify repeated geometries (same-size apartments)
@@ -160,15 +160,15 @@
 ## Phase 8: 3D Viewer UI Integration
 
 ### 8.1 Add 3D Viewer to SVG Builder Dialog
-- [ ] Add "3D Preview" tab or button in SvgBuilderDialog
-- [ ] Toggle between 2D SVG editor and 3D viewer
-- [ ] Pass current SVG content and floor height to 3D viewer
-- [ ] Use Framer Motion for smooth tab transitions
+- [x] Add "3D Preview" tab or button in SvgBuilderDialog
+- [x] Toggle between 2D SVG editor and 3D viewer
+- [x] Pass current SVG content and floor height to 3D viewer
+- [x] Use Framer Motion for smooth tab transitions
 
 ### 8.2 Interactive Floor Controls
 - [ ] Add floor visibility toggles (checkboxes for each floor)
 - [ ] Implement floor isolation mode (view single floor)
-- [ ] Add "Reset Camera" button to return to default view
+- [x] Add "Reset Camera" button to return to default view
 - [ ] Show floor labels in 3D space using Text3D or HTML annotations
 
 ### 8.3 Apartment Selection Sync

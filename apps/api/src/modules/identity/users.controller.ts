@@ -18,6 +18,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { UserRole } from '@vully/shared-types';
 import { UsersService } from './users.service';
 import {
   CreateUserDto,
@@ -29,12 +30,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-
-interface AuthUser {
-  id: string;
-  email: string;
-  role: string;
-}
+import { AuthUser } from './interfaces/auth.interface';
 
 @ApiTags('Users')
 @Controller('users')
@@ -44,7 +40,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @Roles('admin')
+  @Roles(UserRole.admin)
   @ApiOperation({ summary: 'Create a new user (admin only)' })
   @ApiResponse({ status: 201, description: 'User created', type: UserResponseDto })
   @ApiResponse({ status: 409, description: 'Email already exists' })
@@ -58,7 +54,7 @@ export class UsersController {
   }
 
   @Get()
-  @Roles('admin')
+  @Roles(UserRole.admin)
   @ApiOperation({ summary: 'List all users (admin only)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -83,7 +79,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  @Roles('admin')
+  @Roles(UserRole.admin)
   @ApiOperation({ summary: 'Get user by ID (admin only)' })
   @ApiResponse({ status: 200, description: 'User details', type: UserResponseDto })
   @ApiResponse({ status: 404, description: 'User not found' })
@@ -95,7 +91,7 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @Roles('admin')
+  @Roles(UserRole.admin)
   @ApiOperation({ summary: 'Update user (admin only)' })
   @ApiResponse({ status: 200, description: 'User updated', type: UserResponseDto })
   @ApiResponse({ status: 404, description: 'User not found' })
@@ -104,7 +100,7 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
     @CurrentUser() actor: AuthUser,
   ): Promise<{ data: UserResponseDto }> {
-    const user = await this.usersService.update(id, dto, actor.id, actor.role);
+    const user = await this.usersService.update(id, dto, actor.id, actor.roles);
     return { data: user };
   }
 
@@ -122,5 +118,48 @@ export class UsersController {
       dto.currentPassword,
       dto.newPassword,
     );
+  }
+
+  @Post(':id/roles/:role')
+  @Roles(UserRole.admin)
+  @ApiOperation({ summary: 'Assign a role to a user (admin only, max 3 roles per user)' })
+  @ApiResponse({ status: 200, description: 'Role assigned', type: UserResponseDto })
+  @ApiResponse({ status: 400, description: 'Max 3 roles exceeded or invalid role' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 409, description: 'User already has this role' })
+  async assignRole(
+    @Param('id', ParseUUIDPipe) userId: string,
+    @Param('role') role: UserRole,
+    @CurrentUser() actor: AuthUser,
+  ): Promise<{ data: UserResponseDto }> {
+    const user = await this.usersService.assignRole(userId, role, actor.id);
+    return { data: user };
+  }
+
+  @Post(':id/roles/:role/revoke')
+  @Roles(UserRole.admin)
+  @ApiOperation({ summary: 'Revoke a role from a user (admin only, must have at least 1 role)' })
+  @ApiResponse({ status: 200, description: 'Role revoked', type: UserResponseDto })
+  @ApiResponse({ status: 400, description: 'User must have at least 1 role' })
+  @ApiResponse({ status: 404, description: 'User not found or does not have this role' })
+  async revokeRole(
+    @Param('id', ParseUUIDPipe) userId: string,
+    @Param('role') role: UserRole,
+    @CurrentUser() actor: AuthUser,
+  ): Promise<{ data: UserResponseDto }> {
+    const user = await this.usersService.revokeRole(userId, role, actor.id);
+    return { data: user };
+  }
+
+  @Get(':id/roles')
+  @Roles(UserRole.admin)
+  @ApiOperation({ summary: 'Get all roles for a user (admin only)' })
+  @ApiResponse({ status: 200, description: 'User roles' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getUserRoles(
+    @Param('id', ParseUUIDPipe) userId: string,
+  ): Promise<{ data: UserRole[] }> {
+    const roles = await this.usersService.getUserRoles(userId);
+    return { data: roles };
   }
 }

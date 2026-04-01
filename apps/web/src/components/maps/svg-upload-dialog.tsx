@@ -138,7 +138,8 @@ export function SvgUploadDialog({
             Upload an SVG floor plan for {buildingName}. Make sure apartment elements have{' '}
             <code className="text-xs bg-muted px-1 rounded">data-apartment-id</code> or{' '}
             <code className="text-xs bg-muted px-1 rounded">id</code> attributes matching your
-            apartment records.
+            apartment records. <strong>SVG dimensions should be in meters</strong> (e.g., a 10m × 10m apartment 
+            has width="10" height="10").
           </DialogDescription>
         </DialogHeader>
 

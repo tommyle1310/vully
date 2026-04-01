@@ -167,6 +167,30 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
     setApartments(apartments);
   }, [apartments, setApartments]);
 
+  // Auto-fit SVG to container on mount / content change
+  useEffect(() => {
+    const container = svgContainerRef.current;
+    const wrapper = svgWrapperRef.current;
+    if (!container || !wrapper) return;
+
+    const svgEl = container.querySelector('svg');
+    if (!svgEl) return;
+
+    // Make the SVG fill the container width
+    svgEl.style.width = '100%';
+    svgEl.style.height = '100%';
+    svgEl.style.display = 'block';
+
+    // Ensure the SVG has a viewBox for proper scaling
+    if (!svgEl.getAttribute('viewBox')) {
+      const w = parseFloat(svgEl.getAttribute('width') || '800');
+      const h = parseFloat(svgEl.getAttribute('height') || '600');
+      svgEl.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    }
+
+    svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  }, [svgContent]);
+
   // Setup SVG interactions
   useEffect(() => {
     if (!svgContainerRef.current) return;
@@ -372,7 +396,7 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
 
         <div
           ref={svgWrapperRef}
-          className="relative w-full min-h-[500px] bg-muted/20 overflow-hidden cursor-grab active:cursor-grabbing"
+          className="relative w-full h-[600px] bg-muted/20 overflow-hidden cursor-grab active:cursor-grabbing"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -383,10 +407,10 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
         >
           <div
             ref={svgContainerRef}
-            className="transition-transform duration-200 ease-out"
+            className="w-full h-full transition-transform duration-200 ease-out"
             style={{
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-              transformOrigin: 'center',
+              transformOrigin: 'center center',
             }}
             dangerouslySetInnerHTML={{ __html: svgContent }}
           />

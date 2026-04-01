@@ -66,7 +66,8 @@ export function SvgBuilderDialog({
           </DialogTitle>
           <DialogDescription>
             Create or edit the floor plan for {buildingName}. Drag apartment templates onto the canvas,
-            position them, and set apartment IDs.
+            position them, and set apartment IDs. <strong>Builder uses 10 units = 1 meter</strong> for easy manipulation.
+            Exported SVG dimensions are automatically converted to meters.
           </DialogDescription>
         </DialogHeader>
 

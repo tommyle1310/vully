@@ -124,7 +124,6 @@ nano .env  # or use your preferred editor
 #### `GEMINI_API_KEY`
 **Description:** Google Gemini API key for AI assistant  
 **Format:** `AIzaSy...` (39 characters)  
-**Example:** `AIzaSyACNnsOJcsem7PJpka7wEwUcrP1LZPsWk0`  
 **Required:** ✅ Yes (for AI features)  
 **Default:** None
 

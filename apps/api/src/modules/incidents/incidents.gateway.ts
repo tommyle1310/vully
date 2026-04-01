@@ -10,7 +10,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger, UseGuards } from '@nestjs/common';
-import { WS_EVENTS, WS_ROOMS, IncidentEventPayload } from '@vully/shared-types';
+import { WS_EVENTS, WS_ROOMS, IncidentEventPayload, UserRole } from '@vully/shared-types';
 import { WsAuthMiddleware } from '../../common/middleware/ws-auth.middleware';
 
 // For JWT validation in WebSocket connections
@@ -18,7 +18,7 @@ interface AuthenticatedSocket extends Socket {
   user?: {
     id: string;
     email: string;
-    role: string;
+    roles: UserRole[]; // Multi-role support
   };
 }
 
@@ -55,7 +55,7 @@ export class IncidentsGateway implements OnGatewayConnection, OnGatewayDisconnec
       event: 'ws_client_connected',
       clientId: client.id,
       userId: client.user?.id,
-      role: client.user?.role,
+      roles: client.user?.roles,
     });
 
     // Auto-join user-specific rooms
@@ -68,15 +68,17 @@ export class IncidentsGateway implements OnGatewayConnection, OnGatewayDisconnec
         room: userRoom,
       });
 
-      // Auto-join role-based rooms
-      if (client.user.role === 'ADMIN') {
+      // Auto-join role-based rooms (multi-role support)
+      if (client.user.roles.includes(UserRole.admin)) {
         client.join(WS_ROOMS.admin());
         this.logger.log({
           event: 'ws_auto_join',
           clientId: client.id,
           room: 'role:admin',
         });
-      } else if (client.user.role === 'TECHNICIAN') {
+      }
+      
+      if (client.user.roles.includes(UserRole.technician)) {
         client.join(WS_ROOMS.technician());
         this.logger.log({
           event: 'ws_auto_join',

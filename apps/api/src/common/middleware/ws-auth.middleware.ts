@@ -2,12 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Socket } from 'socket.io';
 import { WsException } from '@nestjs/websockets';
+import { UserRole } from '@vully/shared-types';
 
 interface AuthenticatedSocket extends Socket {
   user?: {
     id: string;
     email: string;
-    role: string;
+    roles: UserRole[]; // Multi-role support
   };
 }
 
@@ -40,14 +41,14 @@ export class WsAuthMiddleware {
       client.user = {
         id: payload.sub,
         email: payload.email,
-        role: payload.role,
+        roles: payload.roles || [payload.role], // Support both new and old JWT format
       };
 
       this.logger.log({
         event: 'ws_auth_success',
         clientId: client.id,
         userId: payload.sub,
-        role: payload.role,
+        roles: payload.roles || [payload.role],
       });
 
       next();

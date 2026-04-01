@@ -21,32 +21,33 @@ import { UserProfileDropdown } from '@/components/user-profile-dropdown';
 import { ProtectedRoute } from '@/components/protected-route';
 import { useAuthStore } from '@/stores/authStore';
 import { FloatingChatWidget } from '@/components/floating-chat-widget';
+import { UserRole } from '@vully/shared-types';
 import { useState } from 'react';
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  roles?: string[];
+  roles?: UserRole[]; // Use typed enum instead of string
 }
 
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/buildings', label: 'Buildings', icon: Building2, roles: ['ADMIN'] },
+  { href: '/buildings', label: 'Buildings', icon: Building2, roles: [UserRole.admin] },
   { href: '/apartments', label: 'Apartments', icon: Building },
-  { href: '/users', label: 'Users', icon: Users, roles: ['ADMIN'] },
+  { href: '/users', label: 'Users', icon: Users, roles: [UserRole.admin] },
   { href: '/invoices', label: 'Invoices', icon: FileText },
   { href: '/meter-readings', label: 'Meter Readings', icon: Gauge },
   { href: '/incidents', label: 'Incidents', icon: AlertTriangle },
-  { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['ADMIN'] },
+  { href: '/reports', label: 'Reports', icon: BarChart3, roles: [UserRole.admin] },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
-  const { user } = useAuthStore();
+  const { user, hasAnyRole } = useAuthStore();
   const filteredNavItems = navItems.filter(
-    (item) => !item.roles || (user && item.roles.toString().toLowerCase().includes(user.role))
+    (item) => !item.roles || (user && hasAnyRole(item.roles))
   );
 
   return (

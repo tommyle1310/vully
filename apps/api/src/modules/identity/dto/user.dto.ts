@@ -7,8 +7,11 @@ import {
   MinLength,
   IsBoolean,
   IsObject,
+  IsArray,
+  ArrayMinSize,
+  ArrayMaxSize,
 } from 'class-validator';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '@vully/shared-types';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'user@vully.vn' })
@@ -28,10 +31,23 @@ export class CreateUserDto {
   @IsString()
   lastName: string;
 
-  @ApiPropertyOptional({ example: 'resident', enum: ['admin', 'technician', 'resident'] })
+  @ApiPropertyOptional({ example: 'resident', enum: ['admin', 'technician', 'resident'], deprecated: true })
   @IsOptional()
   @IsEnum(['admin', 'technician', 'resident'])
-  role?: UserRole;
+  role?: UserRole; // DEPRECATED: Use roles array instead
+
+  @ApiPropertyOptional({
+    description: 'User roles (1-3 roles allowed)',
+    example: ['resident'],
+    enum: ['admin', 'technician', 'resident'],
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(['admin', 'technician', 'resident'], { each: true })
+  @ArrayMinSize(1)
+  @ArrayMaxSize(3)
+  roles?: UserRole[];
 
   @ApiPropertyOptional({ example: '+84901234567' })
   @IsOptional()
@@ -64,8 +80,15 @@ export class UserResponseDto {
   @ApiProperty()
   lastName: string;
 
-  @ApiProperty({ enum: ['admin', 'technician', 'resident'] })
-  role: UserRole;
+  @ApiProperty({ enum: ['admin', 'technician', 'resident'], deprecated: true })
+  role: UserRole; // DEPRECATED: Use roles array instead
+
+  @ApiProperty({
+    description: 'User roles (1-3 roles)',
+    enum: ['admin', 'technician', 'resident'],
+    type: [String],
+  })
+  roles: UserRole[];
 
   @ApiPropertyOptional()
   phone?: string;

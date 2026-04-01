@@ -1,19 +1,22 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useParams } from 'next/navigation';
-import { Building, MapPin, Layers, ArrowLeft, Upload, Pencil } from 'lucide-react';
+import { Building, MapPin, Layers, ArrowLeft, Upload, Pencil, Box, Home, ChevronDown, ChevronRight } from 'lucide-react';
 import { useBuilding } from '@/hooks/use-buildings';
 import { useApartments } from '@/hooks/use-apartments';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FloorPlan } from '@/components/maps/floor-plan';
 import { ApartmentDetailPanel } from '@/components/maps/apartment-detail-panel';
 import { MapControls } from '@/components/maps/map-controls';
 import { SvgUploadDialog } from '@/components/maps/svg-upload-dialog';
 import { SvgBuilderDialog } from '@/components/maps/svg-builder-dialog';
+import { Building3D, Building3DSkeleton } from '@/components/3d';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,9 +35,39 @@ export default function BuildingDetailPage() {
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
   const [svgUploadOpen, setSvgUploadOpen] = useState(false);
   const [svgBuilderOpen, setSvgBuilderOpen] = useState(false);
+  const [expandedFloors, setExpandedFloors] = useState<Set<number>>(new Set());
 
   const building = buildingData?.data;
   const apartments = apartmentsData?.data || [];
+
+  // Group apartments by floor
+  const apartmentsByFloor = useMemo(() => {
+    const grouped = new Map<number, typeof apartments>();
+    apartments.forEach((apt) => {
+      const floor = apt.floor;
+      if (!grouped.has(floor)) {
+        grouped.set(floor, []);
+      }
+      grouped.get(floor)!.push(apt);
+    });
+    // Sort each floor's apartments by unit number
+    grouped.forEach((apts) => {
+      apts.sort((a, b) => a.unitNumber.localeCompare(b.unitNumber, undefined, { numeric: true }));
+    });
+    return grouped;
+  }, [apartments]);
+
+  const toggleFloor = (floor: number) => {
+    setExpandedFloors(prev => {
+      const next = new Set(prev);
+      if (next.has(floor)) {
+        next.delete(floor);
+      } else {
+        next.add(floor);
+      }
+      return next;
+    });
+  };
 
   // Calculate apartment counts by status
   const apartmentCounts = {
@@ -200,34 +233,196 @@ export default function BuildingDetailPage() {
       </div>
 
       {/* Map and Controls */}
-      <div className="grid gap-6 lg:grid-cols-4">
-        {/* Floor Plan */}
+      <Tabs defaultValue="2d" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="2d" className="gap-2">
+            <MapPin className="h-4 w-4" />
+            2D Floor Plan
+          </TabsTrigger>
+          <TabsTrigger value="3d" className="gap-2" disabled={!building.svgMapData}>
+            <Box className="h-4 w-4" />
+            3D Building View
+          </TabsTrigger>
+        </TabsList>
+
+        {/* 2D Floor Plan Tab */}
+        <TabsContent value="2d" className="space-y-0">
+          <div className="grid gap-6 lg:grid-cols-4">
+            {/* Floor Plan */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="lg:col-span-3"
+            >
+              <FloorPlan
+                svgContent={building.svgMapData || ''}
+                buildingId={building.id}
+                apartments={apartments}
+                onApartmentClick={handleApartmentClick}
+              />
+            </motion.div>
+
+            {/* Controls */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              className="lg:col-span-1"
+            >
+              <MapControls
+                floorCount={building.floorCount}
+                apartmentCounts={apartmentCounts}
+              />
+            </motion.div>
+          </div>
+        </TabsContent>
+
+        {/* 3D Building View Tab */}
+        <TabsContent value="3d" className="space-y-0">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="h-[700px]"
+          >
+            {building.svgMapData ? (
+              <Building3D
+                svgContent={building.svgMapData}
+                totalFloors={building.floorCount}
+                buildingName={building.name}
+                floorHeights={building.floorHeights}
+                className="h-full"
+              />
+            ) : (
+              <Card className="h-full flex items-center justify-center">
+                <CardContent className="text-center space-y-4">
+                  <Box className="h-16 w-16 text-muted-foreground mx-auto" />
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">No Floor Plan Available</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Create or upload a floor plan to view the 3D building model
+                    </p>
+                    <Button onClick={() => setSvgBuilderOpen(true)}>
+                      <Building className="mr-2 h-4 w-4" />
+                      Build Floor Plan
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </motion.div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Floor-based Apartment List */}
+      {apartments.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="lg:col-span-3"
+          transition={{ delay: 0.2 }}
         >
-          <FloorPlan
-            svgContent={building.svgMapData || ''}
-            buildingId={building.id}
-            apartments={apartments}
-            onApartmentClick={handleApartmentClick}
-          />
-        </motion.div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Home className="h-5 w-5" />
+                Apartments by Floor
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {Array.from({ length: building.floorCount }, (_, i) => i + 1).map((floor) => {
+                const floorApartments = apartmentsByFloor.get(floor) || [];
+                const isExpanded = expandedFloors.has(floor);
+                const occupiedCount = floorApartments.filter(a => a.status === 'occupied').length;
+                const vacantCount = floorApartments.filter(a => a.status === 'vacant').length;
 
-        {/* Controls */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-          className="lg:col-span-1"
-        >
-          <MapControls
-            floorCount={building.floorCount}
-            apartmentCounts={apartmentCounts}
-          />
+                return (
+                  <div key={floor} className="border rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => toggleFloor(floor)}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <Layers className="h-4 w-4" />
+                        <span className="font-medium">Floor {floor}</span>
+                        <Badge variant="secondary" className="ml-1">
+                          {floorApartments.length} unit{floorApartments.length !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {occupiedCount > 0 && (
+                          <Badge variant="default" className="text-xs">
+                            {occupiedCount} occupied
+                          </Badge>
+                        )}
+                        {vacantCount > 0 && (
+                          <Badge variant="outline" className="text-xs text-green-600 border-green-300">
+                            {vacantCount} vacant
+                          </Badge>
+                        )}
+                      </div>
+                    </button>
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="border-t px-4 py-2 space-y-1">
+                            {floorApartments.length === 0 ? (
+                              <p className="text-sm text-muted-foreground py-2">No apartments on this floor</p>
+                            ) : (
+                              floorApartments.map((apt) => (
+                                <button
+                                  key={apt.id}
+                                  onClick={() => handleApartmentClick(apt.id)}
+                                  className="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-muted/50 transition-colors text-left"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <Home className="h-4 w-4 text-muted-foreground" />
+                                    <span className="font-medium text-sm">Unit {apt.unitNumber}</span>
+                                    {apt.areaSqm && (
+                                      <span className="text-xs text-muted-foreground">
+                                        {Number(apt.areaSqm).toFixed(0)}m²
+                                      </span>
+                                    )}
+                                    <span className="text-xs text-muted-foreground">
+                                      {apt.bedroomCount}BR / {apt.bathroomCount}BA
+                                    </span>
+                                  </div>
+                                  <Badge
+                                    variant={
+                                      apt.status === 'vacant' ? 'outline' :
+                                      apt.status === 'occupied' ? 'default' :
+                                      apt.status === 'maintenance' ? 'secondary' : 'outline'
+                                    }
+                                    className={
+                                      apt.status === 'vacant' ? 'text-green-600 border-green-300' :
+                                      apt.status === 'maintenance' ? 'text-yellow-600' : ''
+                                    }
+                                  >
+                                    {apt.status.charAt(0).toUpperCase() + apt.status.slice(1)}
+                                  </Badge>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
         </motion.div>
-      </div>
+      )}
 
 
       {/* SVG Upload Dialog */}

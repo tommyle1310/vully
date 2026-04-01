@@ -5,11 +5,16 @@ const API_URL = typeof window !== 'undefined'
 
 interface RequestOptions extends RequestInit {
   json?: Record<string, unknown> | object;
+  _isRetry?: boolean;
 }
 
 class ApiClient {
   private baseUrl: string;
   private accessToken: string | null = null;
+  private refreshToken: string | null = null;
+  private refreshPromise: Promise<boolean> | null = null;
+  private onAuthFailure: (() => void) | null = null;
+  private onTokenRefreshed: ((accessToken: string, refreshToken: string) => void) | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -19,11 +24,63 @@ class ApiClient {
     this.accessToken = token;
   }
 
+  setRefreshToken(token: string | null) {
+    this.refreshToken = token;
+  }
+
+  /** Called when refresh fails — should clear auth and redirect to login */
+  setOnAuthFailure(callback: () => void) {
+    this.onAuthFailure = callback;
+  }
+
+  /** Called when tokens are refreshed — should update the store */
+  setOnTokenRefreshed(callback: (accessToken: string, refreshToken: string) => void) {
+    this.onTokenRefreshed = callback;
+  }
+
+  private async tryRefreshToken(): Promise<boolean> {
+    // If a refresh is already in progress, wait for it (prevents concurrent refreshes)
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    if (!this.refreshToken) {
+      return false;
+    }
+
+    this.refreshPromise = (async () => {
+      try {
+        const response = await fetch(`${this.baseUrl}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ refreshToken: this.refreshToken }),
+        });
+
+        if (!response.ok) {
+          return false;
+        }
+
+        const data = await response.json();
+        this.accessToken = data.accessToken;
+        this.refreshToken = data.refreshToken;
+        this.onTokenRefreshed?.(data.accessToken, data.refreshToken);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestOptions = {},
   ): Promise<T> {
-    const { json, ...fetchOptions } = options;
+    const { json, _isRetry, ...fetchOptions } = options;
 
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -39,6 +96,22 @@ class ApiClient {
     };
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, config);
+
+    // Auto-refresh on 401 (skip if this is already a retry or a refresh/login request)
+    if (
+      response.status === 401 &&
+      !_isRetry &&
+      !endpoint.includes('/auth/refresh') &&
+      !endpoint.includes('/auth/login')
+    ) {
+      const refreshed = await this.tryRefreshToken();
+      if (refreshed) {
+        // Retry the original request with the new token
+        return this.request<T>(endpoint, { ...options, _isRetry: true });
+      }
+      // Refresh failed — force logout
+      this.onAuthFailure?.();
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({
