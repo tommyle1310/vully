@@ -58,6 +58,9 @@ export class ApartmentsController {
   @ApiQuery({ name: 'buildingId', required: false, type: String })
   @ApiQuery({ name: 'status', required: false, enum: ['vacant', 'occupied', 'maintenance', 'reserved'] })
   @ApiQuery({ name: 'floor', required: false, type: Number })
+  @ApiQuery({ name: 'unitType', required: false, enum: ['studio', 'one_bedroom', 'two_bedroom', 'three_bedroom', 'duplex', 'penthouse', 'shophouse'] })
+  @ApiQuery({ name: 'orientation', required: false, enum: ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest'] })
+  @ApiQuery({ name: 'ownerId', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Apartments list' })
   async findAll(
     @Query('page') page?: string,
@@ -65,6 +68,9 @@ export class ApartmentsController {
     @Query('buildingId') buildingId?: string,
     @Query('status') status?: string,
     @Query('floor') floor?: string,
+    @Query('unitType') unitType?: string,
+    @Query('orientation') orientation?: string,
+    @Query('ownerId') ownerId?: string,
     @CurrentUser() user?: AuthUser,
   ): Promise<{
     data: ApartmentResponseDto[];
@@ -90,6 +96,9 @@ export class ApartmentsController {
       buildingId,
       status: status as ApartmentFiltersDto['status'],
       floor: floor ? parseInt(floor, 10) : undefined,
+      unitType: unitType as ApartmentFiltersDto['unitType'],
+      orientation: orientation as ApartmentFiltersDto['orientation'],
+      ownerId,
     };
 
     const result = await this.apartmentsService.findAll(filters, pageNum, limitNum);

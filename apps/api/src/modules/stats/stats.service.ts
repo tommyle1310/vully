@@ -427,7 +427,7 @@ export class StatsService {
         id: incident.id,
         type: 'incident' as const,
         title: incident.title,
-        description: `${incident.category} - ${incident.apartment.building.name}, ${incident.apartment.floor}F-${incident.apartment.unitNumber}`,
+        description: `${incident.category} - ${incident.apartment.building.name}, ${incident.apartment.floorIndex}F-${incident.apartment.unitNumber}`,
         timestamp: incident.createdAt,
         status: incident.status,
         priority: incident.priority,
@@ -460,7 +460,7 @@ export class StatsService {
         id: invoice.id,
         type: 'invoice' as const,
         title: `Invoice #${invoice.invoiceNumber}`,
-        description: `${invoice.contract.apartment.building.name}, ${invoice.contract.apartment.floor}F-${invoice.contract.apartment.unitNumber} - ${amount.toLocaleString('vi-VN')} VND`,
+        description: `${invoice.contract.apartment.building.name}, ${invoice.contract.apartment.floorIndex}F-${invoice.contract.apartment.unitNumber} - ${amount.toLocaleString('vi-VN')} VND`,
         timestamp: invoice.createdAt,
         status: invoice.status,
       });
@@ -488,7 +488,7 @@ export class StatsService {
         id: contract.id,
         type: 'contract' as const,
         title: `New Contract`,
-        description: `${contract.tenant.firstName} ${contract.tenant.lastName} - ${contract.apartment.building.name}, ${contract.apartment.floor}F-${contract.apartment.unitNumber}`,
+        description: `${contract.tenant.firstName} ${contract.tenant.lastName} - ${contract.apartment.building.name}, ${contract.apartment.floorIndex}F-${contract.apartment.unitNumber}`,
         timestamp: contract.createdAt,
         status: contract.status,
       });
