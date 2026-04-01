@@ -656,7 +656,7 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
           setHistoryIndex(0);
           toast({
             title: 'Floor plan loaded',
-            description: `Loaded ${rects.length + polygons.length} element${(rects.length + polygons.length) !== 1 ? 's' : ''} from existing floor plan${hasScaleFactor ? ' (scaled from meters)' : ''}`,
+            description: `Loaded ${allRects.length + polygons.length} element${(allRects.length + polygons.length) !== 1 ? 's' : ''} from existing floor plan${hasScaleFactor ? ' (scaled from meters)' : ''}`,
           });
         }
         
@@ -1280,7 +1280,7 @@ ${elementsSvg}
   }, [exportSvg, onSave]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 h-full w-full">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] grid-rows-[minmax(0,1fr)] gap-4 h-full w-full overflow-hidden">
       {/* Canvas */}
       <Card className="flex flex-col h-full min-h-0">
         <CardHeader className="pb-3 flex-shrink-0">
@@ -1676,7 +1676,7 @@ ${elementsSvg}
       {/* Sidebar */}
       <Card className="flex flex-col h-full min-h-0 overflow-hidden">
         <Tabs defaultValue="templates" className="flex-1 flex flex-col min-h-0">
-          <TabsList className="w-full flex-shrink-0 m-4 mb-0">
+          <TabsList className="flex-shrink-0 mx-4 mt-4">
             <TabsTrigger value="templates" className="flex-1">Templates</TabsTrigger>
             <TabsTrigger value="tools" className="flex-1">Tools</TabsTrigger>
             <TabsTrigger value="properties" className="flex-1">Properties</TabsTrigger>

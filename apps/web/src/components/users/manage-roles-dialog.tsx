@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, X } from 'lucide-react';
+import { apiClient } from '@/lib/api-client';
 
 interface ManageRolesDialogProps {
   open: boolean;
@@ -42,12 +43,7 @@ export function ManageRolesDialog({
 
   const assignRoleMutation = useMutation({
     mutationFn: async (role: UserRole) => {
-      const res = await fetch(`/api/users/${user.id}/roles/${role}`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Failed to assign role');
-      return res.json();
+      return apiClient.post(`/users/${user.id}/roles/${role}`);
     },
     onSuccess: () => {
       toast({
@@ -67,12 +63,7 @@ export function ManageRolesDialog({
 
   const revokeRoleMutation = useMutation({
     mutationFn: async (role: UserRole) => {
-      const res = await fetch(`/api/users/${user.id}/roles/${role}/revoke`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Failed to revoke role');
-      return res.json();
+      return apiClient.post(`/users/${user.id}/roles/${role}/revoke`);
     },
     onSuccess: () => {
       toast({

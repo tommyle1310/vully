@@ -29,7 +29,7 @@ export default function BuildingDetailPage() {
   const buildingId = params.id as string;
 
   const { data: buildingData, isLoading: buildingLoading, refetch: refetchBuilding } = useBuilding(buildingId);
-  const { data: apartmentsData, isLoading: apartmentsLoading } = useApartments({ buildingId });
+  const { data: apartmentsData, isLoading: apartmentsLoading } = useApartments({ buildingId, limit: 500 });
   
   const [selectedApartmentId, setSelectedApartmentId] = useState<string | null>(null);
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);

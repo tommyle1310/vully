@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { useMapStore } from '@/stores/mapStore';
@@ -55,6 +55,27 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
   const [tooltip, setTooltip] = useState<{ x: number; y: number; content: string } | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
+
+  // Preprocess SVG content so it renders at 100% immediately (no FOUC)
+  const processedSvg = useMemo(() => {
+    if (!svgContent) return '';
+    let svg = svgContent;
+    // Strip XML declaration (becomes a bogus comment node in HTML5)
+    svg = svg.replace(/<\?xml[^?]*\?>\s*/g, '');
+    // Process the opening <svg> tag
+    svg = svg.replace(/<svg\b([^>]*)>/i, (_match, attrs: string) => {
+      // Remove width/height attributes — they set intrinsic size in meters (e.g. 20×15 px)
+      let cleaned = attrs
+        .replace(/\bwidth\s*=\s*("[^"]*"|'[^']*')/gi, '')
+        .replace(/\bheight\s*=\s*("[^"]*"|'[^']*')/gi, '');
+      // Ensure preserveAspectRatio is present
+      if (!/preserveAspectRatio/i.test(cleaned)) {
+        cleaned += ' preserveAspectRatio="xMidYMid meet"';
+      }
+      return `<svg${cleaned}>`;
+    });
+    return svg;
+  }, [svgContent]);
   
   const {
     hoveredApartmentId,
@@ -73,11 +94,11 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
 
   // Zoom handlers
   const handleZoomIn = useCallback(() => {
-    setZoom(Math.min(zoom + 0.25, 3));
+    setZoom(Math.min(zoom + 0.25, 5));
   }, [zoom, setZoom]);
 
   const handleZoomOut = useCallback(() => {
-    setZoom(Math.max(zoom - 0.25, 0.5));
+    setZoom(Math.max(zoom - 0.25, 0.25));
   }, [zoom, setZoom]);
 
   const handleResetView = useCallback(() => {
@@ -89,7 +110,7 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
     (e: WheelEvent) => {
       e.preventDefault();
       const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      setZoom(Math.max(0.5, Math.min(3, zoom + delta)));
+      setZoom(Math.max(0.25, Math.min(5, zoom + delta)));
     },
     [zoom, setZoom]
   );
@@ -167,28 +188,21 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
     setApartments(apartments);
   }, [apartments, setApartments]);
 
-  // Auto-fit SVG to container on mount / content change
+  // Ensure SVG has a viewBox for proper scaling (fallback for uploaded SVGs)
   useEffect(() => {
     const container = svgContainerRef.current;
-    const wrapper = svgWrapperRef.current;
-    if (!container || !wrapper) return;
+    if (!container) return;
 
     const svgEl = container.querySelector('svg');
     if (!svgEl) return;
 
-    // Make the SVG fill the container width
-    svgEl.style.width = '100%';
-    svgEl.style.height = '100%';
-    svgEl.style.display = 'block';
-
-    // Ensure the SVG has a viewBox for proper scaling
+    // viewBox fallback — the preprocessor handles width/height/preserveAspectRatio
     if (!svgEl.getAttribute('viewBox')) {
-      const w = parseFloat(svgEl.getAttribute('width') || '800');
-      const h = parseFloat(svgEl.getAttribute('height') || '600');
-      svgEl.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      const bbox = svgEl.getBBox();
+      const w = bbox.width || 800;
+      const h = bbox.height || 600;
+      svgEl.setAttribute('viewBox', `${bbox.x || 0} ${bbox.y || 0} ${w} ${h}`);
     }
-
-    svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
   }, [svgContent]);
 
   // Setup SVG interactions
@@ -353,7 +367,7 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
   if (!svgContent) {
     return (
       <Card className="p-4">
-        <div className="flex flex-col items-center justify-center h-[500px] text-muted-foreground">
+        <div className="flex flex-col items-center justify-center h-[80vh] text-muted-foreground">
           <p>No floor plan available for this building</p>
           <p className="text-sm mt-2">Upload an SVG map to visualize apartments</p>
         </div>
@@ -370,7 +384,7 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
             size="icon"
             variant="secondary"
             onClick={handleZoomIn}
-            disabled={zoom >= 3}
+            disabled={zoom >= 5}
             className="shadow-lg"
           >
             <ZoomIn className="h-4 w-4" />
@@ -379,7 +393,7 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
             size="icon"
             variant="secondary"
             onClick={handleZoomOut}
-            disabled={zoom <= 0.5}
+            disabled={zoom <= 0.25}
             className="shadow-lg"
           >
             <ZoomOut className="h-4 w-4" />
@@ -396,7 +410,7 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
 
         <div
           ref={svgWrapperRef}
-          className="relative w-full h-[600px] bg-muted/20 overflow-hidden cursor-grab active:cursor-grabbing"
+          className="relative w-full h-[80vh] bg-muted/20 overflow-hidden cursor-grab active:cursor-grabbing"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -407,12 +421,12 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
         >
           <div
             ref={svgContainerRef}
-            className="w-full h-full transition-transform duration-200 ease-out"
+            className="w-full h-full [&>svg]:w-full [&>svg]:h-full [&>svg]:block transition-transform duration-200 ease-out"
             style={{
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
               transformOrigin: 'center center',
             }}
-            dangerouslySetInnerHTML={{ __html: svgContent }}
+            dangerouslySetInnerHTML={{ __html: processedSvg }}
           />
         </div>
 

@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import { apiClient } from '@/lib/api-client';
 
 interface EditUserDialogProps {
   open: boolean;
@@ -59,14 +60,7 @@ export function EditUserDialog({
 
   const updateMutation = useMutation({
     mutationFn: async (data: EditUserForm) => {
-      const res = await fetch(`/api/users/${user.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error('Failed to update user');
-      return res.json();
+      return apiClient.patch(`/users/${user.id}`, data);
     },
     onSuccess: () => {
       toast({

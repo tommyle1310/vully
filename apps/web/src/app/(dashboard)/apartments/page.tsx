@@ -6,7 +6,6 @@ import {
   useReactTable,
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   flexRender,
   createColumnHelper,
@@ -112,6 +111,7 @@ export default function ApartmentsPage() {
   const [globalFilter, setGlobalFilter] = useState('');
   const [selectedApartment, setSelectedApartment] = useState<Apartment | null>(null);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [editingApartment, setEditingApartment] = useState<Apartment | null>(null);
@@ -129,10 +129,11 @@ export default function ApartmentsPage() {
     setSelectedApartment(null); // Close the detail sheet
   };
 
-  const { data, isLoading, error } = useApartments({ page, limit: 20 });
+  const { data, isLoading, error } = useApartments({ page, limit });
 
   const apartments = data?.data || [];
   const meta = data?.meta;
+  const totalPages = meta ? Math.ceil(meta.total / meta.limit) : 1;
 
   const table = useReactTable({
     data: apartments,
@@ -148,7 +149,7 @@ export default function ApartmentsPage() {
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: true,
   });
 
   if (isLoading) {
@@ -270,27 +271,46 @@ export default function ApartmentsPage() {
       {/* Pagination */}
       {meta && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {apartments.length} of {meta.total} apartments
-          </p>
+          <div className="flex items-center gap-4">
+            <p className="text-sm text-muted-foreground">
+              Showing {apartments.length} of {meta.total} apartments
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Per page:</span>
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                value={limit}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (v > 0 && v <= 100) {
+                    setLimit(v);
+                    setPage(1);
+                  }
+                }}
+                className="w-20 h-8 text-sm"
+              />
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
+              disabled={page <= 1}
             >
               <ChevronLeft className="h-4 w-4" />
               Previous
             </Button>
             <span className="text-sm">
-              Page {meta.page} of {meta.totalPages}
+              Page {page} of {totalPages}
             </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
-              disabled={page >= meta.totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
             >
               Next
               <ChevronRight className="h-4 w-4" />

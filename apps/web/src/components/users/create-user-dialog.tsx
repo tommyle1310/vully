@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { apiClient } from '@/lib/api-client';
 
 interface CreateUserDialogProps {
   open: boolean;
@@ -45,14 +46,7 @@ export function CreateUserDialog({
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateUserForm) => {
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ ...data, roles: selectedRoles }),
-      });
-      if (!res.ok) throw new Error('Failed to create user');
-      return res.json();
+      return apiClient.post('/users', { ...data, roles: selectedRoles });
     },
     onSuccess: () => {
       toast({
