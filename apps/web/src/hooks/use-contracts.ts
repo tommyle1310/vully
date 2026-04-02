@@ -23,6 +23,10 @@ export interface Contract {
     unit_number: string;
     floorIndex: number;
     buildingId: string;
+    building?: {
+      id: string;
+      name: string;
+    };
   };
   tenant?: {
     id: string;
@@ -70,6 +74,9 @@ export interface UpdateContractInput {
   status?: 'draft' | 'active' | 'expired' | 'terminated';
   endDate?: string;
   rentAmount?: number;
+  citizenId?: string;
+  numberOfResidents?: number;
+  depositAmount?: number;
   termsNotes?: string;
 }
 

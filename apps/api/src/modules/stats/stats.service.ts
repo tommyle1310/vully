@@ -423,11 +423,17 @@ export class StatsService {
     });
 
     for (const incident of recentIncidents) {
+      const apartment = incident.apartments;
+      const building = apartment?.buildings;
+      const location = apartment && building
+        ? `${building.name}, ${apartment.floor_index}F-${apartment.unit_number}`
+        : 'Unknown location';
+      
       activities.push({
         id: incident.id,
         type: 'incident' as const,
         title: incident.title,
-        description: `${incident.category} - ${incident.apartments.buildings.name}, ${incident.apartments.floor_index}F-${incident.apartments.unit_number}`,
+        description: `${incident.category} - ${location}`,
         timestamp: incident.created_at,
         status: incident.status,
         priority: incident.priority,
@@ -455,12 +461,19 @@ export class StatsService {
     });
 
     for (const invoice of recentInvoices) {
+      const contract = invoice.contracts;
+      const apartment = contract?.apartments;
+      const building = apartment?.buildings;
+      const location = apartment && building
+        ? `${building.name}, ${apartment.floor_index}F-${apartment.unit_number}`
+        : 'Unknown location';
       const amount = invoice.total_amount.toNumber();
+      
       activities.push({
         id: invoice.id,
         type: 'invoice' as const,
         title: `Invoice #${invoice.invoice_number}`,
-        description: `${invoice.contracts.apartments.buildings.name}, ${invoice.contracts.apartments.floor_index}F-${invoice.contracts.apartments.unit_number} - ${amount.toLocaleString('vi-VN')} VND`,
+        description: `${location} - ${amount.toLocaleString('vi-VN')} VND`,
         timestamp: invoice.created_at,
         status: invoice.status,
       });
@@ -484,11 +497,21 @@ export class StatsService {
     });
 
     for (const contract of recentContracts) {
+      const tenant = contract.users_contracts_tenant_idTousers;
+      const apartment = contract.apartments;
+      const building = apartment?.buildings;
+      const tenantName = tenant
+        ? `${tenant.first_name} ${tenant.last_name}`
+        : 'Unknown tenant';
+      const location = apartment && building
+        ? `${building.name}, ${apartment.floor_index}F-${apartment.unit_number}`
+        : 'Unknown location';
+      
       activities.push({
         id: contract.id,
         type: 'contract' as const,
         title: `New Contract`,
-        description: `${contract.users_contracts_tenant_idTousers.first_name} ${contract.users_contracts_tenant_idTousers.last_name} - ${contract.apartments.buildings.name}, ${contract.apartments.floor_index}F-${contract.apartments.unit_number}`,
+        description: `${tenantName} - ${location}`,
         timestamp: contract.created_at,
         status: contract.status,
       });

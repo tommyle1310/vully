@@ -195,7 +195,13 @@ export function ApartmentDetailSheet({
                 {apartment.status.charAt(0).toUpperCase() + apartment.status.slice(1).toLowerCase()}
               </Badge>
               {apartment.isRented && (
-                <Badge variant="outline" className="text-sm">Rented</Badge>
+                <Badge variant="outline" className="text-sm">
+                  {activeContract?.termsNotes?.includes('[Contract Type: Purchase]')
+                    ? 'Purchased'
+                    : activeContract?.termsNotes?.includes('[Contract Type: Lease to Own]')
+                    ? 'Lease to Own'
+                    : 'Rented'}
+                </Badge>
               )}
               {onEdit && (
                 <Button

@@ -80,6 +80,22 @@ export class UpdateContractDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  citizenId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  numberOfResidents?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  depositAmount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   termsNotes?: string;
 }
 
@@ -143,6 +159,10 @@ export class ContractResponseDto {
     unit_number: string;
     floorIndex: number;
     buildingId: string;
+    building?: {
+      id: string;
+      name: string;
+    };
   };
 
   @ApiPropertyOptional({ description: 'Tenant info (when included)' })

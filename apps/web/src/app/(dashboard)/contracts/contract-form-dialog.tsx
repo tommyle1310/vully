@@ -511,12 +511,25 @@ export function ContractFormDialog({
 
   const contractType = form.watch('contractType');
 
+  // Helper to parse contract type from termsNotes
+  const parseContractType = (termsNotes?: string): ContractType => {
+    if (!termsNotes) return 'rental';
+    const match = termsNotes.match(/\[Contract Type: ([^\]]+)\]/);
+    if (match) {
+      const type = match[1].toLowerCase().replace(/ /g, '_');
+      if (type === 'purchase') return 'purchase';
+      if (type === 'lease_to_own') return 'lease_to_own';
+    }
+    return 'rental';
+  };
+
   useEffect(() => {
     if (open) {
       if (mode === 'edit' && contract) {
-        // Map existing contract to form (assuming rental type for existing)
+        // Parse contract type from termsNotes
+        const detectedType = parseContractType(contract.termsNotes);
         form.reset({
-          contractType: 'rental', // TODO: add contractType to Contract model
+          contractType: detectedType,
           apartmentId: contract.apartmentId,
           partyId: contract.tenantId,
           startDate: contract.start_date
@@ -531,7 +544,7 @@ export function ContractFormDialog({
           paymentDueDay: 5,
           citizenId: contract.citizenId || '',
           numberOfResidents: contract.numberOfResidents,
-          termsNotes: contract.termsNotes || '',
+          termsNotes: contract.termsNotes?.replace(/\[Contract Type: [^\]]+\]\n?/, '').replace(/^---\n/, '') || '',
         });
       } else {
         form.reset({
@@ -591,6 +604,9 @@ export function ContractFormDialog({
           data: {
             endDate: values.endDate || undefined,
             rentAmount: values.rentAmount,
+            citizenId: values.citizenId || undefined,
+            numberOfResidents: values.numberOfResidents,
+            depositAmount: values.depositAmount,
             termsNotes: buildTermsNotes(values),
           },
         });

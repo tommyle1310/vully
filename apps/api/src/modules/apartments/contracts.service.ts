@@ -69,7 +69,13 @@ export class ContractsService {
         },
         include: {
           apartments: {
-            select: { id: true, unit_number: true, floor_index: true, building_id: true },
+            select: {
+              id: true,
+              unit_number: true,
+              floor_index: true,
+              building_id: true,
+              buildings: { select: { id: true, name: true } },
+            },
           },
           users_contracts_tenant_idTousers: {
             select: { id: true, email: true, first_name: true, last_name: true },
@@ -121,7 +127,13 @@ export class ContractsService {
         orderBy: { created_at: 'desc' },
         include: {
           apartments: {
-            select: { id: true, unit_number: true, floor_index: true, building_id: true },
+            select: {
+              id: true,
+              unit_number: true,
+              floor_index: true,
+              building_id: true,
+              buildings: { select: { id: true, name: true } },
+            },
           },
           users_contracts_tenant_idTousers: {
             select: { id: true, email: true, first_name: true, last_name: true },
@@ -142,7 +154,13 @@ export class ContractsService {
       where: { id },
       include: {
         apartments: {
-          select: { id: true, unit_number: true, floor_index: true, building_id: true },
+          select: {
+            id: true,
+            unit_number: true,
+            floor_index: true,
+            building_id: true,
+            buildings: { select: { id: true, name: true } },
+          },
         },
         users_contracts_tenant_idTousers: {
           select: { id: true, email: true, first_name: true, last_name: true },
@@ -164,22 +182,44 @@ export class ContractsService {
       throw new NotFoundException('Contract not found');
     }
 
-    const updated = await this.prisma.contracts.update({
-      where: { id },
-      data: {
-        ...(dto.status && { status: dto.status }),
-        ...(dto.endDate && { end_date: new Date(dto.endDate) }),
-        ...(dto.rentAmount !== undefined && { rent_amount: dto.rentAmount }),
-        ...(dto.termsNotes !== undefined && { terms_notes: dto.termsNotes }),
-      },
-      include: {
-        apartments: {
-          select: { id: true, unit_number: true, floor_index: true, building_id: true },
+    // Use transaction to update contract and sync apartment resident count
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedContract = await tx.contracts.update({
+        where: { id },
+        data: {
+          ...(dto.status && { status: dto.status }),
+          ...(dto.endDate && { end_date: new Date(dto.endDate) }),
+          ...(dto.rentAmount !== undefined && { rent_amount: dto.rentAmount }),
+          ...(dto.citizenId !== undefined && { citizen_id: dto.citizenId || null }),
+          ...(dto.numberOfResidents !== undefined && { number_of_residents: dto.numberOfResidents }),
+          ...(dto.depositAmount !== undefined && { deposit_amount: dto.depositAmount }),
+          ...(dto.termsNotes !== undefined && { terms_notes: dto.termsNotes }),
         },
-        users_contracts_tenant_idTousers: {
-          select: { id: true, email: true, first_name: true, last_name: true },
+        include: {
+          apartments: {
+            select: {
+              id: true,
+              unit_number: true,
+              floor_index: true,
+              building_id: true,
+              buildings: { select: { id: true, name: true } },
+            },
+          },
+          users_contracts_tenant_idTousers: {
+            select: { id: true, email: true, first_name: true, last_name: true },
+          },
         },
-      },
+      });
+
+      // Sync resident count to apartment if changed and contract is active
+      if (dto.numberOfResidents !== undefined && updatedContract.status === 'active') {
+        await tx.apartments.update({
+          where: { id: contract.apartment_id },
+          data: { current_resident_count: dto.numberOfResidents },
+        });
+      }
+
+      return updatedContract;
     });
 
     this.logger.log({
@@ -222,7 +262,13 @@ export class ContractsService {
         },
         include: {
           apartments: {
-            select: { id: true, unit_number: true, floor_index: true, building_id: true },
+            select: {
+              id: true,
+              unit_number: true,
+              floor_index: true,
+              building_id: true,
+              buildings: { select: { id: true, name: true } },
+            },
           },
           users_contracts_tenant_idTousers: {
             select: { id: true, email: true, first_name: true, last_name: true },
@@ -270,6 +316,7 @@ export class ContractsService {
       unit_number: string;
       floor_index: number;
       building_id: string;
+      buildings?: { id: string; name: string };
     };
     users_contracts_tenant_idTousers?: {
       id: string;
@@ -298,6 +345,10 @@ export class ContractsService {
         unit_number: contracts.apartments.unit_number,
         floorIndex: contracts.apartments.floor_index,
         buildingId: contracts.apartments.building_id,
+        building: contracts.apartments.buildings ? {
+          id: contracts.apartments.buildings.id,
+          name: contracts.apartments.buildings.name,
+        } : undefined,
       } : undefined,
       tenant: contracts.users_contracts_tenant_idTousers ? {
         id: contracts.users_contracts_tenant_idTousers.id,

@@ -533,8 +533,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Apartment Code</FormLabel>
                             <FormControl>
-                              <Input placeholder="e.g., A-12.05" {...field} />
+                              <Input placeholder="e.g., A-12.05" {...field} disabled={isEditing} />
                             </FormControl>
+                            {isEditing && <FormDescription>Managed by building module</FormDescription>}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -546,8 +547,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Floor Label</FormLabel>
                             <FormControl>
-                              <Input placeholder="e.g., 12A" {...field} />
+                              <Input placeholder="e.g., 12A" {...field} disabled={isEditing} />
                             </FormControl>
+                            {isEditing && <FormDescription>Managed by building module</FormDescription>}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -562,7 +564,7 @@ export function ApartmentFormDialog({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Unit Type</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || ''}>
+                            <Select onValueChange={field.onChange} value={field.value || ''} disabled={isEditing}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select type" />
@@ -574,6 +576,7 @@ export function ApartmentFormDialog({
                                 ))}
                               </SelectContent>
                             </Select>
+                            {isEditing && <FormDescription>Managed by building module</FormDescription>}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -615,8 +618,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Gross Area (m²)</FormLabel>
                             <FormControl>
-                              <Input type="number" step="0.1" placeholder="75.5" {...field} value={field.value ?? ''} />
+                              <Input type="number" step="0.1" placeholder="75.5" {...field} value={field.value ?? ''} disabled={isEditing} />
                             </FormControl>
+                            {isEditing && <FormDescription>From SVG</FormDescription>}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -628,8 +632,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Net Area (m²)</FormLabel>
                             <FormControl>
-                              <Input type="number" step="0.1" placeholder="65.5" {...field} value={field.value ?? ''} />
+                              <Input type="number" step="0.1" placeholder="65.5" {...field} value={field.value ?? ''} disabled={isEditing} />
                             </FormControl>
+                            {isEditing && <FormDescription>From SVG</FormDescription>}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -641,8 +646,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Ceiling (m)</FormLabel>
                             <FormControl>
-                              <Input type="number" step="0.01" placeholder="2.85" {...field} value={field.value ?? ''} />
+                              <Input type="number" step="0.01" placeholder="2.85" {...field} value={field.value ?? ''} disabled={isEditing} />
                             </FormControl>
+                            {isEditing && <FormDescription>Building default</FormDescription>}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -658,8 +664,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Bedrooms</FormLabel>
                             <FormControl>
-                              <Input type="number" min={0} {...field} />
+                              <Input type="number" min={0} {...field} disabled={isEditing} />
                             </FormControl>
+                            {isEditing && <FormDescription>Managed by building</FormDescription>}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -671,8 +678,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Bathrooms</FormLabel>
                             <FormControl>
-                              <Input type="number" min={0} {...field} />
+                              <Input type="number" min={0} {...field} disabled={isEditing} />
                             </FormControl>
+                            {isEditing && <FormDescription>Managed by building</FormDescription>}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -687,7 +695,7 @@ export function ApartmentFormDialog({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Orientation</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || ''}>
+                            <Select onValueChange={field.onChange} value={field.value || ''} disabled={isEditing}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select direction" />
@@ -699,6 +707,7 @@ export function ApartmentFormDialog({
                                 ))}
                               </SelectContent>
                             </Select>
+                            {isEditing && <FormDescription>Managed by building</FormDescription>}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -709,7 +718,7 @@ export function ApartmentFormDialog({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Balcony Direction</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || ''}>
+                            <Select onValueChange={field.onChange} value={field.value || ''} disabled={isEditing}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select direction" />
@@ -721,6 +730,7 @@ export function ApartmentFormDialog({
                                 ))}
                               </SelectContent>
                             </Select>
+                            {isEditing && <FormDescription>Managed by building</FormDescription>}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -735,10 +745,10 @@ export function ApartmentFormDialog({
                         <FormItem className="flex items-center justify-between rounded-lg border p-3">
                           <div>
                             <FormLabel>Corner Unit</FormLabel>
-                            <FormDescription>This unit is at a corner position</FormDescription>
+                            <FormDescription>{isEditing ? 'Managed by building module' : 'This unit is at a corner position'}</FormDescription>
                           </div>
                           <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            <Switch checked={field.value} onCheckedChange={field.onChange} disabled={isEditing} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -756,7 +766,7 @@ export function ApartmentFormDialog({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Ownership Type</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || ''}>
+                            <Select onValueChange={field.onChange} value={field.value || ''} disabled>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select type" />
@@ -768,6 +778,7 @@ export function ApartmentFormDialog({
                                 <SelectItem value="leasehold">Leasehold</SelectItem>
                               </SelectContent>
                             </Select>
+                            <FormDescription>Managed by contract</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -779,8 +790,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>VAT Rate (%)</FormLabel>
                             <FormControl>
-                              <Input type="number" step="0.1" min={0} max={100} placeholder="10" {...field} value={field.value ?? ''} />
+                              <Input type="number" step="0.1" min={0} max={100} placeholder="10" {...field} value={field.value ?? 10} disabled />
                             </FormControl>
+                            <FormDescription>Fixed at 10%</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -844,8 +856,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Max Residents</FormLabel>
                             <FormControl>
-                              <Input type="number" min={0} placeholder="6" {...field} value={field.value ?? ''} />
+                              <Input type="number" min={0} placeholder="6" {...field} value={field.value ?? ''} disabled />
                             </FormControl>
+                            <FormDescription>From building policy</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -857,8 +870,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Current Residents</FormLabel>
                             <FormControl>
-                              <Input type="number" min={0} {...field} />
+                              <Input type="number" min={0} {...field} disabled />
                             </FormControl>
+                            <FormDescription>Synced from contract</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -873,8 +887,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Access Card Limit</FormLabel>
                             <FormControl>
-                              <Input type="number" min={0} placeholder="4" {...field} value={field.value ?? ''} />
+                              <Input type="number" min={0} placeholder="4" {...field} value={field.value ?? ''} disabled />
                             </FormControl>
+                            <FormDescription>From building policy</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -886,8 +901,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Intercom Code</FormLabel>
                             <FormControl>
-                              <Input placeholder="1205" {...field} />
+                              <Input placeholder="1205" {...field} disabled />
                             </FormControl>
+                            <FormDescription>Auto-assigned</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -901,9 +917,10 @@ export function ApartmentFormDialog({
                         <FormItem className="flex items-center justify-between rounded-lg border p-3">
                           <div>
                             <FormLabel>Pets Allowed</FormLabel>
+                            <FormDescription>From building policy</FormDescription>
                           </div>
                           <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            <Switch checked={field.value} onCheckedChange={field.onChange} disabled />
                           </FormControl>
                         </FormItem>
                       )}
@@ -937,8 +954,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Electric Meter ID</FormLabel>
                             <FormControl>
-                              <Input placeholder="EL-001234" {...field} />
+                              <Input placeholder="EL-001234" {...field} disabled />
                             </FormControl>
+                            <FormDescription>System-managed</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -950,8 +968,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Water Meter ID</FormLabel>
                             <FormControl>
-                              <Input placeholder="WA-001234" {...field} />
+                              <Input placeholder="WA-001234" {...field} disabled />
                             </FormControl>
+                            <FormDescription>System-managed</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -965,8 +984,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Gas Meter ID</FormLabel>
                             <FormControl>
-                              <Input placeholder="GA-001234" {...field} />
+                              <Input placeholder="GA-001234" {...field} disabled />
                             </FormControl>
+                            <FormDescription>System-managed</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -978,8 +998,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Power Capacity (A)</FormLabel>
                             <FormControl>
-                              <Input type="number" min={0} placeholder="32" {...field} value={field.value ?? ''} />
+                              <Input type="number" min={0} placeholder="32" {...field} value={field.value ?? ''} disabled />
                             </FormControl>
+                            <FormDescription>Building default</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -996,8 +1017,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>AC Units</FormLabel>
                             <FormControl>
-                              <Input type="number" min={0} placeholder="3" {...field} value={field.value ?? ''} />
+                              <Input type="number" min={0} placeholder="3" {...field} value={field.value ?? ''} disabled />
                             </FormControl>
+                            <FormDescription>Building default</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1009,8 +1031,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Fire Detector ID</FormLabel>
                             <FormControl>
-                              <Input placeholder="FD-1205" {...field} />
+                              <Input placeholder="FD-1205" {...field} disabled />
                             </FormControl>
+                            <FormDescription>System-managed</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1024,8 +1047,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Sprinklers</FormLabel>
                             <FormControl>
-                              <Input type="number" min={0} placeholder="2" {...field} value={field.value ?? ''} />
+                              <Input type="number" min={0} placeholder="2" {...field} value={field.value ?? ''} disabled />
                             </FormControl>
+                            <FormDescription>Building default</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1037,8 +1061,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Internet Terminal</FormLabel>
                             <FormControl>
-                              <Input placeholder="Living room wall" {...field} />
+                              <Input placeholder="Living room wall" {...field} disabled />
                             </FormControl>
+                            <FormDescription>Building standard</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1055,8 +1080,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Car Slot</FormLabel>
                             <FormControl>
-                              <Input placeholder="B1-A-023" {...field} />
+                              <Input placeholder="B1-A-023" {...field} disabled />
                             </FormControl>
+                            <FormDescription>Managed by parking module</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1068,8 +1094,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Moto Slot</FormLabel>
                             <FormControl>
-                              <Input placeholder="B2-M-045" {...field} />
+                              <Input placeholder="B2-M-045" {...field} disabled />
                             </FormControl>
+                            <FormDescription>Managed by parking module</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1083,8 +1110,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Mailbox</FormLabel>
                             <FormControl>
-                              <Input placeholder="MB-1205" {...field} />
+                              <Input placeholder="MB-1205" {...field} disabled />
                             </FormControl>
+                            <FormDescription>Auto-assigned</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1096,8 +1124,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Storage Unit</FormLabel>
                             <FormControl>
-                              <Input placeholder="SU-023" {...field} />
+                              <Input placeholder="SU-023" {...field} disabled />
                             </FormControl>
+                            <FormDescription>Managed by storage module</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1115,7 +1144,7 @@ export function ApartmentFormDialog({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Billing Cycle</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || 'monthly'}>
+                            <Select onValueChange={field.onChange} value={field.value || 'monthly'} disabled>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue />
@@ -1127,6 +1156,7 @@ export function ApartmentFormDialog({
                                 <SelectItem value="yearly">Yearly</SelectItem>
                               </SelectContent>
                             </Select>
+                            <FormDescription>From building policy</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1138,8 +1168,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Billing Start Date</FormLabel>
                             <FormControl>
-                              <Input type="date" {...field} />
+                              <Input type="date" {...field} disabled />
                             </FormControl>
+                            <FormDescription>From contract</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1153,8 +1184,9 @@ export function ApartmentFormDialog({
                         <FormItem>
                           <FormLabel>Virtual Bank Account</FormLabel>
                           <FormControl>
-                            <Input placeholder="For payment matching" {...field} />
+                            <Input placeholder="For payment matching" {...field} disabled />
                           </FormControl>
+                          <FormDescription>System-generated</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1167,10 +1199,10 @@ export function ApartmentFormDialog({
                         <FormItem className="flex items-center justify-between rounded-lg border p-3">
                           <div>
                             <FormLabel>Waive Late Fees</FormLabel>
-                            <FormDescription>Disable late fees for this unit</FormDescription>
+                            <FormDescription>From building policy</FormDescription>
                           </div>
                           <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            <Switch checked={field.value} onCheckedChange={field.onChange} disabled />
                           </FormControl>
                         </FormItem>
                       )}
@@ -1186,7 +1218,7 @@ export function ApartmentFormDialog({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Sync Status</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || 'disconnected'}>
+                            <Select onValueChange={field.onChange} value={field.value || 'disconnected'} disabled>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue />

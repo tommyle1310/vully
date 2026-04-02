@@ -175,6 +175,11 @@ export function ContractDetailSheet({
                 </h3>
                 <InfoRow
                   icon={Building}
+                  label="Building"
+                  value={contract.apartment?.building?.name || '-'}
+                />
+                <InfoRow
+                  icon={Building}
                   label="Unit"
                   value={contract.apartment?.unit_number || '-'}
                 />
