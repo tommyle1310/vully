@@ -13,6 +13,29 @@ import {
 } from '@tanstack/react-table';
 import { FileSignature, Search, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useContracts, Contract } from '@/hooks/use-contracts';
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Extract the contract type tag written by buildTermsNotes() */
+function parseContractType(
+  termsNotes?: string,
+): 'Rental' | 'Purchase' | 'Lease to Own' | null {
+  if (!termsNotes) return null;
+  const match = termsNotes.match(/\[Contract Type:\s*([^\]]+)\]/);
+  if (!match) return null;
+  const label = match[1].trim();
+  if (label === 'Rental') return 'Rental';
+  if (label === 'Purchase') return 'Purchase';
+  if (label === 'Lease to Own') return 'Lease to Own';
+  return null;
+}
+
+/** Pull purchase price out of the termsNotes free-text block */
+function parsePurchasePrice(termsNotes?: string): number | null {
+  if (!termsNotes) return null;
+  const match = termsNotes.match(/Purchase Price:\s*([\d,]+)\s*VND/);
+  return match ? parseInt(match[1].replace(/,/g, ''), 10) : null;
+}
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +67,28 @@ const statusVariants: Record<string, 'default' | 'success' | 'warning' | 'destru
   terminated: 'destructive',
 };
 
+const typeVariants: Record<
+  string,
+  'default' | 'secondary' | 'outline'
+> = {
+  Rental: 'default',
+  Purchase: 'secondary',
+  'Lease to Own': 'outline',
+};
+
 const columns = [
+  columnHelper.display({
+    id: 'type',
+    header: 'Type',
+    cell: ({ row }) => {
+      const type = parseContractType(row.original.termsNotes);
+      return (
+        <Badge variant={type ? typeVariants[type] : 'outline'}>
+          {type ?? 'Rental'}
+        </Badge>
+      );
+    },
+  }),
   columnHelper.accessor(
     (row) => row.apartment?.unit_number ?? '-',
     {
@@ -59,8 +103,8 @@ const columns = [
         ? `${row.tenant.firstName} ${row.tenant.lastName}`
         : '-',
     {
-      id: 'tenant',
-      header: 'Tenant',
+      id: 'party',
+      header: 'Tenant / Buyer',
     },
   ),
   columnHelper.accessor('status', {
@@ -74,10 +118,30 @@ const columns = [
       );
     },
   }),
-  columnHelper.accessor('rentAmount', {
-    header: 'Rent (VND)',
-    cell: (info) =>
-      new Intl.NumberFormat('vi-VN').format(info.getValue()),
+  columnHelper.display({
+    id: 'amount',
+    header: 'Amount',
+    cell: ({ row }) => {
+      const type = parseContractType(row.original.termsNotes);
+      if (type === 'Purchase') {
+        const price = parsePurchasePrice(row.original.termsNotes);
+        if (price) {
+          return (
+            <span className="text-sm">
+              {new Intl.NumberFormat('vi-VN').format(price)}{' '}
+              <span className="text-muted-foreground text-xs">VND</span>
+            </span>
+          );
+        }
+        return <span className="text-muted-foreground text-sm">— (see notes)</span>;
+      }
+      return (
+        <span className="text-sm">
+          {new Intl.NumberFormat('vi-VN').format(row.original.rentAmount)}{' '}
+          <span className="text-muted-foreground text-xs">VND/mo</span>
+        </span>
+      );
+    },
   }),
   columnHelper.accessor('start_date', {
     header: 'Start Date',

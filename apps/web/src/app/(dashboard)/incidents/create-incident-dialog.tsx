@@ -7,6 +7,7 @@ import { Loader2, AlertTriangle } from 'lucide-react';
 import { useCreateIncident, CreateIncidentData } from '@/hooks/use-incidents';
 import { useApartments } from '@/hooks/use-apartments';
 import { useAuthStore } from '@/stores/authStore';
+import { ApartmentCombobox } from '@/components/apartment-combobox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,7 +25,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/select'; // Keep for category/priority selects
 import {
   Form,
   FormControl,
@@ -91,11 +92,12 @@ export function CreateIncidentDialog({
   onOpenChange,
 }: CreateIncidentDialogProps) {
   const { toast } = useToast();
-  const { user } = useAuthStore();
+  const { user, hasRole } = useAuthStore();
   const createIncident = useCreateIncident();
+  // Minimal query just to detect if the resident has any apartments at all
   const { data: apartmentsData, isLoading: loadingApartments } = useApartments({
     page: 1,
-    limit: 100, // Fetch enough apartments for selection
+    limit: 1,
   });
 
   const form = useForm<FormData>({
@@ -128,9 +130,8 @@ export function CreateIncidentDialog({
     }
   };
 
-  const apartments = apartmentsData?.data ?? [];
-  const isResident = user?.role === 'RESIDENT';
-  const hasNoApartments = !loadingApartments && apartments.length === 0;
+  const isResident = hasRole('resident');
+  const hasNoApartments = !loadingApartments && (apartmentsData?.meta?.total ?? 0) === 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -169,35 +170,12 @@ export function CreateIncidentDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Apartment</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    disabled={loadingApartments}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select apartment" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {loadingApartments ? (
-                        <SelectItem value="loading" disabled>
-                          Loading apartments...
-                        </SelectItem>
-                      ) : apartments.length === 0 ? (
-                        <SelectItem value="empty" disabled>
-                          No apartments available
-                        </SelectItem>
-                      ) : (
-                        apartments.map((apt) => (
-                          <SelectItem key={apt.id} value={apt.id}>
-                            {apt.unit_number}
-                            {apt.building?.name && ` - ${apt.building.name}`}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <ApartmentCombobox
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

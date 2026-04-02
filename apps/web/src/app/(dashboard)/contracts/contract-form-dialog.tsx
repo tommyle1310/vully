@@ -23,7 +23,7 @@ import {
   useCreateContract,
   useUpdateContract,
 } from '@/hooks/use-contracts';
-import { useApartments, Apartment } from '@/hooks/use-apartments';
+import { ApartmentCombobox } from '@/components/apartment-combobox';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -483,17 +483,6 @@ export function ContractFormDialog({
   const createContract = useCreateContract();
   const updateContract = useUpdateContract();
 
-  // Fetch apartments
-  const { data: apartmentsData } = useApartments({ limit: 200 });
-  const apartments = apartmentsData?.data || [];
-
-  // Filter apartments based on mode
-  const availableApartments = apartments.filter(
-    (a: Apartment) =>
-      a.status === 'vacant' ||
-      (mode === 'edit' && contract && a.id === contract.apartmentId),
-  );
-
   const form = useForm<ContractFormValues>({
     resolver: zodResolver(contractFormSchema),
     defaultValues: {
@@ -697,26 +686,19 @@ export function ContractFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Apartment</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value}
-                      disabled={mode === 'edit'}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select apartment" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {availableApartments.map((apt: Apartment) => (
-                          <SelectItem key={apt.id} value={apt.id}>
-                            {apt.unit_number}
-                            {apt.building?.name ? ` — ${apt.building.name}` : ''}
-                            {apt.status !== 'vacant' ? ` (${apt.status})` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <ApartmentCombobox
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={mode === 'edit'}
+                        statusFilter={mode === 'create' ? 'vacant' : undefined}
+                        existingApartmentLabel={
+                          mode === 'edit' && contract?.apartment
+                            ? contract.apartment.unit_number
+                            : undefined
+                        }
+                      />
+                    </FormControl>
                     <FormDescription>
                       {mode === 'create'
                         ? 'Only vacant apartments are shown.'
