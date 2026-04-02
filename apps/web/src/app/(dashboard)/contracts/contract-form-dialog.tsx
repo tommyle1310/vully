@@ -1,11 +1,21 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import {
+  Loader2,
+  Check,
+  ChevronsUpDown,
+  UserPlus,
+  Search,
+  X,
+  Home,
+  Key,
+  ShoppingBag,
+} from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import {
   Contract,
@@ -43,12 +53,34 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '@/components/ui/command';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface User {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string;
   roles: string[];
   isActive: boolean;
 }
@@ -58,21 +90,375 @@ interface UsersResponse {
   meta: { total: number; page: number; limit: number };
 }
 
+// Contract types for different use cases
+const CONTRACT_TYPES = {
+  rental: {
+    label: 'Rental',
+    description: 'Monthly/yearly lease agreement',
+    icon: Key,
+    partyLabel: 'Tenant',
+  },
+  purchase: {
+    label: 'Purchase',
+    description: 'Property sale/ownership transfer',
+    icon: ShoppingBag,
+    partyLabel: 'Buyer',
+  },
+  lease_to_own: {
+    label: 'Lease to Own',
+    description: 'Rent with option to purchase',
+    icon: Home,
+    partyLabel: 'Lessee/Buyer',
+  },
+} as const;
+
+type ContractType = keyof typeof CONTRACT_TYPES;
+
+// ============================================================================
+// Schema
+// ============================================================================
+
 const contractFormSchema = z.object({
+  contractType: z.enum(['rental', 'purchase', 'lease_to_own']),
   apartmentId: z.string().uuid('Please select an apartment'),
-  tenantId: z.string().uuid('Please select a tenant'),
-  start_date: z.string().min(1, 'Start date is required'),
+  partyId: z.string().uuid('Please select a party'),
+  // Common dates
+  startDate: z.string().min(1, 'Start date is required'),
   endDate: z.string().optional(),
-  rentAmount: z.coerce.number().min(0, 'Rent must be 0 or more'),
+  // Rental fields
+  rentAmount: z.coerce.number().min(0).optional(),
   depositMonths: z.coerce.number().int().min(0).optional(),
   depositAmount: z.preprocess(
     (v) => (v === '' || v == null ? undefined : v),
     z.coerce.number().min(0).optional(),
   ),
+  paymentDueDay: z.coerce.number().int().min(1).max(28).optional(),
+  // Purchase fields
+  purchasePrice: z.coerce.number().min(0).optional(),
+  downPayment: z.coerce.number().min(0).optional(),
+  paymentSchedule: z.string().optional(),
+  transferDate: z.string().optional(),
+  // Lease-to-own fields
+  optionFee: z.coerce.number().min(0).optional(),
+  optionPeriodMonths: z.coerce.number().int().min(1).optional(),
+  purchaseOptionPrice: z.coerce.number().min(0).optional(),
+  rentCreditPercent: z.coerce.number().min(0).max(100).optional(),
+  // Common
   termsNotes: z.string().optional(),
 });
 
 type ContractFormValues = z.infer<typeof contractFormSchema>;
+
+// ============================================================================
+// Quick Create Resident Form (inline)
+// ============================================================================
+
+const quickCreateSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Invalid email'),
+  phone: z.string().optional(),
+});
+
+type QuickCreateValues = z.infer<typeof quickCreateSchema>;
+
+interface QuickCreateResidentProps {
+  onCreated: (user: User) => void;
+  onCancel: () => void;
+}
+
+function QuickCreateResident({ onCreated, onCancel }: QuickCreateResidentProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const form = useForm<QuickCreateValues>({
+    resolver: zodResolver(quickCreateSchema),
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+    },
+  });
+
+  const createUser = useMutation({
+    mutationFn: (data: QuickCreateValues) =>
+      apiClient.post<{ data: User }>('/users', {
+        ...data,
+        password: '00000000', // Default password - user must change later
+        roles: ['resident'],
+      }),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast({
+        title: 'Resident created',
+        description: 'The resident account has been created with default password "00000000".',
+      });
+      onCreated(response.data);
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Failed to create resident',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  return (
+    <Card className="border-dashed">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium">Quick Add Resident</CardTitle>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onCancel}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Input
+              placeholder="First name"
+              {...form.register('firstName')}
+              className="h-8 text-sm"
+            />
+            {form.formState.errors.firstName && (
+              <p className="text-xs text-destructive mt-1">
+                {form.formState.errors.firstName.message}
+              </p>
+            )}
+          </div>
+          <div>
+            <Input
+              placeholder="Last name"
+              {...form.register('lastName')}
+              className="h-8 text-sm"
+            />
+            {form.formState.errors.lastName && (
+              <p className="text-xs text-destructive mt-1">
+                {form.formState.errors.lastName.message}
+              </p>
+            )}
+          </div>
+        </div>
+        <div>
+          <Input
+            placeholder="Email"
+            type="email"
+            {...form.register('email')}
+            className="h-8 text-sm"
+          />
+          {form.formState.errors.email && (
+            <p className="text-xs text-destructive mt-1">
+              {form.formState.errors.email.message}
+            </p>
+          )}
+        </div>
+        <div>
+          <Input
+            placeholder="Phone (optional)"
+            {...form.register('phone')}
+            className="h-8 text-sm"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Default password: <code className="bg-muted px-1 rounded">00000000</code>
+        </p>
+        <Button
+          size="sm"
+          className="w-full"
+          disabled={createUser.isPending}
+          onClick={form.handleSubmit((data) => createUser.mutate(data))}
+        >
+          {createUser.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+          Create & Select
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================================
+// Searchable Party Combobox
+// ============================================================================
+
+interface PartyComboboxProps {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  partyLabel: string;
+}
+
+function PartyCombobox({ value, onChange, disabled, partyLabel }: PartyComboboxProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
+
+  // Fetch users
+  const { data: usersData, isLoading } = useQuery<UsersResponse>({
+    queryKey: ['users', 'all'],
+    queryFn: () => apiClient.get<UsersResponse>('/users?limit=500'),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const users = usersData?.data || [];
+
+  // Filter users client-side with debounced search
+  const filteredUsers = useMemo(() => {
+    if (!search.trim()) return users;
+    const searchLower = search.toLowerCase();
+    return users.filter(
+      (u) =>
+        u.firstName.toLowerCase().includes(searchLower) ||
+        u.lastName.toLowerCase().includes(searchLower) ||
+        u.email.toLowerCase().includes(searchLower),
+    );
+  }, [users, search]);
+
+  // Find selected user
+  const selectedUser = useMemo(
+    () => users.find((u) => u.id === value),
+    [users, value],
+  );
+
+  const handleCreated = useCallback(
+    (user: User) => {
+      onChange(user.id);
+      setShowQuickCreate(false);
+      setOpen(false);
+    },
+    [onChange],
+  );
+
+  if (showQuickCreate) {
+    return (
+      <QuickCreateResident
+        onCreated={handleCreated}
+        onCancel={() => setShowQuickCreate(false)}
+      />
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+          disabled={disabled}
+        >
+          {selectedUser ? (
+            <span className="truncate">
+              {selectedUser.firstName} {selectedUser.lastName}
+              <span className="text-muted-foreground ml-2">
+                ({selectedUser.email})
+              </span>
+            </span>
+          ) : (
+            <span className="text-muted-foreground">
+              Search or select {partyLabel.toLowerCase()}...
+            </span>
+          )}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[400px] p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder={`Search by name or email...`}
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <CommandEmpty>
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    No users found
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowQuickCreate(true)}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Create New Resident
+                  </Button>
+                </div>
+              </CommandEmpty>
+            ) : (
+              <CommandGroup>
+                {filteredUsers.slice(0, 50).map((user) => (
+                  <CommandItem
+                    key={user.id}
+                    value={user.id}
+                    onSelect={() => {
+                      onChange(user.id);
+                      setOpen(false);
+                    }}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex flex-col">
+                      <span>
+                        {user.firstName} {user.lastName}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {user.email}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {user.roles.map((role) => (
+                        <Badge
+                          key={role}
+                          variant="secondary"
+                          className="text-xs"
+                        >
+                          {role}
+                        </Badge>
+                      ))}
+                      {value === user.id && (
+                        <Check className="h-4 w-4 text-primary" />
+                      )}
+                    </div>
+                  </CommandItem>
+                ))}
+                {filteredUsers.length > 50 && (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    Showing first 50 results. Refine your search.
+                  </p>
+                )}
+              </CommandGroup>
+            )}
+            <CommandSeparator />
+            <CommandGroup>
+              <CommandItem
+                onSelect={() => {
+                  setShowQuickCreate(true);
+                  setOpen(false);
+                }}
+                className="justify-center text-primary"
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Create New Resident
+              </CommandItem>
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ============================================================================
+// Contract Form Dialog Props
+// ============================================================================
 
 interface ContractFormDialogProps {
   open: boolean;
@@ -80,6 +466,10 @@ interface ContractFormDialogProps {
   contract: Contract | null;
   mode: 'create' | 'edit';
 }
+
+// ============================================================================
+// Main Component
+// ============================================================================
 
 export function ContractFormDialog({
   open,
@@ -91,49 +481,52 @@ export function ContractFormDialog({
   const createContract = useCreateContract();
   const updateContract = useUpdateContract();
 
-  // Fetch vacant apartments for selection
+  // Fetch apartments
   const { data: apartmentsData } = useApartments({ limit: 200 });
   const apartments = apartmentsData?.data || [];
 
-  // Only show vacant apartments for new contracts, or include current apartment in edit
+  // Filter apartments based on mode
   const availableApartments = apartments.filter(
     (a: Apartment) =>
       a.status === 'vacant' ||
       (mode === 'edit' && contract && a.id === contract.apartmentId),
   );
 
-  // Fetch users (residents) for tenant selection
-  const { data: usersData } = useQuery<UsersResponse>({
-    queryKey: ['users', 'all'],
-    queryFn: () => apiClient.get<UsersResponse>('/users?limit=200'),
-    staleTime: 5 * 60 * 1000,
-  });
-  const users = usersData?.data || [];
-  const residents = users.filter(
-    (u) => u.isActive && u.roles.includes('resident'),
-  );
-
   const form = useForm<ContractFormValues>({
     resolver: zodResolver(contractFormSchema),
     defaultValues: {
+      contractType: 'rental',
       apartmentId: '',
-      tenantId: '',
-      start_date: '',
+      partyId: '',
+      startDate: '',
       endDate: '',
       rentAmount: 0,
       depositMonths: 2,
       depositAmount: undefined,
+      paymentDueDay: 5,
+      purchasePrice: undefined,
+      downPayment: undefined,
+      paymentSchedule: '',
+      transferDate: '',
+      optionFee: undefined,
+      optionPeriodMonths: 12,
+      purchaseOptionPrice: undefined,
+      rentCreditPercent: 25,
       termsNotes: '',
     },
   });
 
+  const contractType = form.watch('contractType');
+
   useEffect(() => {
     if (open) {
       if (mode === 'edit' && contract) {
+        // Map existing contract to form (assuming rental type for existing)
         form.reset({
+          contractType: 'rental', // TODO: add contractType to Contract model
           apartmentId: contract.apartmentId,
-          tenantId: contract.tenantId,
-          start_date: contract.start_date
+          partyId: contract.tenantId,
+          startDate: contract.start_date
             ? new Date(contract.start_date).toISOString().split('T')[0]
             : '',
           endDate: contract.endDate
@@ -142,17 +535,28 @@ export function ContractFormDialog({
           rentAmount: contract.rentAmount,
           depositMonths: contract.depositMonths,
           depositAmount: contract.depositAmount,
+          paymentDueDay: 5,
           termsNotes: contract.termsNotes || '',
         });
       } else {
         form.reset({
+          contractType: 'rental',
           apartmentId: '',
-          tenantId: '',
-          start_date: new Date().toISOString().split('T')[0],
+          partyId: '',
+          startDate: new Date().toISOString().split('T')[0],
           endDate: '',
           rentAmount: 0,
           depositMonths: 2,
           depositAmount: undefined,
+          paymentDueDay: 5,
+          purchasePrice: undefined,
+          downPayment: undefined,
+          paymentSchedule: '',
+          transferDate: '',
+          optionFee: undefined,
+          optionPeriodMonths: 12,
+          purchaseOptionPrice: undefined,
+          rentCreditPercent: 25,
           termsNotes: '',
         });
       }
@@ -162,20 +566,25 @@ export function ContractFormDialog({
   const onSubmit = async (values: ContractFormValues) => {
     try {
       if (mode === 'create') {
+        // Build input based on contract type
         const input: CreateContractInput = {
           apartmentId: values.apartmentId,
-          tenantId: values.tenantId,
-          start_date: values.start_date,
+          tenantId: values.partyId, // API still uses tenantId
+          start_date: values.startDate,
           endDate: values.endDate || undefined,
-          rentAmount: values.rentAmount,
+          rentAmount: values.contractType === 'rental' 
+            ? (values.rentAmount || 0) 
+            : values.contractType === 'lease_to_own' 
+              ? (values.rentAmount || 0)
+              : 0,
           depositMonths: values.depositMonths,
           depositAmount: values.depositAmount,
-          termsNotes: values.termsNotes || undefined,
+          termsNotes: buildTermsNotes(values),
         };
         await createContract.mutateAsync(input);
         toast({
           title: 'Contract created',
-          description: 'The lease contract has been created and apartment marked as occupied.',
+          description: getSuccessMessage(values.contractType),
         });
       } else if (contract) {
         await updateContract.mutateAsync({
@@ -183,7 +592,7 @@ export function ContractFormDialog({
           data: {
             endDate: values.endDate || undefined,
             rentAmount: values.rentAmount,
-            termsNotes: values.termsNotes || undefined,
+            termsNotes: buildTermsNotes(values),
           },
         });
         toast({
@@ -203,193 +612,436 @@ export function ContractFormDialog({
   };
 
   const isSubmitting = createContract.isPending || updateContract.isPending;
+  const typeConfig = CONTRACT_TYPES[contractType];
+  const TypeIcon = typeConfig.icon;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <TypeIcon className="h-5 w-5" />
             {mode === 'create' ? 'New Contract' : 'Edit Contract'}
           </DialogTitle>
           <DialogDescription>
             {mode === 'create'
-              ? 'Create a new lease contract. The apartment will be marked as occupied.'
+              ? 'Create a new contract for the apartment.'
               : 'Update contract details.'}
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Apartment */}
-            <FormField
-              control={form.control}
-              name="apartmentId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Apartment</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    disabled={mode === 'edit'}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select apartment" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {availableApartments.map((apt: Apartment) => (
-                        <SelectItem key={apt.id} value={apt.id}>
-                          {apt.unit_number}
-                          {apt.building?.name ? ` — ${apt.building.name}` : ''}
-                          {apt.status !== 'vacant' ? ` (${apt.status})` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    {mode === 'create'
-                      ? 'Only vacant apartments are shown.'
-                      : 'Apartment cannot be changed after creation.'}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Tenant */}
-            <FormField
-              control={form.control}
-              name="tenantId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tenant</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    disabled={mode === 'edit'}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select tenant (resident)" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {residents.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.firstName} {user.lastName} ({user.email})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Only active users with the resident role are listed.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Contract Type Selection */}
+            {mode === 'create' && (
+              <FormField
+                control={form.control}
+                name="contractType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contract Type</FormLabel>
+                    <div className="grid grid-cols-3 gap-3">
+                      {(Object.entries(CONTRACT_TYPES) as [ContractType, typeof CONTRACT_TYPES[ContractType]][]).map(
+                        ([type, config]) => {
+                          const Icon = config.icon;
+                          return (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => field.onChange(type)}
+                              className={cn(
+                                'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors',
+                                field.value === type
+                                  ? 'border-primary bg-primary/5'
+                                  : 'border-muted hover:border-muted-foreground/50',
+                              )}
+                            >
+                              <Icon className="h-6 w-6" />
+                              <div className="text-center">
+                                <p className="font-medium text-sm">{config.label}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {config.description}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        },
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <Separator />
 
-            {/* Dates */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Parties Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Parties</h3>
+              
+              {/* Apartment */}
               <FormField
                 control={form.control}
-                name="start_date"
+                name="apartmentId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Start Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} disabled={mode === 'edit'} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="endDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormDescription>Leave empty for open-ended.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <Separator />
-
-            {/* Financial */}
-            <FormField
-              control={form.control}
-              name="rentAmount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Monthly Rent (VND)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={0} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="depositMonths"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Deposit Months</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={0} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="depositAmount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Deposit Amount (VND)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        placeholder="Auto = rent × months"
-                        {...field}
-                        value={field.value ?? ''}
-                      />
-                    </FormControl>
+                    <FormLabel>Apartment</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={mode === 'edit'}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select apartment" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {availableApartments.map((apt: Apartment) => (
+                          <SelectItem key={apt.id} value={apt.id}>
+                            {apt.unit_number}
+                            {apt.building?.name ? ` — ${apt.building.name}` : ''}
+                            {apt.status !== 'vacant' ? ` (${apt.status})` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormDescription>
-                      Leave empty to auto-calculate from rent.
+                      {mode === 'create'
+                        ? 'Only vacant apartments are shown.'
+                        : 'Apartment cannot be changed.'}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Party (Tenant/Buyer) */}
+              <FormField
+                control={form.control}
+                name="partyId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{typeConfig.partyLabel}</FormLabel>
+                    <FormControl>
+                      <PartyCombobox
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={mode === 'edit'}
+                        partyLabel={typeConfig.partyLabel}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <Separator />
 
-            {/* Notes */}
+            {/* Dates Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Duration</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {contractType === 'purchase' ? 'Contract Date' : 'Start Date'}
+                      </FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} disabled={mode === 'edit'} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="endDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {contractType === 'purchase' ? 'Completion Date' : 'End Date'}
+                      </FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        {contractType === 'rental' && 'Leave empty for open-ended lease.'}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Financial Details - Conditional based on contract type */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Financial Terms</h3>
+
+              {/* Rental Fields */}
+              {contractType === 'rental' && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="rentAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Monthly Rent (VND)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min={0} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="paymentDueDay"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Payment Due Day</FormLabel>
+                          <FormControl>
+                            <Input type="number" min={1} max={28} {...field} />
+                          </FormControl>
+                          <FormDescription>Day of month (1-28)</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="depositMonths"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Deposit Months</FormLabel>
+                          <FormControl>
+                            <Input type="number" min={0} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="depositAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Deposit Amount (VND)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={0}
+                              placeholder="Auto = rent × months"
+                              {...field}
+                              value={field.value ?? ''}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Leave empty to auto-calculate.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Purchase Fields */}
+              {contractType === 'purchase' && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="purchasePrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Purchase Price (VND)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min={0} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="downPayment"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Down Payment (VND)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min={0} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="transferDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ownership Transfer Date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Scheduled date for deed transfer.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="paymentSchedule"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Payment Schedule</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="E.g., 30% on signing, 40% on handover, 30% within 30 days..."
+                            className="min-h-[60px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
+              {/* Lease-to-Own Fields */}
+              {contractType === 'lease_to_own' && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="rentAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Monthly Rent (VND)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min={0} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="optionFee"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Option Fee (VND)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min={0} {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Non-refundable fee for purchase option.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="purchaseOptionPrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Purchase Option Price (VND)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min={0} {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Locked-in purchase price.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="optionPeriodMonths"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Option Period (months)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min={1} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="rentCreditPercent"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Rent Credit (%)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min={0} max={100} {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            % of rent applied to purchase price.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="depositAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Security Deposit (VND)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={0}
+                              {...field}
+                              value={field.value ?? ''}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Terms & Notes */}
             <FormField
               control={form.control}
               name="termsNotes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Terms & Notes</FormLabel>
+                  <FormLabel>Additional Terms & Notes</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Additional contract terms, special conditions..."
+                      placeholder="Special conditions, clauses, or notes..."
                       className="min-h-[80px]"
                       {...field}
                     />
@@ -399,7 +1051,7 @@ export function ContractFormDialog({
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className="gap-2 sm:gap-0">
               <Button
                 type="button"
                 variant="outline"
@@ -419,4 +1071,49 @@ export function ContractFormDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+function buildTermsNotes(values: ContractFormValues): string {
+  const parts: string[] = [];
+  
+  // Add contract type header
+  parts.push(`[Contract Type: ${CONTRACT_TYPES[values.contractType].label}]`);
+  
+  // Add type-specific details
+  if (values.contractType === 'purchase') {
+    if (values.purchasePrice) parts.push(`Purchase Price: ${values.purchasePrice.toLocaleString()} VND`);
+    if (values.downPayment) parts.push(`Down Payment: ${values.downPayment.toLocaleString()} VND`);
+    if (values.transferDate) parts.push(`Transfer Date: ${values.transferDate}`);
+    if (values.paymentSchedule) parts.push(`Payment Schedule: ${values.paymentSchedule}`);
+  } else if (values.contractType === 'lease_to_own') {
+    if (values.optionFee) parts.push(`Option Fee: ${values.optionFee.toLocaleString()} VND`);
+    if (values.purchaseOptionPrice) parts.push(`Purchase Option Price: ${values.purchaseOptionPrice.toLocaleString()} VND`);
+    if (values.optionPeriodMonths) parts.push(`Option Period: ${values.optionPeriodMonths} months`);
+    if (values.rentCreditPercent) parts.push(`Rent Credit: ${values.rentCreditPercent}%`);
+  } else if (values.contractType === 'rental') {
+    if (values.paymentDueDay) parts.push(`Payment Due: Day ${values.paymentDueDay} of each month`);
+  }
+  
+  // Add user notes
+  if (values.termsNotes) {
+    parts.push('---');
+    parts.push(values.termsNotes);
+  }
+  
+  return parts.join('\n');
+}
+
+function getSuccessMessage(type: ContractType): string {
+  switch (type) {
+    case 'purchase':
+      return 'The purchase contract has been created.';
+    case 'lease_to_own':
+      return 'The lease-to-own contract has been created.';
+    default:
+      return 'The rental contract has been created and apartment marked as occupied.';
+  }
 }

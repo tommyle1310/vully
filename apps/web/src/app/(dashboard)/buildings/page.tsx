@@ -165,7 +165,7 @@ export default function BuildingsPage() {
     setFormDialogOpen(true);
   };
 
-  const handleEditBuilding = (buildings: Building) => {
+  const handleEditBuilding = (building: Building) => {
     setEditingBuilding(building);
     setFormMode('edit');
     setFormDialogOpen(true);

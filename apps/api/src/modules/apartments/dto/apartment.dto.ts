@@ -526,6 +526,29 @@ export class ApartmentResponseDto {
     name: string;
     address: string;
   };
+
+  @ApiPropertyOptional({ description: 'Owner info (when included)' })
+  owner?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
+
+  @ApiPropertyOptional({ description: 'Active contract with tenant info (when included)' })
+  activeContract?: {
+    id: string;
+    tenant: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+    monthlyRent: number;
+    startDate: string;
+    endDate?: string | null;
+    status: string;
+  } | null;
 }
 
 export class ApartmentFiltersDto {

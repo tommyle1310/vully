@@ -29,13 +29,15 @@ interface ApartmentDetailPanelProps {
     activeContract?: {
       id: string;
       tenant: {
+        id: string;
         firstName: string;
         lastName: string;
+        email: string;
       };
-      start_date: string;
-      endDate?: string;
+      startDate: string;
+      endDate?: string | null;
       monthlyRent: number;
-    };
+    } | null;
   } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -128,8 +130,8 @@ export function ApartmentDetailPanel({ apartment, open, onOpenChange }: Apartmen
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Name</span>
                     <span className="font-medium">
-                      {apartment.activeContract.tenant.first_name}{' '}
-                      {apartment.activeContract.tenant.last_name}
+                      {apartment.activeContract.tenant.firstName}{' '}
+                      {apartment.activeContract.tenant.lastName}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
@@ -141,14 +143,14 @@ export function ApartmentDetailPanel({ apartment, open, onOpenChange }: Apartmen
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Lease Start</span>
                     <span className="font-medium">
-                      {new Date(apartment.activeContract.start_date).toLocaleDateString()}
+                      {new Date(apartment.activeContract.startDate).toLocaleDateString()}
                     </span>
                   </div>
-                  {apartment.activeContract.end_date && (
+                  {apartment.activeContract.endDate && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Lease End</span>
                       <span className="font-medium">
-                        {new Date(apartment.activeContract.end_date).toLocaleDateString()}
+                        {new Date(apartment.activeContract.endDate).toLocaleDateString()}
                       </span>
                     </div>
                   )}

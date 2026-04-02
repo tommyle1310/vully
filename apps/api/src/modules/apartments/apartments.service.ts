@@ -110,6 +110,19 @@ export class ApartmentsService {
           buildings: {
             select: { id: true, name: true, address: true },
           },
+          users: {
+            select: { id: true, first_name: true, last_name: true, email: true },
+          },
+          contracts: {
+            where: { status: 'active' },
+            take: 1,
+            orderBy: { created_at: 'desc' },
+            include: {
+              users_contracts_tenant_idTousers: {
+                select: { id: true, first_name: true, last_name: true, email: true },
+              },
+            },
+          },
         },
       }),
       this.prisma.apartments.count({ where }),
@@ -127,6 +140,19 @@ export class ApartmentsService {
       include: {
         buildings: {
           select: { id: true, name: true, address: true },
+        },
+        users: {
+          select: { id: true, first_name: true, last_name: true, email: true },
+        },
+        contracts: {
+          where: { status: 'active' },
+          take: 1,
+          orderBy: { created_at: 'desc' },
+          include: {
+            users_contracts_tenant_idTousers: {
+              select: { id: true, first_name: true, last_name: true, email: true },
+            },
+          },
         },
       },
     });
@@ -306,9 +332,49 @@ export class ApartmentsService {
    */
   toResponseDto(apartments: Record<string, unknown>, options?: { includeAdminFields?: boolean }): ApartmentResponseDto {
     const building = apartments.buildings as { id: string; name: string; address: string } | undefined;
+    const ownerData = apartments.users as { id: string; first_name: string; last_name: string; email: string } | null | undefined;
+    const contractsData = apartments.contracts as Array<{
+      id: string;
+      rent_amount: number | { toNumber: () => number };
+      start_date: Date;
+      end_date: Date | null;
+      status: string;
+      users_contracts_tenant_idTousers: { id: string; first_name: string; last_name: string; email: string };
+    }> | undefined;
+
     const toNum = (v: unknown) => (v != null ? Number(v) : null);
     const toStr = (v: unknown) => (v != null ? String(v) : null);
     const toDate = (v: unknown) => (v instanceof Date ? v.toISOString().split('T')[0] : v != null ? String(v) : null);
+
+    // Build owner object if available
+    const owner = ownerData ? {
+      id: ownerData.id,
+      firstName: ownerData.first_name,
+      lastName: ownerData.last_name,
+      email: ownerData.email,
+    } : null;
+
+    // Build activeContract object if available
+    let activeContract = null;
+    if (contractsData && contractsData.length > 0) {
+      const contract = contractsData[0];
+      const tenant = contract.users_contracts_tenant_idTousers;
+      activeContract = {
+        id: contract.id,
+        tenant: {
+          id: tenant.id,
+          firstName: tenant.first_name,
+          lastName: tenant.last_name,
+          email: tenant.email,
+        },
+        monthlyRent: typeof contract.rent_amount === 'object' && 'toNumber' in contract.rent_amount 
+          ? contract.rent_amount.toNumber() 
+          : Number(contract.rent_amount),
+        startDate: contract.start_date instanceof Date ? contract.start_date.toISOString().split('T')[0] : String(contract.start_date),
+        endDate: contract.end_date ? (contract.end_date instanceof Date ? contract.end_date.toISOString().split('T')[0] : String(contract.end_date)) : null,
+        status: contract.status,
+      };
+    }
 
     const result: ApartmentResponseDto = {
       id: apartments.id as string,
@@ -376,6 +442,9 @@ export class ApartmentsService {
       created_at: apartments.created_at as Date,
       updatedAt: apartments.updated_at as Date,
       building,
+      // Relations
+      owner,
+      activeContract,
     };
 
     // Admin-only fields: pinkBookId and notesAdmin excluded by default

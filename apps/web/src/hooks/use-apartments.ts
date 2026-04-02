@@ -79,6 +79,25 @@ export interface Apartment {
     name: string;
     address: string;
   };
+  owner?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
+  activeContract?: {
+    id: string;
+    tenant: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+    monthlyRent: number;
+    startDate: string;
+    endDate?: string | null;
+    status: string;
+  } | null;
   created_at: string;
   updatedAt: string;
 }
