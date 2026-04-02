@@ -8,16 +8,16 @@ import { Badge } from '@/components/ui/badge';
 import { useRecentActivity } from '@/hooks/use-stats';
 import { formatDistanceToNow } from 'date-fns';
 
-const TYPE_ICONS = {
+const TYPE_ICONS: Record<string, typeof AlertTriangle> = {
   incident: AlertTriangle,
   invoice: FileText,
-  contracts: FileSignature,
+  contract: FileSignature,
 };
 
-const TYPE_COLORS = {
+const TYPE_COLORS: Record<string, string> = {
   incident: 'text-red-500',
   invoice: 'text-blue-500',
-  contracts: 'text-green-500',
+  contract: 'text-green-500',
 };
 
 const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -106,8 +106,8 @@ export function RecentActivity() {
         <CardContent>
           <div className="space-y-4">
             {activities.map((activity, index) => {
-              const Icon = TYPE_ICONS[activity.type];
-              const iconColor = TYPE_COLORS[activity.type];
+              const Icon = TYPE_ICONS[activity.type] || Clock;
+              const iconColor = TYPE_COLORS[activity.type] || 'text-gray-500';
 
               return (
                 <motion.div
