@@ -30,7 +30,7 @@ interface FloorPlanProps {
         firstName: string;
         lastName: string;
       };
-    };
+    } | null;
   }>;
   onApartmentClick?: (apartmentId: string) => void;
 }

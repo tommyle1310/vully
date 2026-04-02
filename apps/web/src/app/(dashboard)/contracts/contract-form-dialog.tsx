@@ -144,6 +144,8 @@ const contractFormSchema = z.object({
   purchaseOptionPrice: z.coerce.number().min(0).optional(),
   rentCreditPercent: z.coerce.number().min(0).max(100).optional(),
   // Common
+  citizenId: z.string().max(30).optional(),
+  numberOfResidents: z.coerce.number().int().min(1).optional(),
   termsNotes: z.string().optional(),
 });
 
@@ -512,6 +514,8 @@ export function ContractFormDialog({
       optionPeriodMonths: 12,
       purchaseOptionPrice: undefined,
       rentCreditPercent: 25,
+      citizenId: '',
+      numberOfResidents: undefined,
       termsNotes: '',
     },
   });
@@ -536,6 +540,8 @@ export function ContractFormDialog({
           depositMonths: contract.depositMonths,
           depositAmount: contract.depositAmount,
           paymentDueDay: 5,
+          citizenId: contract.citizenId || '',
+          numberOfResidents: contract.numberOfResidents,
           termsNotes: contract.termsNotes || '',
         });
       } else {
@@ -557,6 +563,8 @@ export function ContractFormDialog({
           optionPeriodMonths: 12,
           purchaseOptionPrice: undefined,
           rentCreditPercent: 25,
+          citizenId: '',
+          numberOfResidents: undefined,
           termsNotes: '',
         });
       }
@@ -579,6 +587,8 @@ export function ContractFormDialog({
               : 0,
           depositMonths: values.depositMonths,
           depositAmount: values.depositAmount,
+          citizenId: values.citizenId || undefined,
+          numberOfResidents: values.numberOfResidents,
           termsNotes: buildTermsNotes(values),
         };
         await createContract.mutateAsync(input);
@@ -736,6 +746,49 @@ export function ContractFormDialog({
                   </FormItem>
                 )}
               />
+            </div>
+
+            <Separator />
+
+            {/* Party Details */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Party Details</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="citizenId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Citizen / National ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. 079200012345" {...field} />
+                      </FormControl>
+                      <FormDescription>CMND / CCCD number</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="numberOfResidents"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Number of Residents</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          placeholder="2"
+                          {...field}
+                          value={field.value ?? ''}
+                        />
+                      </FormControl>
+                      <FormDescription>People who will occupy the unit</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             <Separator />

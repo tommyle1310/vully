@@ -173,6 +173,11 @@ const ElementProperties = memo(function ElementProperties({
         {/* Rotation */}
         <RotationControls element={element} onUpdateElement={onUpdateElement} />
 
+        {/* Interior Details — apartments only */}
+        {element.apartmentId && (
+          <InteriorDetails element={element} onUpdateElement={onUpdateElement} />
+        )}
+
         {/* Colors */}
         <ColorInputs element={element} onUpdateElement={onUpdateElement} />
 
@@ -435,6 +440,102 @@ const ColorInputs = memo(function ColorInputs({
           onChange={(e) => onUpdateElement(element.id, { stroke: e.target.value })}
           className="mt-1 h-10"
         />
+      </div>
+    </div>
+  );
+});
+
+// =============================================================================
+// Interior Details (apartment elements only)
+// =============================================================================
+
+const InteriorDetails = memo(function InteriorDetails({
+  element,
+  onUpdateElement,
+}: {
+  element: ElementPropertiesProps['element'];
+  onUpdateElement: ElementPropertiesProps['onUpdateElement'];
+}) {
+  return (
+    <div className="space-y-3">
+      <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Interior Details</Label>
+
+      {/* Logia Count */}
+      <div>
+        <Label className="text-xs">Logia Count</Label>
+        <Input
+          type="number"
+          min={0}
+          max={4}
+          value={element.logiaCount ?? ''}
+          onChange={(e) =>
+            onUpdateElement(element.id, {
+              logiaCount: e.target.value === '' ? undefined : Number(e.target.value),
+            })
+          }
+          placeholder="0"
+          className="mt-1"
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Logia = enclosed utility niche (AC outdoor unit, washing machine)
+        </p>
+      </div>
+
+      {/* Multi-purpose / +1 rooms */}
+      <div>
+        <Label className="text-xs">+1 / Multi-purpose Rooms</Label>
+        <Input
+          type="number"
+          min={0}
+          max={4}
+          value={element.multipurposeRooms ?? ''}
+          onChange={(e) =>
+            onUpdateElement(element.id, {
+              multipurposeRooms: e.target.value === '' ? undefined : Number(e.target.value),
+            })
+          }
+          placeholder="0"
+          className="mt-1"
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Small flex rooms not counted as bedrooms (2PN+1)
+        </p>
+      </div>
+
+      {/* Kitchen Type */}
+      <div>
+        <Label className="text-xs">Kitchen Type</Label>
+        <select
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          value={element.kitchenType ?? ''}
+          onChange={(e) =>
+            onUpdateElement(element.id, {
+              kitchenType: (e.target.value as 'open' | 'closed') || undefined,
+            })
+          }
+        >
+          <option value="">— Not specified —</option>
+          <option value="open">Open Kitchen</option>
+          <option value="closed">Closed Kitchen (Partitioned)</option>
+        </select>
+      </div>
+
+      {/* View Description */}
+      <div>
+        <Label className="text-xs">Balcony Direction / View</Label>
+        <Input
+          value={element.viewDescription ?? ''}
+          onChange={(e) =>
+            onUpdateElement(element.id, {
+              viewDescription: e.target.value || undefined,
+            })
+          }
+          placeholder="e.g. Southeast – Pool View"
+          className="mt-1"
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Direction + landmark (e.g. Đông Nam – Hồ bơi)
+        </p>
       </div>
     </div>
   );

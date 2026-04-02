@@ -33,6 +33,11 @@ export interface SvgElement {
   label?: string;
   utilityType?: string;
   subRects?: RectArea[];
+  // Interior details (for apartment elements)
+  logiaCount?: number;
+  multipurposeRooms?: number;
+  kitchenType?: 'open' | 'closed';
+  viewDescription?: string;
 }
 
 export type ElementType = 'rect' | 'circle' | 'polygon' | 'text' | 'template';
@@ -95,6 +100,14 @@ export interface BoundingBox {
   bottom: number;
 }
 
+// Marquee / rubber-band selection rectangle
+export interface MarqueeRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 // =============================================================================
 // Component Props
 // =============================================================================
@@ -108,12 +121,14 @@ export interface SvgBuilderProps {
 export interface SvgCanvasProps {
   elements: SvgElement[];
   selectedElementId: string | null;
+  selectedIds: string[];
   canvasSize: CanvasSize;
   viewBox: ViewBox;
   zoom: number;
   showGrid: boolean;
   panMode: boolean;
   activeTool: ToolMode;
+  marquee: MarqueeRect | null;
   onSelectElement: (id: string | null) => void;
   onMouseDown: (e: React.MouseEvent<SVGSVGElement>) => void;
   onMouseMove: (e: React.MouseEvent<SVGSVGElement>) => void;
@@ -121,6 +136,8 @@ export interface SvgCanvasProps {
   onElementMouseDown: (e: React.MouseEvent, elementId: string) => void;
   checkOverlaps: (elementId: string) => boolean;
   svgRef: React.RefObject<SVGSVGElement | null>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  onDropTemplate: (e: React.DragEvent<HTMLDivElement>) => void;
 }
 
 export interface ToolbarProps {

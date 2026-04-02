@@ -61,6 +61,8 @@ export class ContractsService {
           rent_amount: dto.rentAmount,
           deposit_months: dto.depositMonths || 2,
           deposit_amount: dto.depositAmount,
+          citizen_id: dto.citizenId || null,
+          number_of_residents: dto.numberOfResidents ?? null,
           terms_notes: dto.termsNotes,
           created_by: createdById,
           updated_at: new Date(),
@@ -75,10 +77,14 @@ export class ContractsService {
         },
       });
 
-      // Update apartment status to occupied
+      // Update apartment status to occupied, and sync resident count
       await tx.apartments.update({
         where: { id: dto.apartmentId },
-        data: { status: 'occupied' },
+        data: {
+          status: 'occupied',
+          is_rented: true,
+          current_resident_count: dto.numberOfResidents ?? 0,
+        },
       });
 
       return newContract;
@@ -224,10 +230,10 @@ export class ContractsService {
         },
       });
 
-      // Set apartment back to vacant
+      // Set apartment back to vacant and clear resident data
       await tx.apartments.update({
         where: { id: contract.apartment_id },
-        data: { status: 'vacant' },
+        data: { status: 'vacant', is_rented: false, current_resident_count: 0 },
       });
 
       return terminatedContract;
@@ -254,6 +260,8 @@ export class ContractsService {
     rent_amount: unknown;
     deposit_months: number;
     deposit_amount: unknown;
+    citizen_id?: string | null;
+    number_of_residents?: number | null;
     terms_notes: string | null;
     created_at: Date;
     updated_at: Date;
@@ -280,6 +288,8 @@ export class ContractsService {
       rentAmount: Number(contracts.rent_amount),
       depositMonths: contracts.deposit_months,
       depositAmount: contracts.deposit_amount ? Number(contracts.deposit_amount) : undefined,
+      citizenId: contracts.citizen_id || undefined,
+      numberOfResidents: contracts.number_of_residents ?? undefined,
       termsNotes: contracts.terms_notes || undefined,
       created_at: contracts.created_at,
       updatedAt: contracts.updated_at,

@@ -13,6 +13,8 @@ export interface Contract {
   rentAmount: number;
   depositMonths: number;
   depositAmount?: number;
+  citizenId?: string;
+  numberOfResidents?: number;
   termsNotes?: string;
   created_at: string;
   updatedAt: string;
@@ -59,6 +61,8 @@ export interface CreateContractInput {
   rentAmount: number;
   depositMonths?: number;
   depositAmount?: number;
+  citizenId?: string;
+  numberOfResidents?: number;
   termsNotes?: string;
 }
 

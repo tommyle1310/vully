@@ -14,6 +14,7 @@ import type {
   ApartmentTemplate,
   UtilityTemplate,
   RectArea,
+  MarqueeRect,
 } from './svg-builder.types';
 
 import {
@@ -57,6 +58,8 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
   // Core state
   const [elements, setElements] = useState<SvgElement[]>([]);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
   const [activeTool, setActiveTool] = useState<ToolMode>('select');
   const [canvasSize, setCanvasSize] = useState<CanvasSize>(DEFAULT_CANVAS_SIZE);
   const [viewBox, setViewBox] = useState<ViewBox>({
@@ -76,7 +79,9 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
 
   // Refs
   const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const panClientStart = useRef({ x: 0, y: 0 });
+  const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Hooks
   const { toast } = useToast();
@@ -86,6 +91,12 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
   const { getSVGCoordinates } = useSvgCoordinates(svgRef, viewBox);
 
   const selectedElement = elements.find((el) => el.id === selectedElementId);
+
+  /** Set both selectedElementId (primary) and selectedIds (multi) together */
+  const setSelection = useCallback((ids: string[]) => {
+    setSelectedIds(ids);
+    setSelectedElementId(ids[0] ?? null);
+  }, []);
 
   // ==========================================================================
   // Snap to grid helper
@@ -165,12 +176,24 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
         newElement.fill = DEFAULT_TEXT_FILL;
       }
 
+      const wasEmpty = elements.length === 0;
       const newElements = [...elements, newElement];
       setElements(newElements);
       setSelectedElementId(newElement.id);
+      setSelectedIds([newElement.id]);
       pushHistory(newElements);
+
+      // Auto-center the canvas when adding the first element
+      if (wasEmpty && containerRef.current) {
+        requestAnimationFrame(() => {
+          const c = containerRef.current;
+          if (!c) return;
+          c.scrollLeft = newElement.x * zoom - c.clientWidth / 2 + (newElement.width ?? 50) * zoom / 2;
+          c.scrollTop = newElement.y * zoom - c.clientHeight / 2 + (newElement.height ?? 50) * zoom / 2;
+        });
+      }
     },
-    [elements, snapValue, pushHistory]
+    [elements, snapValue, pushHistory, zoom]
   );
 
   const updateElement = useCallback(
@@ -183,40 +206,41 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
   );
 
   const deleteElement = useCallback(() => {
-    if (!selectedElementId) return;
+    const toDelete = selectedIds.length > 1 ? new Set(selectedIds) : selectedElementId ? new Set([selectedElementId]) : null;
+    if (!toDelete || toDelete.size === 0) return;
 
-    const newElements = elements.filter((el) => el.id !== selectedElementId);
+    const newElements = elements.filter((el) => !toDelete.has(el.id));
     setElements(newElements);
-    setSelectedElementId(null);
+    setSelection([]);
     pushHistory(newElements);
-  }, [selectedElementId, elements, pushHistory]);
+  }, [selectedIds, selectedElementId, elements, pushHistory, setSelection]);
 
   const duplicateElement = useCallback(() => {
-    if (!selectedElementId) return;
+    const toDup = selectedIds.length > 1 ? selectedIds : selectedElementId ? [selectedElementId] : [];
+    if (toDup.length === 0) return;
 
-    const element = elements.find((el) => el.id === selectedElementId);
-    if (!element) return;
+    const newElements = [...elements];
+    const newIds: string[] = [];
+    toDup.forEach((id) => {
+      const element = elements.find((el) => el.id === id);
+      if (!element) return;
+      const newEl = { ...element, id: `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, x: element.x + 20, y: element.y + 20 };
+      newElements.push(newEl);
+      newIds.push(newEl.id);
+    });
 
-    const newElement = {
-      ...element,
-      id: `el-${Date.now()}`,
-      x: element.x + 20,
-      y: element.y + 20,
-    };
-
-    const newElements = [...elements, newElement];
     setElements(newElements);
-    setSelectedElementId(newElement.id);
+    setSelection(newIds);
     pushHistory(newElements);
-  }, [selectedElementId, elements, pushHistory]);
+  }, [selectedIds, selectedElementId, elements, pushHistory, setSelection]);
 
   // ==========================================================================
   // Template Operations
   // ==========================================================================
   const addApartmentTemplate = useCallback(
-    (template: ApartmentTemplate) => {
-      const centerX = (canvasSize.width - template.width) / 2;
-      const centerY = (canvasSize.height - template.height) / 2;
+    (template: ApartmentTemplate, dropX?: number, dropY?: number) => {
+      const centerX = dropX ?? (canvasSize.width - template.width) / 2;
+      const centerY = dropY ?? (canvasSize.height - template.height) / 2;
 
       if (template.type === 'rect') {
         addElement('rect', centerX, centerY, {
@@ -254,9 +278,9 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
   );
 
   const addUtilityTemplate = useCallback(
-    (template: UtilityTemplate) => {
-      const centerX = (canvasSize.width - template.width) / 2;
-      const centerY = (canvasSize.height - template.height) / 2;
+    (template: UtilityTemplate, dropX?: number, dropY?: number) => {
+      const centerX = dropX ?? (canvasSize.width - template.width) / 2;
+      const centerY = dropY ?? (canvasSize.height - template.height) / 2;
 
       addElement('rect', centerX, centerY, {
         width: template.width,
@@ -335,7 +359,13 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
       }
 
       if (activeTool === 'select') {
-        setSelectedElementId(null);
+        const { x, y } = getSVGCoordinates(e);
+        // Start marquee drag
+        marqueeStartRef.current = { x, y };
+        setMarquee({ x, y, width: 0, height: 0 });
+        if (!e.shiftKey) {
+          setSelection([]);
+        }
         return;
       }
 
@@ -349,7 +379,7 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
         setActiveTool('select');
       }
     },
-    [activeTool, addElement, clickedElement, panMode, getSVGCoordinates, startDrag]
+    [activeTool, addElement, clickedElement, panMode, getSVGCoordinates, startDrag, setSelection]
   );
 
   const handleElementMouseDown = useCallback(
@@ -359,7 +389,25 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
 
       if (panMode) return;
 
-      setSelectedElementId(elementId);
+      // Clear marquee if started
+      marqueeStartRef.current = null;
+      setMarquee(null);
+
+      if (e.shiftKey) {
+        // Shift+click: toggle element in multi-selection
+        const newIds = selectedIds.includes(elementId)
+          ? selectedIds.filter((id) => id !== elementId)
+          : [...selectedIds, elementId];
+        setSelection(newIds);
+      } else {
+        // Normal click: select only this element (keep multi-select if already in it for drag)
+        if (!selectedIds.includes(elementId)) {
+          setSelection([elementId]);
+        } else {
+          setSelectedElementId(elementId);
+        }
+      }
+
       setClickedElement(true);
 
       const element = elements.find((el) => el.id === elementId);
@@ -368,15 +416,27 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
       const mousePos = getSVGCoordinates(e);
       startDrag(element, mousePos);
     },
-    [elements, panMode, getSVGCoordinates, startDrag]
+    [elements, panMode, getSVGCoordinates, startDrag, selectedIds, setSelection]
   );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
-      if (!isDragging) return;
-
       const svg = svgRef.current;
       if (!svg) return;
+
+      // Update marquee rect while dragging
+      if (marqueeStartRef.current) {
+        const { x, y } = getSVGCoordinates(e);
+        setMarquee({
+          x: marqueeStartRef.current.x,
+          y: marqueeStartRef.current.y,
+          width: x - marqueeStartRef.current.x,
+          height: y - marqueeStartRef.current.y,
+        });
+        return;
+      }
+
+      if (!isDragging) return;
 
       // Pan mode
       if (panMode) {
@@ -394,24 +454,95 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
         return;
       }
 
-      // Normal mode: move selected element
+      // Normal mode: move selected element(s)
       if (!selectedElementId) return;
 
       const mousePos = getSVGCoordinates(e);
-      const newElements = updateDrag(mousePos, elements, selectedElementId, snapValue);
+      const newElements = updateDrag(mousePos, elements, selectedElementId, snapValue, selectedIds);
       if (newElements) {
         setElements(newElements);
       }
     },
-    [isDragging, selectedElementId, elements, panMode, getSVGCoordinates, updateDrag, snapValue]
+    [isDragging, selectedElementId, selectedIds, elements, panMode, getSVGCoordinates, updateDrag, snapValue]
   );
 
+  /** Returns elements whose bounding boxes intersect the given marquee rect */
+  const getElementsInMarquee = useCallback((m: MarqueeRect): string[] => {
+    const left = Math.min(m.x, m.x + m.width);
+    const right = Math.max(m.x, m.x + m.width);
+    const top = Math.min(m.y, m.y + m.height);
+    const bottom = Math.max(m.y, m.y + m.height);
+
+    return elements
+      .filter((el) => {
+        const elLeft = el.x;
+        const elTop = el.y;
+        const elRight = el.x + (el.width ?? 0);
+        const elBottom = el.y + (el.height ?? 0);
+        // Overlap check (axis-aligned)
+        return elRight > left && elLeft < right && elBottom > top && elTop < bottom;
+      })
+      .map((el) => el.id);
+  }, [elements]);
+
   const handleMouseUp = useCallback(() => {
+    // Finalize marquee selection
+    if (marqueeStartRef.current && marquee) {
+      const minSize = 5; // Ignore tiny accidental marquees
+      if (Math.abs(marquee.width) > minSize || Math.abs(marquee.height) > minSize) {
+        const inMarquee = getElementsInMarquee(marquee);
+        setSelection(inMarquee);
+      }
+      marqueeStartRef.current = null;
+      setMarquee(null);
+    }
+
     if (isDragging) {
       pushHistory([...elements]);
     }
     endDrag();
-  }, [isDragging, elements, pushHistory, endDrag]);
+  }, [isDragging, marquee, elements, pushHistory, endDrag, getElementsInMarquee, setSelection]);
+
+  // ==========================================================================
+  // Drag-and-drop from sidebar templates
+  // ==========================================================================
+  const handleDropTemplate = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const raw = e.dataTransfer.getData('application/svg-template');
+      if (!raw) return;
+
+      try {
+        const { kind, template } = JSON.parse(raw) as {
+          kind: 'apartment' | 'utility';
+          template: ApartmentTemplate | UtilityTemplate;
+        };
+
+        // Convert screen coords to SVG coordinates
+        const svgEl = svgRef.current;
+        if (!svgEl) return;
+        const svgRect = svgEl.getBoundingClientRect();
+        const scaleX = viewBox.width / (canvasSize.width * zoom);
+        const scaleY = viewBox.height / (canvasSize.height * zoom);
+        const svgX = viewBox.x + (e.clientX - svgRect.left) * scaleX;
+        const svgY = viewBox.y + (e.clientY - svgRect.top) * scaleY;
+
+        const w = (template as ApartmentTemplate | UtilityTemplate).width;
+        const h = (template as ApartmentTemplate | UtilityTemplate).height;
+        const dropX = snapValue(svgX - w / 2);
+        const dropY = snapValue(svgY - h / 2);
+
+        if (kind === 'apartment') {
+          addApartmentTemplate(template as ApartmentTemplate, dropX, dropY);
+        } else if (kind === 'utility') {
+          addUtilityTemplate(template as UtilityTemplate, dropX, dropY);
+        }
+      } catch {
+        // Ignore malformed drag data
+      }
+    },
+    [svgRef, viewBox, canvasSize, zoom, snapValue, addApartmentTemplate, addUtilityTemplate]
+  );
 
   // ==========================================================================
   // Export Operations
@@ -484,11 +615,14 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
           <SvgCanvas
             elements={elements}
             selectedElementId={selectedElementId}
+            selectedIds={selectedIds}
             canvasSize={canvasSize}
             viewBox={viewBox}
             zoom={zoom}
             showGrid={showGrid}
             panMode={panMode}
+            marquee={marquee}
+            containerRef={containerRef}
             activeTool={activeTool}
             onSelectElement={setSelectedElementId}
             onMouseDown={handleCanvasMouseDown}
@@ -497,6 +631,7 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
             onElementMouseDown={handleElementMouseDown}
             checkOverlaps={checkOverlaps}
             svgRef={svgRef}
+            onDropTemplate={handleDropTemplate}
           />
         </CardContent>
       </Card>
@@ -533,7 +668,7 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
             <ToolsPanel
               activeTool={activeTool}
               snapToGrid={snapToGrid}
-              hasSelection={!!selectedElementId}
+              hasSelection={!!(selectedElementId || selectedIds.length > 1)}
               onSetActiveTool={setActiveTool}
               onToggleSnapToGrid={() => setSnapToGrid(!snapToGrid)}
               onDuplicate={duplicateElement}

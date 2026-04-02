@@ -127,6 +127,10 @@ function parseRectElements(
       apartmentType: rect.getAttribute('data-apartment-type') || undefined,
       apartmentName: rect.getAttribute('data-apartment-name') || undefined,
       utilityType: rect.getAttribute('data-utility-type') || undefined,
+      logiaCount: rect.getAttribute('data-logia-count') ? Number(rect.getAttribute('data-logia-count')) : undefined,
+      multipurposeRooms: rect.getAttribute('data-mprooms') ? Number(rect.getAttribute('data-mprooms')) : undefined,
+      kitchenType: (rect.getAttribute('data-kitchen-type') as 'open' | 'closed') || undefined,
+      viewDescription: rect.getAttribute('data-view-desc') || undefined,
       label,
     });
   });
@@ -196,6 +200,10 @@ function parsePolygonElements(
       apartmentId: polygon.getAttribute('data-apartment-id') || undefined,
       apartmentType: apartmentType || undefined,
       apartmentName: polygon.getAttribute('data-apartment-name') || undefined,
+      logiaCount: polygon.getAttribute('data-logia-count') ? Number(polygon.getAttribute('data-logia-count')) : undefined,
+      multipurposeRooms: polygon.getAttribute('data-mprooms') ? Number(polygon.getAttribute('data-mprooms')) : undefined,
+      kitchenType: (polygon.getAttribute('data-kitchen-type') as 'open' | 'closed') || undefined,
+      viewDescription: polygon.getAttribute('data-view-desc') || undefined,
       label,
       subRects,
     });
@@ -499,6 +507,10 @@ function generateRectSvg(
     el.utilityType ? `data-utility-type="${el.utilityType}"` : '',
     el.utilityType && el.label ? `data-utility-name="${el.label}"` : '',
     areaSqm > 0 ? `data-area-sqm="${areaSqm.toFixed(1)}"` : '',
+    el.logiaCount != null ? `data-logia-count="${el.logiaCount}"` : '',
+    el.multipurposeRooms != null ? `data-mprooms="${el.multipurposeRooms}"` : '',
+    el.kitchenType ? `data-kitchen-type="${el.kitchenType}"` : '',
+    el.viewDescription ? `data-view-desc="${el.viewDescription}"` : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -566,6 +578,10 @@ function generatePolygonSvg(
     el.apartmentType ? `data-apartment-type="${el.apartmentType}"` : '',
     el.apartmentName ? `data-apartment-name="${el.apartmentName}"` : '',
     areaSqm > 0 ? `data-area-sqm="${areaSqm.toFixed(1)}"` : '',
+    el.logiaCount != null ? `data-logia-count="${el.logiaCount}"` : '',
+    el.multipurposeRooms != null ? `data-mprooms="${el.multipurposeRooms}"` : '',
+    el.kitchenType ? `data-kitchen-type="${el.kitchenType}"` : '',
+    el.viewDescription ? `data-view-desc="${el.viewDescription}"` : '',
   ]
     .filter(Boolean)
     .join(' ');

@@ -230,15 +230,15 @@ export class BuildingsService {
             updated_at: new Date(),
           },
           update: {
+            // Only update layout/metadata — do NOT overwrite manually-set fields
+            // (bedroom_count, bathroom_count, gross_area, net_area, status, etc.)
             floor_index: floor,
-            gross_area: template.areaSqm > 0 ? template.areaSqm : null,
-            bedroom_count: bedroomCount,
-            bathroom_count: bathroomCount,
             svg_element_id: template.id || null,
             features: {
               apartmentType: template.type,
               apartmentName: template.name,
             } as Prisma.InputJsonValue,
+            updated_at: new Date(),
           },
         });
       }

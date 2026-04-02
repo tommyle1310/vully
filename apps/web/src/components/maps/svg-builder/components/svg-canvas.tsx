@@ -8,20 +8,29 @@ import { ElementRenderer } from './element-renderer';
 export const SvgCanvas = memo(function SvgCanvas({
   elements,
   selectedElementId,
+  selectedIds,
   canvasSize,
   viewBox,
   zoom,
   showGrid,
   panMode,
+  marquee,
+  containerRef,
   onMouseDown,
   onMouseMove,
   onMouseUp,
   onElementMouseDown,
   checkOverlaps,
   svgRef,
+  onDropTemplate,
 }: SvgCanvasProps) {
   return (
-    <div className="bg-muted/20 w-full h-full overflow-auto rounded-md border">
+    <div
+      ref={containerRef as React.RefObject<HTMLDivElement>}
+      className="bg-muted/20 w-full h-full overflow-auto rounded-md border"
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={onDropTemplate}
+    >
       <svg
         ref={svgRef as React.RefObject<SVGSVGElement>}
         width={canvasSize.width * zoom}
@@ -47,10 +56,26 @@ export const SvgCanvas = memo(function SvgCanvas({
             key={el.id}
             element={el}
             isSelected={el.id === selectedElementId}
+            isInMultiSelection={selectedIds ? selectedIds.includes(el.id) : false}
             hasOverlap={checkOverlaps(el.id)}
             onMouseDown={onElementMouseDown}
           />
         ))}
+
+        {/* Marquee selection rect */}
+        {marquee && (
+          <rect
+            x={marquee.width >= 0 ? marquee.x : marquee.x + marquee.width}
+            y={marquee.height >= 0 ? marquee.y : marquee.y + marquee.height}
+            width={Math.abs(marquee.width)}
+            height={Math.abs(marquee.height)}
+            fill="rgba(99,102,241,0.08)"
+            stroke="#6366f1"
+            strokeWidth={1.5}
+            strokeDasharray="6 3"
+            pointerEvents="none"
+          />
+        )}
 
         {/* Dimension indicator */}
         <text

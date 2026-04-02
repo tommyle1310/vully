@@ -35,7 +35,15 @@ export const TemplatesPanel = memo(function TemplatesPanel({
             <Button
               key={template.id}
               variant="outline"
-              className="h-20 flex-col"
+              className="h-20 flex-col cursor-grab active:cursor-grabbing"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData(
+                  'application/svg-template',
+                  JSON.stringify({ kind: 'apartment', template })
+                );
+                e.dataTransfer.effectAllowed = 'copy';
+              }}
               onClick={() => onAddTemplate(template)}
             >
               <template.icon className="h-6 w-6 mb-1" />
@@ -55,7 +63,15 @@ export const TemplatesPanel = memo(function TemplatesPanel({
             <Button
               key={template.id}
               variant="outline"
-              className="h-20 flex-col p-2"
+              className="h-20 flex-col p-2 cursor-grab active:cursor-grabbing"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData(
+                  'application/svg-template',
+                  JSON.stringify({ kind: 'apartment', template })
+                );
+                e.dataTransfer.effectAllowed = 'copy';
+              }}
               onClick={() => onAddTemplate(template)}
             >
               <svg
@@ -86,7 +102,15 @@ export const TemplatesPanel = memo(function TemplatesPanel({
             <Button
               key={template.id}
               variant="outline"
-              className="h-20 flex-col gap-1"
+              className="h-20 flex-col gap-1 cursor-grab active:cursor-grabbing"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData(
+                  'application/svg-template',
+                  JSON.stringify({ kind: 'utility', template })
+                );
+                e.dataTransfer.effectAllowed = 'copy';
+              }}
               onClick={() => onAddUtility(template)}
             >
               <template.icon

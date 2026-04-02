@@ -4,6 +4,7 @@ import type { SvgElement } from '../svg-builder.types';
 interface ElementRendererProps {
   element: SvgElement;
   isSelected: boolean;
+  isInMultiSelection?: boolean;
   hasOverlap: boolean;
   onMouseDown: (e: React.MouseEvent, elementId: string) => void;
 }
@@ -15,6 +16,7 @@ interface ElementRendererProps {
 export const RectElement = memo(function RectElement({
   element,
   isSelected,
+  isInMultiSelection,
   hasOverlap,
   onMouseDown,
 }: ElementRendererProps) {
@@ -31,13 +33,28 @@ export const RectElement = memo(function RectElement({
         width={element.width}
         height={element.height}
         fill={element.fill}
-        stroke={hasOverlap ? '#ef4444' : isSelected ? '#3b82f6' : element.stroke}
-        strokeWidth={hasOverlap ? 3 : isSelected ? element.strokeWidth + 1 : element.strokeWidth}
+        stroke={hasOverlap ? '#ef4444' : isSelected ? '#3b82f6' : isInMultiSelection ? '#6366f1' : element.stroke}
+        strokeWidth={hasOverlap ? 3 : isSelected ? element.strokeWidth + 1 : isInMultiSelection ? element.strokeWidth + 1 : element.strokeWidth}
         rx={4}
         className="cursor-move"
         style={{ userSelect: 'none' }}
         onMouseDown={(e) => onMouseDown(e, element.id)}
       />
+      {/* Multi-selection dashed outline */}
+      {isInMultiSelection && !isSelected && (
+        <rect
+          x={element.x - 2}
+          y={element.y - 2}
+          width={(element.width || 0) + 4}
+          height={(element.height || 0) + 4}
+          fill="none"
+          stroke="#6366f1"
+          strokeWidth={2}
+          strokeDasharray="6 3"
+          rx={5}
+          pointerEvents="none"
+        />
+      )}
 
       {/* Apartment Type (low opacity) */}
       {element.apartmentType && (
@@ -105,6 +122,7 @@ export const RectElement = memo(function RectElement({
 export const PolygonElement = memo(function PolygonElement({
   element,
   isSelected,
+  isInMultiSelection,
   hasOverlap,
   onMouseDown,
 }: ElementRendererProps) {
@@ -122,8 +140,8 @@ export const PolygonElement = memo(function PolygonElement({
       <polygon
         points={element.points}
         fill="none"
-        stroke={hasOverlap ? '#ef4444' : isSelected ? '#3b82f6' : element.stroke}
-        strokeWidth={isSelected ? 6 : 4}
+        stroke={hasOverlap ? '#ef4444' : isSelected ? '#3b82f6' : isInMultiSelection ? '#6366f1' : element.stroke}
+        strokeWidth={isSelected || isInMultiSelection ? 6 : 4}
         strokeLinejoin="miter"
         strokeLinecap="butt"
         className="cursor-move"
@@ -150,6 +168,19 @@ export const PolygonElement = memo(function PolygonElement({
           strokeWidth={3}
           strokeDasharray="8 4"
           strokeLinejoin="miter"
+        />
+      )}
+
+      {/* Multi-selection dashed outline */}
+      {isInMultiSelection && !isSelected && (
+        <polygon
+          points={element.points}
+          fill="none"
+          stroke="#6366f1"
+          strokeWidth={2.5}
+          strokeDasharray="6 3"
+          strokeLinejoin="miter"
+          pointerEvents="none"
         />
       )}
 

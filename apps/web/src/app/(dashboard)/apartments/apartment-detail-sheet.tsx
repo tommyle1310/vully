@@ -25,8 +25,10 @@ import {
   Compass,
   Layers,
   KeyRound,
+  FileText,
 } from 'lucide-react';
 import { Apartment, useUpdateApartmentStatus } from '@/hooks/use-apartments';
+import { useContracts } from '@/hooks/use-contracts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -135,6 +137,12 @@ export function ApartmentDetailSheet({
 }: ApartmentDetailSheetProps) {
   const { toast } = useToast();
   const updateStatus = useUpdateApartmentStatus();
+
+  // Fetch active contract for this apartment
+  const { data: contractsData } = useContracts(
+    apartment ? { apartmentId: apartment.id, status: 'active', limit: 1 } : {},
+  );
+  const activeContract = contractsData?.data?.[0];
 
   if (!apartment) return null;
 
@@ -257,13 +265,103 @@ export function ApartmentDetailSheet({
                 <div>
                   <p className="text-xs text-muted-foreground">Residents</p>
                   <p className="text-base font-semibold">
-                    {apartment.currentResidentCount}
+                    {activeContract?.numberOfResidents ?? apartment.currentResidentCount}
                     {apartment.maxResidents ? ` / ${apartment.maxResidents}` : ''}
                   </p>
                 </div>
               </CardContent>
             </Card>
           </div>
+
+          {/* Active Contract */}
+          {activeContract && (
+            <div className="space-y-1">
+              <SectionHeader title="Active Contract" />
+              <Card className="mt-2">
+                <CardContent className="p-4 space-y-2">
+                  {activeContract.termsNotes?.startsWith('[Contract Type:') && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground flex items-center gap-2">
+                        <FileText className="h-3.5 w-3.5" />
+                        Type
+                      </span>
+                      <span className="text-sm font-medium">
+                        {activeContract.termsNotes.match(/\[Contract Type: ([^\]]+)\]/)?.[1] ?? 'Rental'}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Calendar className="h-3.5 w-3.5" />
+                      Start
+                    </span>
+                    <span className="text-sm font-medium">
+                      {new Date(activeContract.start_date).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {activeContract.endDate && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Calendar className="h-3.5 w-3.5" />
+                        End
+                      </span>
+                      <span className="text-sm font-medium">
+                        {new Date(activeContract.endDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                  {activeContract.rentAmount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground flex items-center gap-2">
+                        <CreditCard className="h-3.5 w-3.5" />
+                        Monthly Rent
+                      </span>
+                      <span className="text-sm font-medium">
+                        {activeContract.rentAmount.toLocaleString()} VND
+                      </span>
+                    </div>
+                  )}
+                  {activeContract.depositAmount != null && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Deposit</span>
+                      <span className="text-sm font-medium">
+                        {activeContract.depositAmount.toLocaleString()} VND
+                      </span>
+                    </div>
+                  )}
+                  {activeContract.citizenId && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground flex items-center gap-2">
+                        <User className="h-3.5 w-3.5" />
+                        Citizen ID
+                      </span>
+                      <span className="text-sm font-medium font-mono">{activeContract.citizenId}</span>
+                    </div>
+                  )}
+                  {activeContract.numberOfResidents != null && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Users className="h-3.5 w-3.5" />
+                        Registered Residents
+                      </span>
+                      <span className="text-sm font-medium">{activeContract.numberOfResidents}</span>
+                    </div>
+                  )}
+                  {activeContract.tenant && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground flex items-center gap-2">
+                        <User className="h-3.5 w-3.5" />
+                        {activeContract.termsNotes?.includes('Purchase') ? 'Buyer' : 'Tenant'}
+                      </span>
+                      <span className="text-sm font-medium">
+                        {activeContract.tenant.firstName} {activeContract.tenant.lastName}
+                      </span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Spatial Details */}
           <div className="space-y-1">

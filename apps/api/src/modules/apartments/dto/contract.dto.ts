@@ -44,6 +44,17 @@ export class CreateContractDto {
   @IsNumber()
   depositAmount?: number;
 
+  @ApiPropertyOptional({ description: 'National citizen ID of tenant/buyer' })
+  @IsOptional()
+  @IsString()
+  citizenId?: string;
+
+  @ApiPropertyOptional({ example: 2, description: 'Number of residents who will occupy the unit' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  numberOfResidents?: number;
+
   @ApiPropertyOptional({ description: 'Additional terms and notes' })
   @IsOptional()
   @IsString()
@@ -110,6 +121,12 @@ export class ContractResponseDto {
 
   @ApiPropertyOptional()
   depositAmount?: number;
+
+  @ApiPropertyOptional()
+  citizenId?: string;
+
+  @ApiPropertyOptional()
+  numberOfResidents?: number;
 
   @ApiPropertyOptional()
   termsNotes?: string;

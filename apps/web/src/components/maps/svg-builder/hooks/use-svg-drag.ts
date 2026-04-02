@@ -36,7 +36,8 @@ export function useSvgDrag() {
       mousePos: Point,
       elements: SvgElement[],
       selectedId: string,
-      snapFn: (v: number) => number
+      snapFn: (v: number) => number,
+      selectedIds?: string[]
     ): SvgElement[] | null => {
       if (!state.isDragging) return null;
 
@@ -51,24 +52,27 @@ export function useSvgDrag() {
 
       if (dx === 0 && dy === 0) return null;
 
-      return elements.map((el) => {
-        if (el.id !== selectedId) return el;
+      // Multi-element drag: move all selected elements by the same delta
+      const idsToMove =
+        selectedIds && selectedIds.length > 1 ? new Set(selectedIds) : null;
 
-        // For polygons, transform all points
+      return elements.map((el) => {
+        const shouldMove = idsToMove ? idsToMove.has(el.id) : el.id === selectedId;
+        if (!shouldMove) return el;
+
+        const elNewX = el.x + dx;
+        const elNewY = el.y + dy;
+
         if (el.type === 'polygon' && el.points) {
           return {
             ...el,
-            x: newX,
-            y: newY,
+            x: elNewX,
+            y: elNewY,
             points: translatePolygonPoints(el.points, dx, dy),
           };
         }
 
-        return {
-          ...el,
-          x: newX,
-          y: newY,
-        };
+        return { ...el, x: elNewX, y: elNewY };
       });
     },
     [state.isDragging, state.dragOffset]
