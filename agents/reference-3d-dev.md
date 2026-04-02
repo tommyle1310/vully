@@ -1,23 +1,106 @@
-# 🔧 Agent Skill: ThreeJSMultiFloorBuildingBuilder
+# 🔧 3D Building Viewer Reference - Vully Platform
 
 **Version:** 2.0 (2026-04)  
-**Author:** Grok (xAI) – researched from official Three.js + Blueprint3D patterns  
 **Description:**  
-Skill chuyên dụng để **xây dựng tòa nhà 3D hoàn chỉnh từ floor plan + floor height**.  
-Agent sẽ nhận JSON mô tả các tầng (walls segments + floor outline), sinh ra code Three.js vanilla (r3f cũng dễ convert) với:
-- Walls (BoxGeometry + rotation cho performance)
-- Floor slab & ceiling (ExtrudeGeometry từ Shape + holes)
-- Multi-floor stacking (cumulative height)
-- Materials realistic (MeshStandardMaterial)
-- Lighting + OrbitControls + shadow
-- Performance optimized (merged geometry khi có thể, BufferGeometry)
+Reference guide for Vully's Three.js building 3D viewer that extrudes SVG floor plans into 3D models using floor heights from the database.
 
-**Use case chính:**  
-- Kiến trúc, real-estate visualization  
-- Interactive building configurator  
-- AI agent sinh 3D model từ text/floor plan data
+## Current Implementation
 
-## 📥 Input Schema (JSON)
+**Location**: `apps/web/src/components/3d/`
+- `building-3d.tsx`: Main 3D viewer component
+- `floor.tsx`: Individual floor component with SVG extrusion
+
+**Hook**: `apps/web/src/hooks/use-svg-to-3d.ts`
+- Converts SVG path data to Three.js geometry
+- Extrudes 2D floor plans into 3D floors using `Building.floorHeights`
+
+## Architecture
+
+### Data Flow
+1. Building model has `svgMapData` (SVG floor plan) and `floorHeights` (array of heights per floor)
+2. Each apartment has `svgElementId` linking to its SVG element
+3. Three.js viewer:
+   - Parses SVG path data into 2D shapes
+   - Extrudes each floor using corresponding height from `floorHeights[]`
+   - Stacks floors vertically
+   - Adds lighting, camera controls (OrbitControls), and materials
+
+### Key Features
+- **Multi-floor stacking**: Cumulative height calculation
+- **Apartment mapping**: Click detection via raycasting to SVG element IDs
+- **Interactive**: Hover effects, click to select apartments
+- **Performance**: Merged geometries, BufferGeometry, LOD (Level of Detail)
+- **Materials**: MeshStandardMaterial with realistic textures
+- **Lighting**: Ambient + Directional + optional shadows
+
+## SVG to 3D Conversion Pattern
+
+```typescript
+// Parse SVG path to Three.js Shape
+function svgPathToShape(pathData: string): THREE.Shape {
+  const shape = new THREE.Shape();
+  // Parse SVG path commands (M, L, Q, C, Z)
+  // Convert to shape.moveTo(), shape.lineTo(), shape.quadraticCurveTo(), etc.
+  return shape;
+}
+
+// Extrude floor
+function createFloor(shape: THREE.Shape, height: number): THREE.Mesh {
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: height,
+    bevelEnabled: false,
+  });
+  const material = new THREE.MeshStandardMaterial({
+    color: '#e5d4b8',
+    metalness: 0.1,
+    roughness: 0.8,
+  });
+  return new THREE.Mesh(geometry, material);
+}
+
+// Stack floors
+function buildMultiFloor(building: Building): THREE.Group {
+  const group = new THREE.Group();
+  let cumulativeHeight = 0;
+  
+  building.floorHeights.forEach((height, index) => {
+    const floorShape = svgPathToShape(building.svgMapData);
+    const floorMesh = createFloor(floorShape, height);
+    floorMesh.position.y = cumulativeHeight;
+    group.add(floorMesh);
+    cumulativeHeight += height;
+  });
+  
+  return group;
+}
+```
+
+## Usage in Vully
+
+### Building Detail Page
+- Shows 3D preview of building with all floors
+- Click on floors to navigate to floor plan view
+- Rotate/zoom with OrbitControls
+
+### Apartment Selection
+- Raycasting to detect clicks on apartment polygons
+- Highlight selected apartment
+- Show apartment details in side panel
+
+## Future Enhancements
+- Roof geometry (pitched/flat)
+- Window/door cutouts
+- Interior furniture placement
+- AR/VR integration
+- Export to GLTF format
+- Texture mapping from photos
+
+## References
+- Three.js Documentation: https://threejs.org/docs/
+- ExtrudeGeometry: https://threejs.org/docs/#api/en/geometries/ExtrudeGeometry
+- SVG Path Spec: https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths
+- Vully Building Schema: `apps/api/prisma/schema.prisma` (see `buildings` model)
+
 
 ```json
 {

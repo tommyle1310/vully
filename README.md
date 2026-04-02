@@ -6,7 +6,9 @@
 
 ## Overview
 
-Vully is a monorepo apartment management platform built for Vietnamese high-rise complexes. It handles the full lifecycle: building/unit management, tenant contracts, utility billing (tiered pricing), incident tracking, and an AI chatbot for building regulations.
+Vully is a production-ready apartment management platform built for Vietnamese high-rise complexes. It handles building/unit management, tenant contracts, utility billing with tiered pricing, incident tracking, and an AI chatbot powered by Google Gemini with RAG for building regulations.
+
+**Current Status**: ✅ **Fully functional core platform** with 6 implemented modules, 9 dashboard pages, and 25+ UI components.
 
 ---
 
@@ -133,32 +135,51 @@ vully/
 
 ## Database Schema
 
-### Models (26 total)
+### Models (20 total, 10 enums)
 
+#### Identity & RBAC (7 models)
 | Model | Purpose |
 |-------|---------|
-| **User** | All users (admin, technician, resident). Fields: email, passwordHash, role, firstName, lastName, phone, profileData, isActive |
-| **RefreshToken** | JWT refresh token rotation with IP/UA tracking |
-| **PasswordResetToken** | Time-limited password reset flows |
-| **AuditLog** | Immutable audit trail (actor, action, resource, old/new values) |
-| **UserRoleAssignment** | Multi-role support (user ↔ role junction) |
-| **Permission** | Permission keys with descriptions |
-| **RolePermission** | Role ↔ permission mapping |
-| **Building** | Building/block: name, address, floorCount, svgMapData, floorHeights, amenities |
-| **Apartment** | Unit within buildings: unit_number, floor, status, grossArea, bedrooms, bathrooms, svgElementId, owner, unitType, orientation, billingCycle, metering IDs |
-| **Contract** | Lease agreements: tenant, apartment, dates, rent, deposit, depositMonths, termsNotes, createdBy |
-| **ManagementFeeConfig** | Per-building pricing: unitType, pricePerSqm, effective date range |
-| **UtilityType** | Utility definitions (electricity, water, gas) with unit codes |
-| **UtilityTier** | Tiered pricing per utility per building with effective date ranges |
-| **MeterReading** | Monthly meter readings with image proof |
-| **Invoice** / **InvoiceLineItem** | Generated invoices with tier-calculated line items |
-| **BillingJob** | BullMQ job tracking for batch invoice generation |
-| **Incident** / **IncidentComment** | Maintenance requests with category, priority, status lifecycle, comments |
-| **Notification** | In-app notifications (type, resource link, read status) |
-| **Document** / **DocumentChunk** | AI knowledge base documents with pgvector embeddings |
-| **ChatQuery** | AI chat history with token usage and response time tracking |
+| **users** | All users (admin, technician, resident). Multi-role support via junction table |
+| **user_role_assignments** | Multi-role junction table (user ↔ role with expiry) |
+| **permissions** | Permission definitions (e.g., 'invoices:create', 'users:delete') |
+| **role_permissions** | Role ↔ permission mapping |
+| **refresh_tokens** | JWT refresh token rotation with IP/User-Agent tracking |
+| **password_reset_tokens** | Time-limited password reset flows |
+| **audit_logs** | Immutable audit trail (actor, action, resource, old/new values, IP, user agent) |
 
-### Enums
+#### Apartments (4 models)
+| Model | Purpose |
+|-------|---------|
+| **buildings** | Buildings with SVG floor plans (`svgMapData`), floor heights (`floorHeights`), amenities |
+| **apartments** | Units within buildings: unit_number, floor, status, gross_area, bedrooms, bathrooms, `svgElementId`, owner, unit type, orientation, billing cycle, meter IDs |
+| **contracts** | Lease agreements: tenant, apartment, dates, rent, deposit, terms, created by |
+| **management_fee_configs** | Per-building pricing rules by unit type with effective date ranges |
+
+#### Billing (6 models)
+| Model | Purpose |
+|-------|---------|
+| **invoices** / **invoice_line_items** | Generated invoices with tier-calculated line items |
+| **meter_readings** | Monthly meter readings with image proof URL |
+| **utility_types** | Utility definitions (electricity, water, gas) with unit codes |
+| **utility_tiers** | Tiered pricing per utility per building with effective date ranges |
+| **billing_jobs** | BullMQ job tracking for batch invoice generation |
+
+#### Incidents (3 models)
+| Model | Purpose |
+|-------|---------|
+| **incidents** | Maintenance requests: category, priority, status lifecycle, apartment, reporter, assignee |
+| **incident_comments** | Comments on incidents with commenter tracking |
+| **notifications** | In-app notifications: type, user, resource link, read status, metadata |
+
+#### AI Assistant (2 models)
+| Model | Purpose |
+|-------|---------|
+| **documents** | Knowledge base documents: title, content, metadata, source URL |
+| **document_chunks** | Chunked documents with pgvector embeddings (768-dim for Gemini embedding-004) |
+| **chat_queries** | AI chat history: query, response, token usage, response time tracking |
+
+### Enums (10)
 
 | Enum | Values |
 |------|--------|
@@ -174,7 +195,6 @@ vully/
 | `OwnershipType` | permanent, fifty_year, leasehold |
 | `Orientation` | north, south, east, west, northeast, northwest, southeast, southwest |
 | `BillingCycle` | monthly, quarterly, yearly |
-| `SyncStatus` | synced, pending, error, disconnected |
 
 ---
 
@@ -278,23 +298,89 @@ Multi-role supported via `UserRoleAssignment` junction table + `Permission` / `R
 
 All endpoints are auto-documented via Swagger at `/api/docs`.
 
-### Auth Flow
-- `POST /api/auth/login` → `{ accessToken, refreshToken, user }`
-- `POST /api/auth/refresh` → rotated tokens
-- `POST /api/auth/logout` → revoke refresh token
-- `GET /api/auth/me` → current user profile
+### Implemented Endpoints
 
-### Key Endpoints
-- `/api/apartments/buildings` — Building CRUD + SVG management
-- `/api/apartments` — Apartment CRUD
-- `/api/contracts` — Contract lifecycle (create, list, update, terminate)
-- `/api/billing/invoices` — Invoice generation + payment tracking
-- `/api/billing/meter-readings` — Meter reading CRUD with image proof
-- `/api/incidents` — Incident lifecycle management (WebSocket events)
-- `/api/stats/dashboard` — Cached analytics
-- `/api/ai-assistant/chat` — RAG-powered queries
-- `/health` — Liveness check
-- `/health/ready` — Readiness check (DB + Redis)
+#### Authentication (`/api/auth`)
+- `POST /auth/register` — Public registration (creates resident)
+- `POST /auth/login` — JWT access + refresh tokens
+- `POST /auth/refresh` — Rotate tokens
+- `POST /auth/logout` — Revoke refresh token
+- `POST /auth/logout-all` — Revoke all user sessions
+- `GET /auth/me` — Current user profile
+- `POST /auth/password-reset-request` — Request password reset email
+- `POST /auth/password-reset` — Reset password with token
+
+#### Users (`/api/users`)
+- `GET /users` — List users (admin only, paginated)
+- `GET /users/:id` — Get user by ID
+- `POST /users` — Create user (admin only)
+- `PATCH /users/:id` — Update user
+- `DELETE /users/:id` — Delete user (admin only)
+
+#### Buildings (`/api/buildings`)
+- `GET /buildings` — List buildings (paginated)
+- `GET /buildings/:id` — Get building with apartments
+- `POST /buildings` — Create building (admin only)
+- `PATCH /buildings/:id` — Update building
+- `DELETE /buildings/:id` — Delete building (admin only)
+
+#### Apartments (`/api/apartments`)
+- `GET /apartments` — List apartments (filterable by building, status)
+- `GET /apartments/:id` — Get apartment details
+- `POST /apartments` — Create apartment (admin only)
+- `PATCH /apartments/:id` — Update apartment
+- `DELETE /apartments/:id` — Delete apartment (admin only)
+
+#### Contracts (`/api/contracts`)
+- `GET /contracts` — List contracts (filterable by status, tenant)
+- `GET /contracts/:id` — Get contract details
+- `POST /contracts` — Create contract (admin only)
+- `PATCH /contracts/:id` — Update contract
+- `POST /contracts/:id/terminate` — Terminate contract (admin only)
+
+#### Invoices (`/api/invoices`)
+- `GET /invoices` — List invoices (filterable by status, period)
+- `GET /invoices/:id` — Get invoice with line items
+- `POST /invoices` — Create invoice (admin only)
+- `PATCH /invoices/:id` — Update invoice status
+- `POST /invoices/bulk-generate` — Trigger BullMQ batch generation
+
+#### Meter Readings (`/api/meter-readings`)
+- `GET /meter-readings` — List meter readings (filterable by apartment, period)
+- `GET /meter-readings/:id` — Get reading details
+- `POST /meter-readings` — Create reading (with image upload)
+- `PATCH /meter-readings/:id` — Update reading
+- `DELETE /meter-readings/:id` — Delete reading
+
+#### Utility Types (`/api/utility-types`)
+- `GET /utility-types` — List utility types
+- `POST /utility-types` — Create utility type (admin only)
+- `PATCH /utility-types/:id` — Update utility type
+
+#### Incidents (`/api/incidents`)
+- `GET /incidents` — List incidents (filterable by status, category, priority)
+- `GET /incidents/:id` — Get incident with comments
+- `POST /incidents` — Create incident (resident can create)
+- `PATCH /incidents/:id` — Update incident (resident for own, technician/admin for any)
+- `POST /incidents/:id/comments` — Add comment
+
+#### Stats (`/api/stats`)
+- `GET /stats/dashboard` — Cached dashboard analytics (Redis 5-min TTL)
+  - Total buildings, apartments, occupancy rate
+  - Revenue breakdown, incident summary, recent activity
+
+#### AI Assistant (`/api/ai-assistant`)
+- `POST /ai-assistant/chat` — RAG-powered chat (Gemini + pgvector similarity search)
+- `GET /ai-assistant/documents` — List knowledge base documents
+- `POST /ai-assistant/documents` — Upload document (admin only, triggers chunking + embedding)
+
+#### Billing Jobs (`/api/billing-jobs`)
+- `GET /billing-jobs` — List billing jobs with status
+- `GET /billing-jobs/:id` — Get job details with progress
+
+#### Health Checks
+- `GET /health` — Liveness probe
+- `GET /health/ready` — Readiness probe (checks DB, Redis, Queue health)
 
 ---
 
@@ -305,39 +391,73 @@ pnpm test              # Unit tests (Jest)
 pnpm test:cov          # Coverage report
 ```
 
-- Unit tests for all billing logic (coverage > 70%)
-- Mock factories: `createMockUser()`, etc.
-- External services (Redis, AI) mocked in unit tests
+### Backend Testing Status
+- **Current Coverage**: 16.79% (Target: 70% for billing logic)
+- **Test Files**:
+  - ✅ `auth.service.spec.ts` — Auth service unit tests
+  - ✅ `invoices.service.spec.ts` — Invoice generation with tier pricing
+  - ✅ `meter-readings.service.spec.ts` — Meter reading logic
+  - ✅ `billing.processor.spec.ts` — BullMQ job processing
+- **Mock Factories**: `createMockUser()`, `createMockApartment()`, etc.
+- **External Services**: Redis, BullMQ, Prisma mocked in unit tests
 
-**Current Coverage:** 16.79% (Target: 70% for billing)
+### Frontend Testing
+- **Not yet implemented** (planned: Vitest + React Testing Library)
+- Target: Component tests for critical flows (auth, forms, table interactions)
 
-## 📊 Monitoring
+### E2E Testing
+- **Not yet implemented** (planned: Playwright)
+- Target: Critical user journeys (login → create contract → generate invoice → pay)
+
+## 📊 Monitoring & Observability
 
 ### Health Checks
-- **Liveness**: `GET /health`
-- **Readiness**: `GET /health/ready` (DB + Redis + Queue)
+- **Liveness**: `GET /health` — Returns 200 if app is alive
+- **Readiness**: `GET /health/ready` — Checks DB connection, Redis connection, BullMQ queue health
 
 ### Logging
-Structured JSON via Pino with correlation IDs
+- **Pino** structured JSON logging with correlation IDs
+- **Log Levels**: debug (dev), info (production)
+- **Redaction**: Authorization headers, passwords automatically redacted
+- **Correlation IDs**: Propagated via `x-correlation-id` header, injected by `CorrelationIdMiddleware`
 
-### Performance Targets
-- Lighthouse: >90
-- CLS: 0 (no layout shift)
-- TBT: <200ms
+### Performance Monitoring
+- **Web Vitals**: Tracked client-side via `web-vitals-tracker.tsx`
+  - FCP (First Contentful Paint)
+  - LCP (Largest Contentful Paint)
+  - CLS (Cumulative Layout Shift)
+  - FID (First Input Delay)
+  - TTFB (Time to First Byte)
+- **Lighthouse Target**: > 90 score
+- **Performance Budget**:
+  - FCP < 1.5s
+  - LCP < 2.5s
+  - ✅ Completed (Phases 0-6)
+- [x] **Identity Module**: JWT auth (access + refresh tokens), user CRUD, multi-role RBAC (UserRoleAssignment + Permissions)
+- [x] **Apartments Module**: Buildings, Apartments, Contracts (CRUD + terminate)
+- [x] **Billing Module**: Invoices, Meter Readings, Utility Types/Tiers (tiered pricing), BullMQ batch processor
+- [x] **Incidents Module**: CRUD, Comments, WebSocket Gateway (real-time updates)
+- [x] **Stats Module**: Dashboard analytics with Redis caching
+- [x] **AI Assistant Module**: RAG chatbot (Gemini + pgvector + LangChain)
+- [x] **SVG Floor Plans**: Interactive viewer + builder (drag-drop templates, grid snapping, download/save)
+- [x] **3D Building Viewer**: Three.js extrusion of SVG floor plans using `floorHeights[]`
+- [x] **Frontend**: 9 dashboard pages, 25 Shadcn/UI components, 14 custom hooks, Framer Motion animations
+- [x] **Infrastructure**: Docker Compose (PostgreSQL, Redis, ClamAV, MinIO), health checks, Pino logging
 
-## 📚 Documentation
+### 🚧 In Progress
+- [ ] **Testing**: Increase backend coverage to 70%, add frontend unit tests (Vitest), E2E tests (Playwright)
+- [ ] **Accounting Module**: Implement Journal Entries, Ledger Accounts, Vouchers (currently skeleton)
+- [ ] **Notifications**: In-app notification UI, email/SMS integration
 
-- [Environment Variables](./ENVIRONMENT.md)
-- [API Guide](./API_GUIDE.md)
-- [Architecture](./ARCHITECTURE.md)
-- [OpenSpec Design](./openspec/changes/scaffold-apartment-platform/)
-
-## 🗺️ Roadmap
-
-### Completed ✅
-- [x] Phase 0-6: Core platform features
-- [x] AI Assistant with RAG
-- [x] Real-time WebSocket updates
+### 🔮 Planned
+- [ ] **Management Board**: Investors, Vendors modules (skeleton created)
+- [ ] **Payment Gateway**: VNPay / Momo integration
+- [ ] **Email/SMS Notifications**: Nodemailer + Twilio
+- [ ] **Mobile App**: React Native with shared @vully/shared-types
+- [ ] **Multi-language**: i18n support (Vietnamese, English)
+- [ ] **File Management**: MinIO integration for document storage (contracts, meter reading photos, incident attachments)
+- [ ] **Advanced Reporting**: PDF generation (invoices, contracts), Excel exports
+- [ ] **Audit Dashboard**: Visualize audit_logs with filters and searchdates
 - [x] Multi-role RBAC (UserRoleAssignment + Permissions)
 - [x] SVG Floor Plan Builder & 3D Viewer
 - [x] Contracts backend API (CRUD + terminate)
