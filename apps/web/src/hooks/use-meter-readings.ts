@@ -132,6 +132,9 @@ export function useCreateMeterReading() {
       queryClient.invalidateQueries({ 
         queryKey: ['meter-readings', 'latest', variables.apartmentId] 
       });
+      // Also invalidate apartment query to refresh meter IDs (auto-generated on first reading)
+      queryClient.invalidateQueries({ queryKey: ['apartments', variables.apartmentId] });
+      queryClient.invalidateQueries({ queryKey: ['apartments'] });
     },
   });
 }

@@ -557,10 +557,21 @@ export class ApartmentFiltersDto {
   @IsUUID()
   buildingId?: string;
 
-  @ApiPropertyOptional({ enum: ['vacant', 'occupied', 'maintenance', 'reserved'] })
+  @ApiPropertyOptional({ 
+    enum: ['vacant', 'occupied', 'maintenance', 'reserved'],
+    description: 'Single status or array of statuses',
+    isArray: true,
+  })
   @IsOptional()
-  @IsEnum(['vacant', 'occupied', 'maintenance', 'reserved'])
-  status?: string;
+  status?: string | string[];
+
+  @ApiPropertyOptional({ 
+    enum: UNIT_TYPES, 
+    description: 'Single unit type or array of unit types',
+    isArray: true,
+  })
+  @IsOptional()
+  unitType?: string | string[];
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -572,10 +583,30 @@ export class ApartmentFiltersDto {
   @IsInt()
   minBedrooms?: number;
 
-  @ApiPropertyOptional({ enum: UNIT_TYPES })
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsEnum(UNIT_TYPES)
-  unitType?: typeof UNIT_TYPES[number];
+  @IsInt()
+  maxBedrooms?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  minFloor?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  maxFloor?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  minArea?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  maxArea?: number;
 
   @ApiPropertyOptional({ enum: ORIENTATIONS })
   @IsOptional()
@@ -586,4 +617,9 @@ export class ApartmentFiltersDto {
   @IsOptional()
   @IsUUID()
   ownerId?: string;
+
+  @ApiPropertyOptional({ description: 'Search query for unit number' })
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

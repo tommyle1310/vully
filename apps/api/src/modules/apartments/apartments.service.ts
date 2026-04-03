@@ -92,13 +92,59 @@ export class ApartmentsService {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {};
+    
+    // Building filter
     if (filters.buildingId) where.building_id = filters.buildingId;
-    if (filters.status) where.status = filters.status;
-    if (filters.floor) where.floor_index = filters.floor;
-    if (filters.minBedrooms) where.bedroom_count = { gte: filters.minBedrooms };
-    if (filters.unitType) where.unit_type = filters.unitType;
+    
+    // Status filter - supports single value or array
+    if (filters.status) {
+      const statusArray = Array.isArray(filters.status) ? filters.status : [filters.status];
+      where.status = statusArray.length === 1 ? statusArray[0] : { in: statusArray };
+    }
+    
+    // Unit type filter - supports single value or array
+    if (filters.unitType) {
+      const unitTypeArray = Array.isArray(filters.unitType) ? filters.unitType : [filters.unitType];
+      where.unit_type = unitTypeArray.length === 1 ? unitTypeArray[0] : { in: unitTypeArray };
+    }
+    
+    // Bedroom range filter
+    if (filters.minBedrooms !== undefined || filters.maxBedrooms !== undefined) {
+      const bedroomFilter: Record<string, number> = {};
+      if (filters.minBedrooms !== undefined) bedroomFilter.gte = filters.minBedrooms;
+      if (filters.maxBedrooms !== undefined) bedroomFilter.lte = filters.maxBedrooms;
+      where.bedroom_count = bedroomFilter;
+    }
+    
+    // Floor range filter (using floor_index)
+    if (filters.minFloor !== undefined || filters.maxFloor !== undefined) {
+      const floorFilter: Record<string, number> = {};
+      if (filters.minFloor !== undefined) floorFilter.gte = filters.minFloor;
+      if (filters.maxFloor !== undefined) floorFilter.lte = filters.maxFloor;
+      where.floor_index = floorFilter;
+    } else if (filters.floor !== undefined) {
+      // Legacy single floor filter
+      where.floor_index = filters.floor;
+    }
+    
+    // Area range filter (using gross_area)
+    if (filters.minArea !== undefined || filters.maxArea !== undefined) {
+      const areaFilter: Record<string, number> = {};
+      if (filters.minArea !== undefined) areaFilter.gte = filters.minArea;
+      if (filters.maxArea !== undefined) areaFilter.lte = filters.maxArea;
+      where.gross_area = areaFilter;
+    }
+    
+    // Orientation filter
     if (filters.orientation) where.orientation = filters.orientation;
+    
+    // Owner filter
     if (filters.ownerId) where.owner_id = filters.ownerId;
+    
+    // Search filter (unit_number contains)
+    if (filters.search) {
+      where.unit_number = { contains: filters.search, mode: 'insensitive' };
+    }
 
     const [apartments, total] = await Promise.all([
       this.prisma.apartments.findMany({

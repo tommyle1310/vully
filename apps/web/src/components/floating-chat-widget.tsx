@@ -172,15 +172,22 @@ export function FloatingChatWidget() {
                     >
                       <div
                         className={cn(
-                          'rounded-lg px-4 py-2 max-w-[80%]',
+                          'rounded-lg px-4 py-2 max-w-[85%] overflow-hidden',
                           message.role === 'user'
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-muted'
                         )}
                       >
                         {message.role === 'assistant' ? (
-                          <div className="text-sm prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-headings:font-semibold prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-strong:font-semibold prose-hr:my-2">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          <div className="text-sm prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-headings:font-semibold prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-strong:font-semibold prose-hr:my-2 [&_*]:break-words [&_*]:overflow-wrap-anywhere">
+                            <ReactMarkdown 
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                p: ({ children }) => <p className="break-words whitespace-pre-wrap">{children}</p>,
+                                li: ({ children }) => <li className="break-words">{children}</li>,
+                                strong: ({ children }) => <strong className="break-words">{children}</strong>,
+                              }}
+                            >
                               {message.content}
                             </ReactMarkdown>
                           </div>

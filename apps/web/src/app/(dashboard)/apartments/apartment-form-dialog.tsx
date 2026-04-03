@@ -156,7 +156,7 @@ export function ApartmentFormDialog({
 }: ApartmentFormDialogProps) {
   const { toast } = useToast();
   const { data: buildingsData, isLoading: buildingsLoading } = useBuildings();
-  const { data: utilityTypesData } = useUtilityTypes();
+  const { data: utilityTypesData, isLoading: utilityTypesLoading } = useUtilityTypes();
   const createApartment = useCreateApartment();
   const updateApartment = useUpdateApartment();
 
@@ -363,10 +363,7 @@ export function ApartmentFormDialog({
           petLimit: cleanNumber(values.petLimit) as number | undefined ?? null,
           accessCardLimit: cleanNumber(values.accessCardLimit) as number | undefined ?? null,
           intercomCode: cleanValue(values.intercomCode) as string | undefined ?? null,
-          // Utility
-          electricMeterId: cleanValue(values.electricMeterId) as string | undefined ?? null,
-          waterMeterId: cleanValue(values.waterMeterId) as string | undefined ?? null,
-          gasMeterId: cleanValue(values.gasMeterId) as string | undefined ?? null,
+          // Utility (meter IDs are system-managed, not editable via form)
           powerCapacity: cleanNumber(values.powerCapacity) as number | undefined ?? null,
           acUnitCount: cleanNumber(values.acUnitCount) as number | undefined ?? null,
           fireDetectorId: cleanValue(values.fireDetectorId) as string | undefined ?? null,
@@ -964,7 +961,13 @@ export function ApartmentFormDialog({
                         </Link>
                       </div>
                       
-                      {activeUtilityTypes.length === 0 ? (
+                      {utilityTypesLoading ? (
+                        <div className="flex gap-2">
+                          <div className="h-6 w-24 bg-muted animate-pulse rounded-md" />
+                          <div className="h-6 w-20 bg-muted animate-pulse rounded-md" />
+                          <div className="h-6 w-22 bg-muted animate-pulse rounded-md" />
+                        </div>
+                      ) : activeUtilityTypes.length === 0 ? (
                         <Alert>
                           <Zap className="h-4 w-4" />
                           <AlertDescription>
@@ -993,58 +996,48 @@ export function ApartmentFormDialog({
                     </div>
 
                     <Separator />
-                    <h4 className="text-sm font-semibold">Meter Assignments</h4>
+                    <h4 className="text-sm font-semibold">Assigned Meters</h4>
+                    {isEditing && apartment ? (
+                      <div className="space-y-3">
+                        {(apartment.electricMeterId || apartment.waterMeterId || apartment.gasMeterId) ? (
+                          <div className="flex flex-wrap gap-2">
+                            {apartment.electricMeterId && (
+                              <Badge variant="outline" className="flex items-center gap-1.5 py-1.5 px-3">
+                                <Zap className="h-3.5 w-3.5 text-yellow-500" />
+                                <span className="text-xs text-muted-foreground">Electric:</span>
+                                <code className="text-xs font-mono">{apartment.electricMeterId}</code>
+                              </Badge>
+                            )}
+                            {apartment.waterMeterId && (
+                              <Badge variant="outline" className="flex items-center gap-1.5 py-1.5 px-3">
+                                <Droplets className="h-3.5 w-3.5 text-blue-500" />
+                                <span className="text-xs text-muted-foreground">Water:</span>
+                                <code className="text-xs font-mono">{apartment.waterMeterId}</code>
+                              </Badge>
+                            )}
+                            {apartment.gasMeterId && (
+                              <Badge variant="outline" className="flex items-center gap-1.5 py-1.5 px-3">
+                                <Flame className="h-3.5 w-3.5 text-orange-500" />
+                                <span className="text-xs text-muted-foreground">Gas:</span>
+                                <code className="text-xs font-mono">{apartment.gasMeterId}</code>
+                              </Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            No meters assigned yet. Meter IDs are auto-generated when the first reading is recorded.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Meter IDs will be auto-generated after the apartment is created.
+                      </p>
+                    )}
+
+                    <Separator />
+                    <h4 className="text-sm font-semibold">Power & Infrastructure</h4>
                     <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="electricMeterId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-1.5">
-                              <Zap className="h-3.5 w-3.5 text-yellow-500" />
-                              Electric Meter ID
-                            </FormLabel>
-                            <FormControl>
-                              <Input placeholder="EL-001234" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="waterMeterId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-1.5">
-                              <Droplets className="h-3.5 w-3.5 text-blue-500" />
-                              Water Meter ID
-                            </FormLabel>
-                            <FormControl>
-                              <Input placeholder="WA-001234" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="gasMeterId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-1.5">
-                              <Flame className="h-3.5 w-3.5 text-orange-500" />
-                              Gas Meter ID
-                            </FormLabel>
-                            <FormControl>
-                              <Input placeholder="GA-001234" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
                       <FormField
                         control={form.control}
                         name="powerCapacity"

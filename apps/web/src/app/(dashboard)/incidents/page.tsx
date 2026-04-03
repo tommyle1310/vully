@@ -120,9 +120,9 @@ const columns = [
       if (!apartment) return '-';
       return (
         <div>
-          <span className="font-medium">{apartments.unit_number}</span>
+          <span className="font-medium">{apartment.unit_number}</span>
           <span className="block text-xs text-muted-foreground">
-            {apartments.building?.name || ''}
+            {apartment.building?.name || ''}
           </span>
         </div>
       );

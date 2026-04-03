@@ -56,21 +56,33 @@ export class ApartmentsController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'buildingId', required: false, type: String })
-  @ApiQuery({ name: 'status', required: false, enum: ['vacant', 'occupied', 'maintenance', 'reserved'] })
-  @ApiQuery({ name: 'floor', required: false, type: Number })
-  @ApiQuery({ name: 'unitType', required: false, enum: ['studio', 'one_bedroom', 'two_bedroom', 'three_bedroom', 'duplex', 'penthouse', 'shophouse'] })
+  @ApiQuery({ name: 'status', required: false, isArray: true, enum: ['vacant', 'occupied', 'maintenance', 'reserved'] })
+  @ApiQuery({ name: 'unitType', required: false, isArray: true, enum: ['studio', 'one_bedroom', 'two_bedroom', 'three_bedroom', 'duplex', 'penthouse', 'shophouse'] })
+  @ApiQuery({ name: 'minBedrooms', required: false, type: Number })
+  @ApiQuery({ name: 'maxBedrooms', required: false, type: Number })
+  @ApiQuery({ name: 'minFloor', required: false, type: Number })
+  @ApiQuery({ name: 'maxFloor', required: false, type: Number })
+  @ApiQuery({ name: 'minArea', required: false, type: Number })
+  @ApiQuery({ name: 'maxArea', required: false, type: Number })
   @ApiQuery({ name: 'orientation', required: false, enum: ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest'] })
   @ApiQuery({ name: 'ownerId', required: false, type: String })
+  @ApiQuery({ name: 'search', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Apartments list' })
   async findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('buildingId') buildingId?: string,
-    @Query('status') status?: string,
-    @Query('floor') floor?: string,
-    @Query('unitType') unitType?: string,
+    @Query('status') status?: string | string[],
+    @Query('unitType') unitType?: string | string[],
+    @Query('minBedrooms') minBedrooms?: string,
+    @Query('maxBedrooms') maxBedrooms?: string,
+    @Query('minFloor') minFloor?: string,
+    @Query('maxFloor') maxFloor?: string,
+    @Query('minArea') minArea?: string,
+    @Query('maxArea') maxArea?: string,
     @Query('orientation') orientation?: string,
     @Query('ownerId') ownerId?: string,
+    @Query('search') search?: string,
     @CurrentUser() user?: AuthUser,
   ): Promise<{
     data: ApartmentResponseDto[];
@@ -92,13 +104,25 @@ export class ApartmentsController {
       };
     }
 
+    // Normalize status and unitType to arrays for consistent handling
+    const normalizeToArray = (value: string | string[] | undefined): string[] | undefined => {
+      if (!value) return undefined;
+      return Array.isArray(value) ? value : [value];
+    };
+
     const filters: ApartmentFiltersDto = {
       buildingId,
-      status: status as ApartmentFiltersDto['status'],
-      floor: floor ? parseInt(floor, 10) : undefined,
-      unitType: unitType as ApartmentFiltersDto['unitType'],
+      status: normalizeToArray(status),
+      unitType: normalizeToArray(unitType),
+      minBedrooms: minBedrooms ? parseInt(minBedrooms, 10) : undefined,
+      maxBedrooms: maxBedrooms ? parseInt(maxBedrooms, 10) : undefined,
+      minFloor: minFloor ? parseInt(minFloor, 10) : undefined,
+      maxFloor: maxFloor ? parseInt(maxFloor, 10) : undefined,
+      minArea: minArea ? parseFloat(minArea) : undefined,
+      maxArea: maxArea ? parseFloat(maxArea) : undefined,
       orientation: orientation as ApartmentFiltersDto['orientation'],
       ownerId,
+      search,
     };
 
     const result = await this.apartmentsService.findAll(filters, pageNum, limitNum);

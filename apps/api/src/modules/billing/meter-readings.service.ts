@@ -90,6 +90,29 @@ export class MeterReadingsService {
       previousValue = lastReading ? Number(lastReading.current_value) : undefined;
     }
 
+    // Auto-generate meter ID if this is the first reading for this utility type
+    const meterIdField = this.getMeterIdFieldByUtilityCode(utilityType.code);
+    const currentMeterId = meterIdField ? (apartment as Record<string, unknown>)[meterIdField] : null;
+    if (meterIdField && !currentMeterId) {
+      const generatedMeterId = this.generateMeterId(
+        utilityType.code,
+        apartment.buildings?.name || 'BLD',
+        apartment.unit_number,
+      );
+      
+      await this.prisma.apartments.update({
+        where: { id: dto.apartmentId },
+        data: { [meterIdField]: generatedMeterId },
+      });
+
+      this.logger.log({
+        event: 'meter_id_auto_generated',
+        apartmentId: dto.apartmentId,
+        utilityCode: utilityType.code,
+        meterId: generatedMeterId,
+      });
+    }
+
     const reading = await this.prisma.meter_readings.create({
       data: {
         apartment_id: dto.apartmentId,
@@ -383,5 +406,38 @@ export class MeterReadingsService {
           }
         : undefined,
     };
+  }
+
+  /**
+   * Maps utility code to the corresponding meter ID field on apartments table
+   */
+  private getMeterIdFieldByUtilityCode(code: string): string | null {
+    const mapping: Record<string, string> = {
+      ELECTRIC: 'electric_meter_id',
+      WATER: 'water_meter_id',
+      GAS: 'gas_meter_id',
+    };
+    return mapping[code.toUpperCase()] || null;
+  }
+
+  /**
+   * Generates a unique meter ID in format: {PREFIX}-{BUILDING}-{UNIT}
+   * Examples: EL-TOMTOWN-101, WT-TOMTOWN-101, GS-TOMTOWN-101
+   */
+  private generateMeterId(
+    utilityCode: string,
+    buildingCode: string,
+    unitNumber: string,
+  ): string {
+    const prefixMap: Record<string, string> = {
+      ELECTRIC: 'EL',
+      WATER: 'WT',
+      GAS: 'GS',
+    };
+    const prefix = prefixMap[utilityCode.toUpperCase()] || utilityCode.substring(0, 2).toUpperCase();
+    const cleanBuilding = buildingCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const cleanUnit = unitNumber.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    
+    return `${prefix}-${cleanBuilding}-${cleanUnit}`;
   }
 }
