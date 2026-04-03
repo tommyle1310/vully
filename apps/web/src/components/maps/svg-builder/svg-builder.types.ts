@@ -34,6 +34,9 @@ export interface SvgElement {
   utilityType?: string;
   subRects?: RectArea[];
   // Interior details (for apartment elements)
+  bedroomCount?: number;
+  bathroomCount?: number;
+  livingRoomCount?: number;
   logiaCount?: number;
   multipurposeRooms?: number;
   kitchenType?: 'open' | 'closed';

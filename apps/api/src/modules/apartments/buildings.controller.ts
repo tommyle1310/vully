@@ -22,6 +22,8 @@ import {
   UpdateBuildingDto,
   BuildingResponseDto,
   UpdateSvgMapDto,
+  BuildingStatsResponseDto,
+  BuildingMetersResponseDto,
 } from './dto/building.dto';
 import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -111,5 +113,27 @@ export class BuildingsController {
   ): Promise<{ data: BuildingResponseDto }> {
     const building = await this.buildingsService.updateSvgMap(id, dto.svgMapData);
     return { data: building };
+  }
+
+  @Get(':id/stats')
+  @ApiOperation({ summary: 'Get building occupancy statistics' })
+  @ApiResponse({ status: 200, description: 'Building stats', type: BuildingStatsResponseDto })
+  @ApiResponse({ status: 404, description: 'Building not found' })
+  async getStats(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{ data: BuildingStatsResponseDto }> {
+    const stats = await this.buildingsService.getStats(id);
+    return { data: stats };
+  }
+
+  @Get(':id/meters')
+  @ApiOperation({ summary: 'Get all meter IDs for apartments in a building with duplicate detection' })
+  @ApiResponse({ status: 200, description: 'Building meters with duplicates', type: BuildingMetersResponseDto })
+  @ApiResponse({ status: 404, description: 'Building not found' })
+  async getMeters(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{ data: BuildingMetersResponseDto }> {
+    const meters = await this.buildingsService.getMeters(id);
+    return { data: meters };
   }
 }

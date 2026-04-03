@@ -84,6 +84,11 @@ export interface GenerateRentScheduleInput {
   paymentDueDay?: number;
 }
 
+export interface GeneratePurchaseMilestonesInput {
+  progressPaymentCount?: number;
+  downPaymentPercent?: number;
+}
+
 // API response types
 interface PaymentSchedulesResponse {
   data: PaymentSchedule[];
@@ -195,6 +200,26 @@ export function useGenerateRentSchedule(contractId: string) {
     mutationFn: (data?: GenerateRentScheduleInput) => {
       return apiClient.post<PaymentSchedulesResponse>(
         `/contracts/${contractId}/generate-rent-schedule`,
+        data || {}
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contracts', contractId, 'payment-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['contracts', contractId, 'financial-summary'] });
+    },
+  });
+}
+
+/**
+ * Auto-generate payment milestones for a purchase contract
+ */
+export function useGeneratePurchaseMilestones(contractId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data?: GeneratePurchaseMilestonesInput) => {
+      return apiClient.post<PaymentSchedulesResponse>(
+        `/contracts/${contractId}/generate-purchase-milestones`,
         data || {}
       );
     },

@@ -108,3 +108,48 @@ export class UpdateSvgMapDto {
   @IsObject()
   floorHeights?: Record<string, number>;
 }
+
+export class BuildingStatsResponseDto {
+  @ApiProperty({ example: 100, description: 'Total apartments in building' })
+  totalApartments: number;
+
+  @ApiProperty({ example: 75, description: 'Number of occupied apartments' })
+  occupied: number;
+
+  @ApiProperty({ example: 20, description: 'Number of vacant apartments' })
+  vacant: number;
+
+  @ApiProperty({ example: 3, description: 'Number of apartments under maintenance' })
+  maintenance: number;
+
+  @ApiProperty({ example: 2, description: 'Number of reserved apartments' })
+  reserved: number;
+
+  @ApiProperty({ example: 75.0, description: 'Occupancy rate percentage' })
+  occupancyRate: number;
+}
+
+export class MeterInfoDto {
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  apartmentId: string;
+
+  @ApiProperty({ example: '101' })
+  unitNumber: string;
+
+  @ApiPropertyOptional({ example: 'ELEC-001' })
+  electricMeterId?: string | null;
+
+  @ApiPropertyOptional({ example: 'WATER-001' })
+  waterMeterId?: string | null;
+
+  @ApiPropertyOptional({ example: 'GAS-001' })
+  gasMeterId?: string | null;
+}
+
+export class BuildingMetersResponseDto {
+  @ApiProperty({ type: [MeterInfoDto] })
+  meters: MeterInfoDto[];
+
+  @ApiProperty({ example: ['ELEC-001', 'WATER-002'], description: 'Meter IDs that appear more than once' })
+  duplicates: string[];
+}

@@ -119,8 +119,8 @@ export const UTILITY_TEMPLATES: UtilityTemplate[] = [
     id: 'elevator',
     name: 'Elevator',
     type: 'rect',
-    width: 25, // 2.5m × 2.5m
-    height: 25,
+    width: 30, // 2.5m × 2.5m
+    height: 30,
     fill: '#9ca3af',
     icon: ArrowUpDown,
     iconColor: '#1f2937',
@@ -129,7 +129,7 @@ export const UTILITY_TEMPLATES: UtilityTemplate[] = [
     id: 'stairwell',
     name: 'Stairwell',
     type: 'rect',
-    width: 35, // 3.5m × 5m
+    width: 30, // 3.5m × 5m
     height: 50,
     fill: '#bfdbfe',
     icon: Pentagon,
@@ -139,8 +139,8 @@ export const UTILITY_TEMPLATES: UtilityTemplate[] = [
     id: 'electric',
     name: 'Electric Room',
     type: 'rect',
-    width: 30, // 3m × 2.5m
-    height: 25,
+    width: 20, // 3m × 3m
+    height: 20,
     fill: '#fef08a',
     icon: Zap,
     iconColor: '#ca8a04',
@@ -149,8 +149,8 @@ export const UTILITY_TEMPLATES: UtilityTemplate[] = [
     id: 'trash',
     name: 'Trash Room',
     type: 'rect',
-    width: 30, // 3m × 3m
-    height: 30,
+    width: 20, // 3m × 3m
+    height: 20,
     fill: '#d1d5db',
     icon: Trash,
     iconColor: '#78716c',
@@ -159,8 +159,8 @@ export const UTILITY_TEMPLATES: UtilityTemplate[] = [
     id: 'water',
     name: 'Water Room',
     type: 'rect',
-    width: 30, // 3m × 2.5m
-    height: 25,
+    width: 20, // 3m × 2.5m
+    height: 20,
     fill: '#a5f3fc',
     icon: Droplet,
     iconColor: '#0e7490',

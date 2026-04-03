@@ -125,3 +125,59 @@ export function useUpdateBuildingSvgMap() {
     },
   });
 }
+
+// Building Stats
+export interface BuildingStats {
+  totalApartments: number;
+  occupied: number;
+  vacant: number;
+  maintenance: number;
+  reserved: number;
+  occupancyRate: number;
+}
+
+interface BuildingStatsResponse {
+  data: BuildingStats;
+}
+
+/**
+ * Get building occupancy statistics
+ */
+export function useBuildingStats(buildingId: string) {
+  return useQuery({
+    queryKey: ['buildings', buildingId, 'stats'],
+    queryFn: () => apiClient.get<BuildingStatsResponse>(`/buildings/${buildingId}/stats`),
+    enabled: !!buildingId,
+    staleTime: 5 * 60 * 1000, // 5 min cache
+  });
+}
+
+// Building Meters
+export interface MeterInfo {
+  apartmentId: string;
+  unitNumber: string;
+  electricMeterId?: string | null;
+  waterMeterId?: string | null;
+  gasMeterId?: string | null;
+}
+
+export interface BuildingMeters {
+  meters: MeterInfo[];
+  duplicates: string[];
+}
+
+interface BuildingMetersResponse {
+  data: BuildingMeters;
+}
+
+/**
+ * Get all meter IDs for apartments in a building with duplicate detection
+ */
+export function useBuildingMeters(buildingId: string) {
+  return useQuery({
+    queryKey: ['buildings', buildingId, 'meters'],
+    queryFn: () => apiClient.get<BuildingMetersResponse>(`/buildings/${buildingId}/meters`),
+    enabled: !!buildingId,
+    staleTime: 5 * 60 * 1000, // 5 min cache
+  });
+}

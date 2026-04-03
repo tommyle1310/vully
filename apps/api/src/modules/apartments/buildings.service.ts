@@ -5,6 +5,9 @@ import {
   CreateBuildingDto,
   UpdateBuildingDto,
   BuildingResponseDto,
+  BuildingStatsResponseDto,
+  BuildingMetersResponseDto,
+  MeterInfoDto,
 } from './dto/building.dto';
 
 @Injectable()
@@ -147,6 +150,92 @@ export class BuildingsService {
     });
 
     return this.toResponseDto(updated);
+  }
+
+  async getStats(id: string): Promise<BuildingStatsResponseDto> {
+    const building = await this.prisma.buildings.findUnique({
+      where: { id },
+    });
+
+    if (!building) {
+      throw new NotFoundException('Building not found');
+    }
+
+    // Group apartments by status
+    const counts = await this.prisma.apartments.groupBy({
+      by: ['status'],
+      where: { building_id: id },
+      _count: { id: true },
+    });
+
+    const statusMap: Record<string, number> = {};
+    for (const c of counts) {
+      statusMap[c.status] = c._count.id;
+    }
+
+    const totalApartments = Object.values(statusMap).reduce((a, b) => a + b, 0);
+    const occupied = statusMap['occupied'] || 0;
+    const vacant = statusMap['vacant'] || 0;
+    const maintenance = statusMap['maintenance'] || 0;
+    const reserved = statusMap['reserved'] || 0;
+    const occupancyRate = totalApartments > 0 ? Math.round((occupied / totalApartments) * 100) : 0;
+
+    return {
+      totalApartments,
+      occupied,
+      vacant,
+      maintenance,
+      reserved,
+      occupancyRate,
+    };
+  }
+
+  async getMeters(id: string): Promise<BuildingMetersResponseDto> {
+    const building = await this.prisma.buildings.findUnique({
+      where: { id },
+    });
+
+    if (!building) {
+      throw new NotFoundException('Building not found');
+    }
+
+    const apartments = await this.prisma.apartments.findMany({
+      where: { building_id: id },
+      select: {
+        id: true,
+        unit_number: true,
+        electric_meter_id: true,
+        water_meter_id: true,
+        gas_meter_id: true,
+      },
+      orderBy: { unit_number: 'asc' },
+    });
+
+    const meters: MeterInfoDto[] = apartments.map((apt) => ({
+      apartmentId: apt.id,
+      unitNumber: apt.unit_number,
+      electricMeterId: apt.electric_meter_id,
+      waterMeterId: apt.water_meter_id,
+      gasMeterId: apt.gas_meter_id,
+    }));
+
+    // Find duplicate meter IDs
+    const allMeterIds = apartments.flatMap((apt) => [
+      apt.electric_meter_id,
+      apt.water_meter_id,
+      apt.gas_meter_id,
+    ]).filter((id): id is string => Boolean(id));
+
+    const meterIdCounts = new Map<string, number>();
+    for (const meterId of allMeterIds) {
+      meterIdCounts.set(meterId, (meterIdCounts.get(meterId) || 0) + 1);
+    }
+
+    const duplicates = Array.from(meterIdCounts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([id]) => id);
+
+    return { meters, duplicates };
   }
 
   /**

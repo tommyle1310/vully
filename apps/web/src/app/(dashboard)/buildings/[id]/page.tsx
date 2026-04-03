@@ -16,7 +16,7 @@ import { ApartmentDetailPanel } from '@/components/maps/apartment-detail-panel';
 import { MapControls } from '@/components/maps/map-controls';
 import { SvgUploadDialog } from '@/components/maps/svg-upload-dialog';
 import { SvgBuilderDialog } from '@/components/maps/svg-builder-dialog';
-import { Building3D, Building3DSkeleton } from '@/components/3d';
+import { Building3D, Building3DSkeleton, Building3DLegend } from '@/components/3d';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +39,15 @@ export default function BuildingDetailPage() {
 
   const building = buildingData?.data;
   const apartments = apartmentsData?.data || [];
+
+  // Create apartment statuses for 3D viewer (includes floor for per-apartment coloring)
+  const apartmentStatuses = useMemo(() => {
+    return apartments.map(apt => ({
+      svgElementId: apt.svgElementId || apt.id,
+      floorIndex: apt.floorIndex,
+      status: apt.status as 'vacant' | 'occupied' | 'maintenance' | 'reserved',
+    }));
+  }, [apartments]);
 
   // Group apartments by floor
   const apartmentsByFloor = useMemo(() => {
@@ -282,16 +291,20 @@ export default function BuildingDetailPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="h-[700px]"
+            className="h-[700px] relative"
           >
             {building.svgMapData ? (
-              <Building3D
-                svgContent={building.svgMapData}
-                totalFloors={building.floorCount}
-                buildingName={building.name}
-                floorHeights={building.floorHeights}
-                className="h-full"
-              />
+              <>
+                <Building3D
+                  svgContent={building.svgMapData}
+                  totalFloors={building.floorCount}
+                  buildingName={building.name}
+                  floorHeights={building.floorHeights}
+                  apartmentStatuses={apartmentStatuses}
+                  className="h-full"
+                />
+                <Building3DLegend className="absolute bottom-4 left-4 z-10" />
+              </>
             ) : (
               <Card className="h-full flex items-center justify-center">
                 <CardContent className="text-center space-y-4">

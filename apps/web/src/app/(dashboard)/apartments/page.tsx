@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   useReactTable,
@@ -12,7 +12,8 @@ import {
   SortingState,
   ColumnFiltersState,
 } from '@tanstack/react-table';
-import { Building, Search, Filter, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { Building, Search, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { parseAsString, parseAsArrayOf, parseAsInteger, useQueryStates } from 'nuqs';
 import { useApartments, Apartment } from '@/hooks/use-apartments';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,7 @@ import {
 } from '@/components/ui/table';
 import { ApartmentDetailSheet } from './apartment-detail-sheet';
 import { ApartmentFormDialog } from './apartment-form-dialog';
+import { ApartmentFilters, ApartmentFilterValues } from './apartment-filters';
 
 const columnHelper = createColumnHelper<Apartment>();
 
@@ -110,11 +112,45 @@ export default function ApartmentsPage() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
   const [selectedApartment, setSelectedApartment] = useState<Apartment | null>(null);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [editingApartment, setEditingApartment] = useState<Apartment | null>(null);
+
+  // URL state with nuqs
+  const [urlFilters, setUrlFilters] = useQueryStates({
+    buildingId: parseAsString,
+    status: parseAsArrayOf(parseAsString).withDefault([]),
+    unitType: parseAsArrayOf(parseAsString).withDefault([]),
+    minBedrooms: parseAsInteger,
+    maxBedrooms: parseAsInteger,
+    minFloor: parseAsInteger,
+    maxFloor: parseAsInteger,
+    page: parseAsInteger.withDefault(1),
+    limit: parseAsInteger.withDefault(20),
+  });
+
+  const filterValues: ApartmentFilterValues = {
+    buildingId: urlFilters.buildingId,
+    status: urlFilters.status,
+    unitType: urlFilters.unitType,
+    minBedrooms: urlFilters.minBedrooms,
+    maxBedrooms: urlFilters.maxBedrooms,
+    minFloor: urlFilters.minFloor,
+    maxFloor: urlFilters.maxFloor,
+  };
+
+  const handleFiltersChange = (newFilters: ApartmentFilterValues) => {
+    setUrlFilters({
+      buildingId: newFilters.buildingId,
+      status: newFilters.status,
+      unitType: newFilters.unitType,
+      minBedrooms: newFilters.minBedrooms,
+      maxBedrooms: newFilters.maxBedrooms,
+      minFloor: newFilters.minFloor,
+      maxFloor: newFilters.maxFloor,
+      page: 1, // Reset to first page on filter change
+    });
+  };
 
   const handleCreateApartment = () => {
     setEditingApartment(null);
@@ -129,7 +165,17 @@ export default function ApartmentsPage() {
     setSelectedApartment(null); // Close the detail sheet
   };
 
-  const { data, isLoading, error } = useApartments({ page, limit });
+  const { data, isLoading, error } = useApartments({
+    buildingId: urlFilters.buildingId || undefined,
+    status: urlFilters.status.length > 0 ? urlFilters.status : undefined,
+    unitType: urlFilters.unitType.length > 0 ? urlFilters.unitType : undefined,
+    minBedrooms: urlFilters.minBedrooms || undefined,
+    maxBedrooms: urlFilters.maxBedrooms || undefined,
+    minFloor: urlFilters.minFloor || undefined,
+    maxFloor: urlFilters.maxFloor || undefined,
+    page: urlFilters.page,
+    limit: urlFilters.limit,
+  });
 
   const apartments = data?.data || [];
   const meta = data?.meta;
@@ -188,8 +234,8 @@ export default function ApartmentsPage() {
       </div>
 
       {/* Filters & Actions */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4 flex-1">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-4">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -199,14 +245,12 @@ export default function ApartmentsPage() {
               className="pl-9"
             />
           </div>
-          <Button variant="outline" size="icon">
-            <Filter className="h-4 w-4" />
+          <Button onClick={handleCreateApartment}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Apartment
           </Button>
         </div>
-        <Button onClick={handleCreateApartment}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Apartment
-        </Button>
+        <ApartmentFilters filters={filterValues} onFiltersChange={handleFiltersChange} />
       </div>
 
       {/* Table */}
@@ -281,12 +325,11 @@ export default function ApartmentsPage() {
                 type="number"
                 min={1}
                 max={100}
-                value={limit}
+                value={urlFilters.limit}
                 onChange={(e) => {
                   const v = parseInt(e.target.value, 10);
                   if (v > 0 && v <= 100) {
-                    setLimit(v);
-                    setPage(1);
+                    setUrlFilters({ limit: v, page: 1 });
                   }
                 }}
                 className="w-20 h-8 text-sm"
@@ -297,20 +340,20 @@ export default function ApartmentsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
+              onClick={() => setUrlFilters({ page: Math.max(1, urlFilters.page - 1) })}
+              disabled={urlFilters.page <= 1}
             >
               <ChevronLeft className="h-4 w-4" />
               Previous
             </Button>
             <span className="text-sm">
-              Page {page} of {totalPages}
+              Page {urlFilters.page} of {totalPages}
             </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
+              onClick={() => setUrlFilters({ page: Math.min(totalPages, urlFilters.page + 1) })}
+              disabled={urlFilters.page >= totalPages}
             >
               Next
               <ChevronRight className="h-4 w-4" />

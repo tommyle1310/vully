@@ -15,6 +15,22 @@ interface UtilityTypesResponse {
   data: UtilityType[];
 }
 
+interface UtilityTypeResponse {
+  data: UtilityType;
+}
+
+export interface CreateUtilityTypeDto {
+  code: string;
+  name: string;
+  unit: string;
+}
+
+export interface UpdateUtilityTypeDto {
+  name?: string;
+  unit?: string;
+  isActive?: boolean;
+}
+
 // List utility types
 export function useUtilityTypes() {
   return useQuery({
@@ -23,6 +39,51 @@ export function useUtilityTypes() {
       return apiClient.get<UtilityTypesResponse>('/utility-types');
     },
     staleTime: 30 * 60 * 1000, // 30 minutes (rarely changes)
+  });
+}
+
+// Get single utility type
+export function useUtilityType(id: string) {
+  return useQuery({
+    queryKey: ['utility-types', id],
+    queryFn: async (): Promise<UtilityTypeResponse> => {
+      return apiClient.get<UtilityTypeResponse>(`/utility-types/${id}`);
+    },
+    enabled: !!id,
+  });
+}
+
+// Create utility type
+export function useCreateUtilityType() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (dto: CreateUtilityTypeDto): Promise<UtilityTypeResponse> => {
+      return apiClient.post<UtilityTypeResponse>('/utility-types', dto);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['utility-types'] });
+    },
+  });
+}
+
+// Update utility type
+export function useUpdateUtilityType() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateUtilityTypeDto;
+    }): Promise<UtilityTypeResponse> => {
+      return apiClient.patch<UtilityTypeResponse>(`/utility-types/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['utility-types'] });
+    },
   });
 }
 

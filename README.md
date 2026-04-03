@@ -135,7 +135,7 @@ vully/
 
 ## Database Schema
 
-### Models (20 total, 10 enums)
+### Models (25 total, 18 enums)
 
 #### Identity & RBAC (7 models)
 | Model | Purpose |
@@ -152,9 +152,15 @@ vully/
 | Model | Purpose |
 |-------|---------|
 | **buildings** | Buildings with SVG floor plans (`svgMapData`), floor heights (`floorHeights`), amenities |
-| **apartments** | Units within buildings: unit_number, floor, status, gross_area, bedrooms, bathrooms, `svgElementId`, owner, unit type, orientation, billing cycle, meter IDs |
-| **contracts** | Lease agreements: tenant, apartment, dates, rent, deposit, terms, created by |
+| **apartments** | Units with 50+ fields: spatial, ownership, occupancy, utility meters, parking, billing config, IoT sync |
+| **contracts** | Lease agreements: tenant, apartment, dates, rent, deposit, terms, contract type |
 | **management_fee_configs** | Per-building pricing rules by unit type with effective date ranges |
+
+#### Payment Tracking (2 models) — NEW
+| Model | Purpose |
+|-------|---------|
+| **contract_payment_schedules** | Payment milestones/periods: rent installments, purchase milestones, due dates, status |
+| **contract_payments** | Payment transactions: amount, method, reference, receipt URL, void tracking |
 
 #### Billing (6 models)
 | Model | Purpose |
@@ -172,20 +178,24 @@ vully/
 | **incident_comments** | Comments on incidents with commenter tracking |
 | **notifications** | In-app notifications: type, user, resource link, read status, metadata |
 
-#### AI Assistant (2 models)
+#### AI Assistant (3 models)
 | Model | Purpose |
 |-------|---------|
 | **documents** | Knowledge base documents: title, content, metadata, source URL |
 | **document_chunks** | Chunked documents with pgvector embeddings (768-dim for Gemini embedding-004) |
 | **chat_queries** | AI chat history: query, response, token usage, response time tracking |
 
-### Enums (10)
+### Enums (18)
 
 | Enum | Values |
 |------|--------|
 | `UserRole` | admin, technician, resident |
 | `ApartmentStatus` | vacant, occupied, maintenance, reserved |
 | `ContractStatus` | draft, active, expired, terminated |
+| `ContractType` | rental, purchase, lease_to_own |
+| `PaymentType` | rent, deposit, purchase_installment, option_fee, maintenance_fee, penalty, other |
+| `PaymentStatus` | pending, paid, partial, overdue, cancelled, voided |
+| `PaymentMethod` | cash, bank_transfer, credit_card, momo, vnpay, check, other |
 | `InvoiceStatus` | draft, pending, paid, overdue, cancelled |
 | `IncidentCategory` | plumbing, electrical, hvac, structural, appliance, pest, noise, security, other |
 | `IncidentStatus` | open, assigned, in_progress, pending_review, resolved, closed |
@@ -195,6 +205,7 @@ vully/
 | `OwnershipType` | permanent, fifty_year, leasehold |
 | `Orientation` | north, south, east, west, northeast, northwest, southeast, southwest |
 | `BillingCycle` | monthly, quarterly, yearly |
+| `SyncStatus` | synced, pending, error, disconnected |
 
 ---
 
@@ -338,6 +349,14 @@ All endpoints are auto-documented via Swagger at `/api/docs`.
 - `PATCH /contracts/:id` — Update contract
 - `POST /contracts/:id/terminate` — Terminate contract (admin only)
 
+#### Payment Tracking (`/api/contracts/:id/...`) — NEW
+- `GET /contracts/:id/payment-schedules` — List payment schedule for contract
+- `POST /contracts/:id/payment-schedules/generate-rent` — Auto-generate monthly rent schedule
+- `GET /contracts/:id/payments` — List all payments for contract
+- `POST /contracts/:id/payments` — Record a payment
+- `GET /contracts/:id/financial-summary` — Get total due, paid, balance, overdue
+- `POST /contract-payments/:id/void` — Void a recorded payment
+
 #### Invoices (`/api/invoices`)
 - `GET /invoices` — List invoices (filterable by status, period)
 - `GET /invoices/:id` — Get invoice with line items
@@ -432,16 +451,17 @@ pnpm test:cov          # Coverage report
 - **Performance Budget**:
   - FCP < 1.5s
   - LCP < 2.5s
-  - ✅ Completed (Phases 0-6)
+  - ✅ Completed (Phases 0-7)
 - [x] **Identity Module**: JWT auth (access + refresh tokens), user CRUD, multi-role RBAC (UserRoleAssignment + Permissions)
-- [x] **Apartments Module**: Buildings, Apartments, Contracts (CRUD + terminate)
+- [x] **Apartments Module**: Buildings, Apartments (50+ fields), Contracts (CRUD + terminate)
+- [x] **Payment Tracking**: Contract payment schedules, payment recording, financial summaries, void support (NEW)
 - [x] **Billing Module**: Invoices, Meter Readings, Utility Types/Tiers (tiered pricing), BullMQ batch processor
 - [x] **Incidents Module**: CRUD, Comments, WebSocket Gateway (real-time updates)
 - [x] **Stats Module**: Dashboard analytics with Redis caching
 - [x] **AI Assistant Module**: RAG chatbot (Gemini + pgvector + LangChain)
 - [x] **SVG Floor Plans**: Interactive viewer + builder (drag-drop templates, grid snapping, download/save)
 - [x] **3D Building Viewer**: Three.js extrusion of SVG floor plans using `floorHeights[]`
-- [x] **Frontend**: 9 dashboard pages, 25 Shadcn/UI components, 14 custom hooks, Framer Motion animations
+- [x] **Frontend**: 10 dashboard pages, 27 Shadcn/UI components, 15 custom hooks, Framer Motion animations
 - [x] **Infrastructure**: Docker Compose (PostgreSQL, Redis, ClamAV, MinIO), health checks, Pino logging
 
 ### 🚧 In Progress
@@ -449,15 +469,30 @@ pnpm test:cov          # Coverage report
 - [ ] **Accounting Module**: Implement Journal Entries, Ledger Accounts, Vouchers (currently skeleton)
 - [ ] **Notifications**: In-app notification UI, email/SMS integration
 
-### 🔮 Planned
-- [ ] **Management Board**: Investors, Vendors modules (skeleton created)
-- [ ] **Payment Gateway**: VNPay / Momo integration
-- [ ] **Email/SMS Notifications**: Nodemailer + Twilio
+### 🔮 Enterprise MVP Roadmap (Next Phase)
+
+See [Technical Execution & AI Automation Roadmap](docs/Technical-Execution&AI-Automation-Roadmap.md) for full details.
+
+#### Phase 1: Fiduciary & Security Core (Weeks 1-4)
+- [ ] **Multi-Tenant Architecture**: Organization model, PostgreSQL RLS, tenant-scoped data isolation
+- [ ] **Trust Accounting**: Financial accounts (operating/trust/maintenance), escrow ledger per contract, co-mingling prevention
+- [ ] **Enhanced RBAC**: Organization-scoped roles (owner, portfolio_admin, building_admin, leasing_agent, accountant, viewer)
+
+#### Phase 2: Compliance & Payments (Weeks 5-8)
+- [ ] **Regional Compliance Engine**: US escrow laws (state-specific), Vietnamese 2% maintenance fund tracking
+- [ ] **Payment Gateway Integration**: Stripe (cards/ACH), VNPay, MoMo, VietQR code generation
+- [ ] **Compliance Alerts**: Automated deadline tracking, escalation workflows
+
+#### Phase 3: Communications & Polish (Weeks 9-11)
+- [ ] **Notification Hub**: Multi-channel (email/SMS/push), customizable templates, user preferences
 - [ ] **Mobile App**: React Native with shared @vully/shared-types
-- [ ] **Multi-language**: i18n support (Vietnamese, English)
-- [ ] **File Management**: MinIO integration for document storage (contracts, meter reading photos, incident attachments)
 - [ ] **Advanced Reporting**: PDF generation (invoices, contracts), Excel exports
-- [ ] **Audit Dashboard**: Visualize audit_logs with filters and searchdates
+- [ ] **Audit Dashboard**: Visualize audit_logs with filters and search
+
+### Recent Additions ✅
+- [x] Payment Tracking System (schedules, payments, financial summaries, void)
+- [x] Contract detail page with payment schedule table
+- [x] Expanded apartment data model (50+ fields across 7 domains)
 - [x] Multi-role RBAC (UserRoleAssignment + Permissions)
 - [x] SVG Floor Plan Builder & 3D Viewer
 - [x] Contracts backend API (CRUD + terminate)

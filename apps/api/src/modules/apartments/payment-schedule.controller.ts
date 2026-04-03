@@ -24,6 +24,7 @@ import {
   PaymentResponseDto,
   ContractFinancialSummaryDto,
   GenerateRentScheduleDto,
+  GeneratePurchaseMilestonesDto,
 } from './dto/payment.dto';
 import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -181,6 +182,22 @@ export class PaymentScheduleController {
     return {
       data: schedules,
       message: `Generated ${schedules.length} payment schedule(s)`,
+    };
+  }
+
+  @Post('contracts/:contractId/generate-purchase-milestones')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Auto-generate payment milestones for a purchase contract' })
+  @ApiResponse({ status: 201, description: 'Milestones generated', type: [PaymentScheduleResponseDto] })
+  @ApiResponse({ status: 400, description: 'Not a purchase contract or schedules already exist' })
+  async generatePurchaseMilestones(
+    @Param('contractId', ParseUUIDPipe) contractId: string,
+    @Body() dto: GeneratePurchaseMilestonesDto,
+  ): Promise<{ data: PaymentScheduleResponseDto[]; message: string }> {
+    const schedules = await this.paymentScheduleService.generatePurchaseMilestones(contractId, dto);
+    return {
+      data: schedules,
+      message: `Generated ${schedules.length} payment milestone(s)`,
     };
   }
 }

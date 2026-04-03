@@ -13,6 +13,7 @@ import {
   PaymentResponseDto,
   ContractFinancialSummaryDto,
   GenerateRentScheduleDto,
+  GeneratePurchaseMilestonesDto,
   PaymentType,
   PaymentStatus,
 } from './dto/payment.dto';
@@ -536,6 +537,143 @@ export class PaymentScheduleService {
     });
 
     // Return the created schedules
+    return this.findAllByContract(contractId);
+  }
+
+  async generatePurchaseMilestones(
+    contractId: string,
+    dto: GeneratePurchaseMilestonesDto,
+  ): Promise<PaymentScheduleResponseDto[]> {
+    const contract = await this.prisma.contracts.findUnique({
+      where: { id: contractId },
+    });
+
+    if (!contract) {
+      throw new NotFoundException('Contract not found');
+    }
+
+    // Cast to access new fields until Prisma client is regenerated
+    const contractData = contract as {
+      contract_type?: string;
+      purchase_price?: unknown;
+      down_payment?: unknown;
+      start_date: Date;
+      end_date?: Date;
+      transfer_date?: Date;
+    };
+
+    if (contractData.contract_type !== 'purchase') {
+      throw new BadRequestException(
+        'Purchase milestones can only be generated for purchase contracts',
+      );
+    }
+
+    // Check for existing schedules
+    const existingCount = await this.schedules.count({
+      where: { contract_id: contractId },
+    });
+
+    if (existingCount > 0) {
+      throw new BadRequestException(
+        'Payment schedules already exist for this contract. Delete existing schedules first.',
+      );
+    }
+
+    const purchasePrice = Number(contractData.purchase_price || 0);
+    if (purchasePrice <= 0) {
+      throw new BadRequestException('Contract must have a valid purchase price');
+    }
+
+    const downPaymentPercent = dto.downPaymentPercent || 30;
+    const progressPaymentCount = dto.progressPaymentCount || 3;
+    
+    // Calculate amounts
+    const downPaymentAmount = Number(contractData.down_payment) || (purchasePrice * downPaymentPercent / 100);
+    const remaining = purchasePrice - downPaymentAmount;
+    const progressAmount = Math.floor(remaining / (progressPaymentCount + 1)); // +1 for final payment
+    const finalAmount = remaining - (progressAmount * progressPaymentCount); // Handle rounding
+
+    const startDate = new Date(contractData.start_date);
+    const transferDate = contractData.transfer_date 
+      ? new Date(contractData.transfer_date) 
+      : contractData.end_date 
+        ? new Date(contractData.end_date) 
+        : addMonths(startDate, 12);
+
+    // Calculate month interval between progress payments
+    const totalMonths = Math.max(
+      1,
+      Math.floor((transferDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)),
+    );
+    const interval = Math.max(1, Math.floor(totalMonths / (progressPaymentCount + 1)));
+
+    const schedules: Array<{
+      contract_id: string;
+      period_label: string;
+      payment_type: PaymentType;
+      sequence_number: number;
+      due_date: Date;
+      expected_amount: number;
+      received_amount: number;
+      status: PaymentStatus;
+      updated_at: Date;
+    }> = [];
+
+    // 1. Down Payment (due at contract start)
+    schedules.push({
+      contract_id: contractId,
+      period_label: 'Down Payment',
+      payment_type: PaymentType.downpayment,
+      sequence_number: 1,
+      due_date: startDate,
+      expected_amount: downPaymentAmount,
+      received_amount: 0,
+      status: isPast(startDate) ? PaymentStatus.overdue : PaymentStatus.pending,
+      updated_at: new Date(),
+    });
+
+    // 2. Progress Payments
+    for (let i = 0; i < progressPaymentCount; i++) {
+      const dueDate = addMonths(startDate, (i + 1) * interval);
+      schedules.push({
+        contract_id: contractId,
+        period_label: `Progress Payment ${i + 1}`,
+        payment_type: PaymentType.installment,
+        sequence_number: i + 2,
+        due_date: dueDate,
+        expected_amount: progressAmount,
+        received_amount: 0,
+        status: isPast(dueDate) ? PaymentStatus.overdue : PaymentStatus.pending,
+        updated_at: new Date(),
+      });
+    }
+
+    // 3. Final Payment (due at transfer date)
+    schedules.push({
+      contract_id: contractId,
+      period_label: 'Final Payment - Property Transfer',
+      payment_type: PaymentType.installment,
+      sequence_number: progressPaymentCount + 2,
+      due_date: transferDate,
+      expected_amount: finalAmount,
+      received_amount: 0,
+      status: isPast(transferDate) ? PaymentStatus.overdue : PaymentStatus.pending,
+      updated_at: new Date(),
+    });
+
+    await this.schedules.createMany({
+      data: schedules,
+    });
+
+    this.logger.log({
+      event: 'purchase_milestones_generated',
+      contractId,
+      count: schedules.length,
+      purchasePrice,
+      downPaymentAmount,
+      progressPaymentCount,
+    });
+
     return this.findAllByContract(contractId);
   }
 

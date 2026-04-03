@@ -44,6 +44,7 @@ import {
   usePaymentSchedules,
   useDeletePaymentSchedule,
   useGenerateRentSchedule,
+  useGeneratePurchaseMilestones,
   PaymentSchedule,
   PaymentType,
   PaymentStatus,
@@ -136,6 +137,7 @@ export function PaymentScheduleTable({
   const { data, isLoading, error, refetch } = usePaymentSchedules(contractId);
   const deleteSchedule = useDeletePaymentSchedule();
   const generateRentSchedule = useGenerateRentSchedule(contractId);
+  const generatePurchaseMilestones = useGeneratePurchaseMilestones(contractId);
 
   const schedules = data?.data || [];
 
@@ -324,6 +326,28 @@ export function PaymentScheduleTable({
     );
   };
 
+  const handleGeneratePurchaseMilestones = () => {
+    generatePurchaseMilestones.mutate(
+      { progressPaymentCount: 3 },
+      {
+        onSuccess: (result) => {
+          toast({
+            title: 'Milestones generated',
+            description: `Generated ${result.data?.length || 0} payment milestones.`,
+          });
+          refetch();
+        },
+        onError: (error: Error) => {
+          toast({
+            title: 'Error',
+            description: error.message || 'Failed to generate milestones',
+            variant: 'destructive',
+          });
+        },
+      }
+    );
+  };
+
   if (isLoading) {
     return <TableSkeleton />;
   }
@@ -364,6 +388,17 @@ export function PaymentScheduleTable({
                 Auto-Generate (12 months)
               </Button>
             )}
+            {contractType === 'purchase' && schedules.length === 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGeneratePurchaseMilestones}
+                disabled={generatePurchaseMilestones.isPending}
+              >
+                <Wand2 className="mr-2 h-4 w-4" />
+                Generate Payment Milestones
+              </Button>
+            )}
             <Button size="sm" disabled>
               <Plus className="mr-2 h-4 w-4" />
               Add Entry
@@ -386,6 +421,16 @@ export function PaymentScheduleTable({
               >
                 <Wand2 className="mr-2 h-4 w-4" />
                 Generate Rent Schedule
+              </Button>
+            )}
+            {contractType === 'purchase' && (
+              <Button
+                variant="outline"
+                onClick={handleGeneratePurchaseMilestones}
+                disabled={generatePurchaseMilestones.isPending}
+              >
+                <Wand2 className="mr-2 h-4 w-4" />
+                Generate Payment Milestones
               </Button>
             )}
           </div>

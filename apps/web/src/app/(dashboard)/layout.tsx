@@ -15,6 +15,7 @@ import {
   Settings,
   Menu,
   Gauge,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ const navItems: NavItem[] = [
   { href: '/users', label: 'Users', icon: Users, roles: [UserRole.admin] },
   { href: '/invoices', label: 'Invoices', icon: FileText },
   { href: '/meter-readings', label: 'Meter Readings', icon: Gauge },
+  { href: '/utility-types', label: 'Utility Types', icon: Zap, roles: [UserRole.admin] },
   { href: '/incidents', label: 'Incidents', icon: AlertTriangle },
   { href: '/reports', label: 'Reports', icon: BarChart3, roles: [UserRole.admin] },
   { href: '/settings', label: 'Settings', icon: Settings },

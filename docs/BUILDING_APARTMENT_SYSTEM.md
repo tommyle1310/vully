@@ -15,39 +15,39 @@ Vully is a comprehensive apartment management platform designed for property man
 ## Entity Relationship Diagram (ERD)
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              VULLY DATA MODEL                                    │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│   ┌────────────┐        ┌───────────────┐        ┌─────────────┐                │
-│   │  BUILDING  │◄───────│   APARTMENT   │───────►│  CONTRACT   │                │
-│   │            │  1:N   │               │  1:N   │             │                │
-│   └─────┬──────┘        └───────┬───────┘        └──────┬──────┘                │
-│         │                       │                       │                        │
-│         │                       │ 1:N                   │ 1:N                    │
-│         │                       ▼                       ▼                        │
-│         │               ┌───────────────┐        ┌─────────────┐                │
-│         │               │   INCIDENT    │        │   INVOICE   │                │
-│         │               └───────┬───────┘        └──────┬──────┘                │
-│         │                       │ 1:N                   │ 1:N                    │
-│         │                       ▼                       ▼                        │
-│   ┌─────▼──────┐        ┌───────────────┐        ┌─────────────┐                │
-│   │  MGMT FEE  │        │   COMMENTS    │        │ LINE ITEMS  │                │
-│   │  CONFIG    │        └───────────────┘        └──────┬──────┘                │
-│   └────────────┘                                        │                        │
-│                                                         │ N:1                    │
-│   ┌────────────┐        ┌───────────────┐              ▼                        │
-│   │   USER     │───────►│ METER READING │◄─────┌─────────────┐                  │
-│   │            │  1:N   │               │ N:1  │ UTILITY TYPE│                  │
-│   └────────────┘        └───────────────┘      └──────┬──────┘                  │
-│         │                                             │ 1:N                      │
-│         │ N:M                                         ▼                          │
-│         ▼                                      ┌─────────────┐                   │
-│   ┌────────────┐                               │UTILITY TIER │                   │
-│   │   ROLES    │                               └─────────────┘                   │
-│   └────────────┘                                                                 │
-│                                                                                  │
-└─────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                              VULLY DATA MODEL (25 Models, 18 Enums)                   │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                       │
+│   ┌────────────┐        ┌───────────────┐        ┌─────────────┐                     │
+│   │  BUILDING  │◄───────│   APARTMENT   │───────►│  CONTRACT   │                     │
+│   │            │  1:N   │               │  1:N   │             │                     │
+│   └─────┬──────┘        └───────┬───────┘        └──────┬──────┘                     │
+│         │                       │                       │                             │
+│         │                       │ 1:N                   ├──────────────┐              │
+│         │                       ▼                       │ 1:N          │ 1:N          │
+│         │               ┌───────────────┐        ┌──────▼──────┐ ┌─────▼──────┐      │
+│         │               │   INCIDENT    │        │   INVOICE   │ │  PAYMENT   │      │
+│         │               └───────┬───────┘        └──────┬──────┘ │  SCHEDULE  │      │
+│         │                       │ 1:N                   │ 1:N    └─────┬──────┘      │
+│         │                       ▼                       ▼              │ 1:N          │
+│   ┌─────▼──────┐        ┌───────────────┐        ┌─────────────┐ ┌────▼───────┐      │
+│   │  MGMT FEE  │        │   COMMENTS    │        │ LINE ITEMS  │ │  PAYMENTS  │      │
+│   │  CONFIG    │        └───────────────┘        └──────┬──────┘ └────────────┘      │
+│   └────────────┘                                        │                             │
+│                                                         │ N:1                         │
+│   ┌────────────┐        ┌───────────────┐              ▼                             │
+│   │   USER     │───────►│ METER READING │◄─────┌─────────────┐                       │
+│   │            │  1:N   │               │ N:1  │ UTILITY TYPE│                       │
+│   └────────────┘        └───────────────┘      └──────┬──────┘                       │
+│         │                                             │ 1:N                           │
+│         │ N:M                                         ▼                               │
+│         ▼                                      ┌─────────────┐                        │
+│   ┌────────────┐        ┌───────────────┐      │UTILITY TIER │                        │
+│   │   ROLES    │◄──────►│  PERMISSIONS  │      └─────────────┘                        │
+│   └────────────┘  N:M   └───────────────┘                                             │
+│                                                                                       │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -230,6 +230,59 @@ Represents a legal agreement between property and tenant/buyer.
 - Belongs to one `apartment`
 - Belongs to one `user` (tenant)
 - Has many `invoices`
+- Has many `contract_payment_schedules`
+- Has many `contract_payments`
+
+---
+
+### 3a. Contract Payment Schedule
+
+Represents payment milestones/periods for a contract (rent installments, purchase milestones).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `contractId` | UUID (FK) | Reference to contract |
+| `payment_type` | Enum | Type (rent, deposit, purchase_installment, option_fee, etc.) |
+| `due_date` | Date | When payment is due |
+| `amount_due` | Decimal(12,2) | Amount expected |
+| `amount_paid` | Decimal(12,2) | Amount received so far |
+| `status` | Enum | Status (pending/paid/partial/overdue/cancelled) |
+| `description` | String | Description (e.g., "Rent - January 2025") |
+| `period_start` | Date (nullable) | Start of billing period (for rent) |
+| `period_end` | Date (nullable) | End of billing period |
+
+**Relationships:**
+- Belongs to one `contract`
+- Has many `contract_payments`
+
+---
+
+### 3b. Contract Payment
+
+Records actual payment transactions.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `scheduleId` | UUID (FK) | Reference to payment schedule |
+| `contractId` | UUID (FK) | Reference to contract |
+| `amount` | Decimal(12,2) | Payment amount |
+| `payment_date` | DateTime | When payment was made |
+| `payment_method` | Enum | Method (cash, bank_transfer, credit_card, momo, vnpay, check) |
+| `reference_number` | String(100) | Transaction reference |
+| `receipt_url` | String(500) | URL to receipt/proof |
+| `notes` | Text (nullable) | Payment notes |
+| `status` | Enum | Status (pending/paid/voided) |
+| `recorded_by` | UUID (FK) | User who recorded payment |
+| `voided_at` | DateTime (nullable) | When voided |
+| `voided_by` | UUID (FK, nullable) | User who voided |
+| `void_reason` | String(500, nullable) | Reason for voiding |
+
+**Relationships:**
+- Belongs to one `contract_payment_schedule`
+- Belongs to one `contract`
+- Recorded by one `user`
 
 ---
 
@@ -385,6 +438,37 @@ Users can have multiple roles via `user_role_assignments` table. Permissions are
 - `expired` - Natural expiry
 - `terminated` - Early termination
 
+### ContractType
+- `rental` - Standard rental/lease agreement
+- `purchase` - Property purchase
+- `lease_to_own` - Rent with option to buy
+
+### PaymentType
+- `rent` - Monthly rent payment
+- `deposit` - Security deposit
+- `purchase_installment` - Purchase price installment
+- `option_fee` - Lease-to-own option fee
+- `maintenance_fee` - Building maintenance fee
+- `penalty` - Late payment or other penalty
+- `other` - Other payment type
+
+### PaymentStatus
+- `pending` - Payment expected but not yet received
+- `paid` - Fully paid
+- `partial` - Partially paid
+- `overdue` - Past due date
+- `cancelled` - Cancelled
+- `voided` - Voided after recording
+
+### PaymentMethod
+- `cash` - Cash payment
+- `bank_transfer` - Bank transfer
+- `credit_card` - Credit/debit card
+- `momo` - MoMo e-wallet
+- `vnpay` - VNPay gateway
+- `check` - Check/cheque
+- `other` - Other method
+
 ### InvoiceStatus
 - `pending` - Awaiting payment
 - `paid` - Fully paid
@@ -464,20 +548,65 @@ Users can have multiple roles via `user_role_assignments` table. Permissions are
 8. Resident can reopen if not satisfied
 ```
 
+### 4. Payment Tracking Flow (NEW)
+
+```
+1. Admin creates contract (rental/purchase/lease-to-own)
+2. Admin generates payment schedule:
+   a. For rental: POST /contracts/:id/payment-schedules/generate-rent
+      - Creates monthly payment schedules from start_date to end_date
+   b. For purchase: Manual creation of installment milestones
+3. System tracks payment status per schedule item
+4. Tenant/Admin views financial summary:
+   - Total due, total paid, balance, overdue amount
+5. Admin records payment when received:
+   a. POST /contracts/:id/payments with amount, method, reference
+   b. System allocates to oldest pending schedule
+   c. Schedule status auto-updates (pending → partial → paid)
+6. If payment needs correction:
+   a. POST /contract-payments/:id/void with reason
+   b. Original payment marked as voided
+   c. Schedule amounts recalculated
+```
+
+---
+
+## Implemented Features
+
+### Payment Tracking System ✅ (COMPLETED)
+Full payment tracking for contracts with support for rental, purchase, and lease-to-own payment schedules.
+
+**Models Added:**
+- `contract_payment_schedules` — Payment milestones/periods (rent due dates, purchase installments)
+- `contract_payments` — Actual payment transactions with receipts
+
+**Enums Added:**
+- `ContractType` — rental, purchase, lease_to_own
+- `PaymentType` — rent, deposit, purchase_installment, option_fee, maintenance_fee, penalty, other
+- `PaymentStatus` — pending, paid, partial, overdue, cancelled, voided
+- `PaymentMethod` — cash, bank_transfer, credit_card, momo, vnpay, check, other
+
+**API Endpoints:**
+- `GET /contracts/:id/payment-schedules` — List payment schedule for contract
+- `POST /contracts/:id/payment-schedules/generate-rent` — Auto-generate monthly rent schedule
+- `POST /contracts/:id/payments` — Record a payment
+- `GET /contracts/:id/payments` — List payments for contract
+- `GET /contracts/:id/financial-summary` — Get total due, paid, balance, overdue
+- `POST /contract-payments/:id/void` — Void a payment
+
+**Frontend Components:**
+- `PaymentScheduleTable` — Display payment schedule with status badges
+- `RecordPaymentDialog` — Form to record payments
+- `ContractFinancialSummary` — Overview card with progress bars
+- Contract detail page at `/contracts/[id]`
+
 ---
 
 ## Potential Improvements & Missing Features
 
 ### High Priority
 
-1. **Payment Tracking System** (NEW PROPOSAL CREATED)
-   - Currently no way to track rent/purchase payments
-   - Need `contract_payment_schedules` table for milestones/periods
-   - Need `contract_payments` table for actual transactions
-   - See: `openspec/changes/add-payment-tracking/proposal.md`
-   - Enables: payment history, remaining balance, overdue tracking
-
-2. **Dedicated Contract Type Fields**
+1. **Dedicated Contract Type Fields**
    - Currently, purchase/lease-to-own data stored in `terms_notes` as text
    - Should add proper columns: `purchase_price`, `down_payment`, `transfer_date`, `option_fee`, etc.
    - Migration path: Parse existing `terms_notes` and populate new fields
@@ -593,11 +722,13 @@ CREATE INDEX idx_incidents_priority ON incidents(priority);
 | Buildings | GET /buildings, POST /buildings, GET /buildings/:id, PATCH /buildings/:id |
 | Apartments | GET /apartments, POST /apartments, GET /apartments/:id, PATCH /apartments/:id |
 | Contracts | GET /contracts, POST /contracts, GET /contracts/:id, PATCH /contracts/:id, POST /contracts/:id/terminate |
+| Payment Schedules | GET /contracts/:id/payment-schedules, POST /contracts/:id/payment-schedules/generate-rent |
+| Payments | GET /contracts/:id/payments, POST /contracts/:id/payments, GET /contracts/:id/financial-summary, POST /contract-payments/:id/void |
 | Invoices | GET /invoices, POST /invoices, GET /invoices/:id, POST /invoices/:id/pay |
 | Incidents | GET /incidents, POST /incidents, GET /incidents/:id, PATCH /incidents/:id |
 | Users | GET /users, POST /users, GET /users/:id, PATCH /users/:id |
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: April 3, 2026*
+*Document Version: 1.1*
+*Last Updated: January 2025*

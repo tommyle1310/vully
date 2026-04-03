@@ -1,9 +1,12 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { useBuildingMeters } from '@/hooks/use-buildings';
 
 import type {
   SvgBuilderProps,
@@ -221,10 +224,35 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
 
     const newElements = [...elements];
     const newIds: string[] = [];
+    
+    // Find the highest existing apt-N number to avoid ID collisions
+    let maxAptNum = 0;
+    newElements.forEach((el) => {
+      if (el.apartmentId) {
+        const match = el.apartmentId.match(/^apt-(\d+)$/);
+        if (match) {
+          maxAptNum = Math.max(maxAptNum, parseInt(match[1], 10));
+        }
+      }
+    });
+    
     toDup.forEach((id) => {
       const element = elements.find((el) => el.id === id);
       if (!element) return;
-      const newEl = { ...element, id: `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, x: element.x + 20, y: element.y + 20 };
+      
+      // Generate new unique IDs
+      const newId = `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      maxAptNum++;
+      const newApartmentId = element.apartmentId ? `apt-${maxAptNum}` : undefined;
+      
+      const newEl: SvgElement = { 
+        ...element, 
+        id: newId, 
+        x: element.x + 20, 
+        y: element.y + 20,
+        apartmentId: newApartmentId,
+        label: newApartmentId ? `${maxAptNum}` : element.label,
+      };
       newElements.push(newEl);
       newIds.push(newEl.id);
     });
@@ -339,6 +367,23 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
     onRedo: handleRedo,
     onDelete: deleteElement,
   });
+
+  // Building meters for duplicate detection (optional — only when buildingId is provided)
+  const { data: metersData } = useBuildingMeters(buildingId || '');
+  const duplicateMeters = metersData?.data.duplicates || [];
+
+  // Detect duplicate apartment IDs in the canvas
+  const duplicateApartmentIds = (() => {
+    const idCounts = new Map<string, number>();
+    elements.forEach((el) => {
+      if (el.apartmentId) {
+        idCounts.set(el.apartmentId, (idCounts.get(el.apartmentId) || 0) + 1);
+      }
+    });
+    return Array.from(idCounts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([id]) => id);
+  })();
 
   // ==========================================================================
   // Canvas Mouse Handlers
@@ -638,6 +683,27 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
 
       {/* Sidebar */}
       <Card className="flex flex-col h-full min-h-0 overflow-hidden">
+        {/* Duplicate Apartment ID Warning */}
+        {duplicateApartmentIds.length > 0 && (
+          <Alert variant="destructive" className="mx-4 mt-4 flex-shrink-0">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Duplicate apartment IDs found: {duplicateApartmentIds.join(', ')}. 
+              This will cause 3D viewer color issues. Please fix in Properties panel.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {/* Duplicate Meter Warning */}
+        {duplicateMeters.length > 0 && (
+          <Alert variant="destructive" className="mx-4 mt-4 flex-shrink-0">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Duplicate meter IDs found: {duplicateMeters.join(', ')}
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Tabs defaultValue="templates" className="flex-1 flex flex-col min-h-0">
           <TabsList className="flex-shrink-0 mx-4 mt-4">
             <TabsTrigger value="templates" className="flex-1">

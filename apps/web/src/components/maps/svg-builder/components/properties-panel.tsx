@@ -460,6 +460,58 @@ const InteriorDetails = memo(function InteriorDetails({
     <div className="space-y-3">
       <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Interior Details</Label>
 
+      {/* Bedroom / Bathroom / Living Room Row */}
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <Label className="text-xs">Bedrooms</Label>
+          <Input
+            type="number"
+            min={0}
+            max={10}
+            value={element.bedroomCount ?? ''}
+            onChange={(e) =>
+              onUpdateElement(element.id, {
+                bedroomCount: e.target.value === '' ? undefined : Number(e.target.value),
+              })
+            }
+            placeholder="0"
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <Label className="text-xs">Bathrooms</Label>
+          <Input
+            type="number"
+            min={0}
+            max={10}
+            value={element.bathroomCount ?? ''}
+            onChange={(e) =>
+              onUpdateElement(element.id, {
+                bathroomCount: e.target.value === '' ? undefined : Number(e.target.value),
+              })
+            }
+            placeholder="0"
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <Label className="text-xs">Living Rooms</Label>
+          <Input
+            type="number"
+            min={0}
+            max={4}
+            value={element.livingRoomCount ?? ''}
+            onChange={(e) =>
+              onUpdateElement(element.id, {
+                livingRoomCount: e.target.value === '' ? undefined : Number(e.target.value),
+              })
+            }
+            placeholder="1"
+            className="mt-1"
+          />
+        </div>
+      </div>
+
       {/* Logia Count */}
       <div>
         <Label className="text-xs">Logia Count</Label>

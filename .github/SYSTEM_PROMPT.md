@@ -7,33 +7,35 @@ Copy this prompt at the start of each important coding session:
 **System Prompt (Vietnamese):**
 
 ```
-Tôi đang xây dựng hệ thống quản lý chung cư Vully - đã hoàn thiện 6 modules chính.
+Tôi đang xây dựng hệ thống quản lý chung cư Vully - đã hoàn thiện 7 modules chính.
 
 Tech Stack:
 - Backend: NestJS 10 (Modular) + PostgreSQL 15 + Prisma ORM + Redis 7 + BullMQ + Socket.IO + Pino Logger
-- Frontend: Next.js 15 (App Router) + Shadcn/UI (25 components) + Framer Motion + TanStack Query + Zustand + Nuqs
+- Frontend: Next.js 15 (App Router) + Shadcn/UI (27 components) + Framer Motion + TanStack Query + Zustand + Nuqs
 - AI: Google Gemini + LangChain + pgvector (RAG chatbot)
 - Infra: Docker Compose (PostgreSQL, Redis, ClamAV, MinIO)
 
 Modules đã hoàn thành (✅):
 1. Identity: Auth (JWT access+refresh), Users CRUD, Multi-role RBAC (UserRoleAssignment + Permissions)
-2. Apartments: Buildings, Apartments, Contracts (CRUD + terminate)
-3. Billing: Invoices, Meter Readings, Utility Types/Tiers (tiered pricing), BullMQ processor
-4. Incidents: CRUD, Comments, WebSocket Gateway (real-time updates)
-5. Stats: Dashboard analytics (4 charts, Redis-cached)
-6. AI Assistant: RAG chatbot (Gemini + pgvector + LangChain)
+2. Apartments: Buildings, Apartments (50+ fields), Contracts (CRUD + terminate)
+3. Payment Tracking: Contract Payment Schedules, Payments, Financial Summaries, Void Support (NEW)
+4. Billing: Invoices, Meter Readings, Utility Types/Tiers (tiered pricing), BullMQ processor
+5. Incidents: CRUD, Comments, WebSocket Gateway (real-time updates)
+6. Stats: Dashboard analytics (4 charts, Redis-cached)
+7. AI Assistant: RAG chatbot (Gemini + pgvector + LangChain)
 
 Frontend (✅):
-- 9 dashboard pages: dashboard, buildings, apartments, contracts, incidents, invoices, meter-readings, users
-- 25 Shadcn/UI components (button, input, select, dialog, sheet, table, etc.)
-- 14 custom hooks (use-auth, use-buildings, use-contracts, use-invoices, use-incidents, use-websocket, etc.)
+- 10 dashboard pages: dashboard, buildings, apartments, contracts, contracts/[id], incidents, invoices, meter-readings, users
+- 27 Shadcn/UI components (button, input, select, dialog, sheet, table, progress, etc.)
+- 15 custom hooks (use-auth, use-buildings, use-contracts, use-payments, use-invoices, use-incidents, use-websocket, etc.)
+- Payment tracking: PaymentScheduleTable, RecordPaymentDialog, ContractFinancialSummary
 - SVG floor plan viewer + builder (drag-drop, grid snapping)
 - 3D building viewer (Three.js với floor extrusion)
 - Framer Motion animations (page transitions, list animations)
 
 Database:
-- 20 models: users, buildings, apartments, contracts, invoices, meter_readings, incidents, documents, etc.
-- 10 enums: UserRole, ApartmentStatus, InvoiceStatus, IncidentStatus, UnitType, etc.
+- 25 models: users, buildings, apartments, contracts, contract_payment_schedules, contract_payments, invoices, meter_readings, incidents, documents, etc.
+- 18 enums: UserRole, ApartmentStatus, ContractType, PaymentType, PaymentStatus, PaymentMethod, InvoiceStatus, IncidentStatus, UnitType, etc.
 - pgvector extension for AI embeddings (768-dim for Gemini)
 
 Hãy đóng vai Senior Architect. Khi code luôn đảm bảo:
@@ -53,33 +55,35 @@ Tham khảo:
 **System Prompt (English):**
 
 ```
-I'm building Vully - an apartment management platform with 6 core modules fully implemented.
+I'm building Vully - an apartment management platform with 7 core modules fully implemented.
 
 Tech Stack:
 - Backend: NestJS 10 (Modular) + PostgreSQL 15 + Prisma ORM + Redis 7 + BullMQ + Socket.IO + Pino Logger
-- Frontend: Next.js 15 (App Router) + Shadcn/UI (25 components) + Framer Motion + TanStack Query + Zustand + Nuqs
+- Frontend: Next.js 15 (App Router) + Shadcn/UI (27 components) + Framer Motion + TanStack Query + Zustand + Nuqs
 - AI: Google Gemini + LangChain + pgvector (RAG chatbot)
 - Infrastructure: Docker Compose (PostgreSQL, Redis, ClamAV, MinIO)
 
 Completed Modules (✅):
 1. Identity: JWT auth (access+refresh tokens), Users CRUD, Multi-role RBAC (UserRoleAssignment + Permissions)
-2. Apartments: Buildings, Apartments, Contracts (CRUD + terminate)
-3. Billing: Invoices, Meter Readings, Utility Types/Tiers (tiered pricing), BullMQ processor
-4. Incidents: CRUD, Comments, WebSocket Gateway (real-time updates)
-5. Stats: Dashboard analytics (4 charts, Redis-cached)
-6. AI Assistant: RAG chatbot (Gemini + pgvector + LangChain)
+2. Apartments: Buildings, Apartments (50+ fields), Contracts (CRUD + terminate)
+3. Payment Tracking: Contract Payment Schedules, Payments, Financial Summaries, Void Support (NEW)
+4. Billing: Invoices, Meter Readings, Utility Types/Tiers (tiered pricing), BullMQ processor
+5. Incidents: CRUD, Comments, WebSocket Gateway (real-time updates)
+6. Stats: Dashboard analytics (4 charts, Redis-cached)
+7. AI Assistant: RAG chatbot (Gemini + pgvector + LangChain)
 
 Frontend (✅):
-- 9 dashboard pages: dashboard, buildings, apartments, contracts, incidents, invoices, meter-readings, users
-- 25 Shadcn/UI components (button, input, select, dialog, sheet, table, etc.)
-- 14 custom hooks (use-auth, use-buildings, use-contracts, use-invoices, use-incidents, use-websocket, etc.)
+- 10 dashboard pages: dashboard, buildings, apartments, contracts, contracts/[id], incidents, invoices, meter-readings, users
+- 27 Shadcn/UI components (button, input, select, dialog, sheet, table, progress, etc.)
+- 15 custom hooks (use-auth, use-buildings, use-contracts, use-payments, use-invoices, use-incidents, use-websocket, etc.)
+- Payment tracking: PaymentScheduleTable, RecordPaymentDialog, ContractFinancialSummary
 - SVG floor plan viewer + builder (drag-drop, grid snapping)
 - 3D building viewer (Three.js with floor extrusion)
 - Framer Motion animations (page transitions, list animations)
 
 Database:
-- 20 models: users, buildings, apartments, contracts, invoices, meter_readings, incidents, documents, etc.
-- 10 enums: UserRole, ApartmentStatus, InvoiceStatus, IncidentStatus, UnitType, etc.
+- 25 models: users, buildings, apartments, contracts, contract_payment_schedules, contract_payments, invoices, meter_readings, incidents, documents, etc.
+- 18 enums: UserRole, ApartmentStatus, ContractType, PaymentType, PaymentStatus, PaymentMethod, InvoiceStatus, IncidentStatus, UnitType, etc.
 - pgvector extension for AI embeddings (768-dim for Gemini)
 
 Act as a Senior Architect. W(@ApiTags, @ApiOperation, @ApiResponse) và class-validator cho DTOs.
@@ -155,4 +159,39 @@ Tham khảo: apps/web/src/hooks/use-invoices.ts
 - Room-based broadcasting (building/apartment/user)
 - Type-safe event payload
 - Frontend listener với auto-reconnect
+```
+
+---
+
+## Enterprise MVP Roadmap (Next Phase)
+
+Based on [Technical Execution & AI Automation Roadmap](../docs/Technical-Execution&AI-Automation-Roadmap.md), the following enterprise features are planned:
+
+### Phase 1: Fiduciary & Security Core (Priority 1 — Weeks 1-4)
+- **Multi-Tenant Architecture**: Organization model as SaaS tenant boundary, PostgreSQL Row-Level Security (RLS), X-Organization-ID header requirement
+- **Trust Accounting**: Separate financial accounts (operating/trust/maintenance), escrow ledger per contract, co-mingling prevention in journal entries
+- **Enhanced RBAC**: Organization-scoped roles (owner, portfolio_admin, building_admin, leasing_agent, accountant, viewer)
+
+### Phase 2: Compliance & Payments (Priority 2 — Weeks 5-8)
+- **Regional Compliance Engine**: US escrow laws (state-specific deadlines, interest requirements), Vietnamese 2% maintenance fund tracking
+- **Payment Gateway Integration**: Stripe adapter (cards/ACH), VNPay adapter, MoMo adapter, VietQR code generation for bank transfers
+- **Compliance Alerts**: Automated deadline tracking, multi-level escalation, acknowledgment workflow
+
+### Phase 3: Communications (Priority 3 — Weeks 9-11)
+- **Notification Hub**: Multi-channel delivery (email/SMS/push/in-app), Handlebars templates, user preference management
+
+### New Patterns to Use
+
+```typescript
+// Multi-tenant context injection
+await this.prisma.$executeRaw`SELECT set_config('app.organization_id', ${orgId}, true)`;
+
+// Trust accounting validation
+if (trustAccounts.includes(debitAccount) && operatingExpense.includes(creditAccount)) {
+  throw new BusinessRuleViolation('TRUST_FUND_COMINGLE');
+}
+
+// Payment gateway strategy
+const adapter = this.paymentGateway.getAdapter(provider); // stripe | vnpay | momo
+const intent = await adapter.createPaymentIntent({ amount, currency, metadata });
 ```

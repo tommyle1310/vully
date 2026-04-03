@@ -5,7 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Zap, Droplets, Flame, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 import {
   Apartment,
   CreateApartmentInput,
@@ -14,6 +15,7 @@ import {
   useUpdateApartment,
 } from '@/hooks/use-apartments';
 import { useBuildings } from '@/hooks/use-buildings';
+import { useUtilityTypes } from '@/hooks/use-billing';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,6 +47,8 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 
 const UNIT_TYPES = ['studio', 'one_bedroom', 'two_bedroom', 'three_bedroom', 'duplex', 'penthouse', 'shophouse'] as const;
 const ORIENTATIONS = ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest'] as const;
@@ -152,12 +156,15 @@ export function ApartmentFormDialog({
 }: ApartmentFormDialogProps) {
   const { toast } = useToast();
   const { data: buildingsData, isLoading: buildingsLoading } = useBuildings();
+  const { data: utilityTypesData } = useUtilityTypes();
   const createApartment = useCreateApartment();
   const updateApartment = useUpdateApartment();
 
   const isEditing = mode === 'edit';
   const isLoading = createApartment.isPending || updateApartment.isPending;
   const buildings = buildingsData?.data || [];
+  const utilityTypes = utilityTypesData?.data || [];
+  const activeUtilityTypes = utilityTypes.filter((ut) => ut.isActive);
 
   const form = useForm<ApartmentFormValues>({
     resolver: zodResolver(apartmentFormSchema),
@@ -945,18 +952,61 @@ export function ApartmentFormDialog({
 
                   {/* ===== UTILITY TAB ===== */}
                   <TabsContent value="utility" className="space-y-4 mt-0">
-                    <h4 className="text-sm font-semibold">Meters</h4>
+                    {/* Available Utility Types */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-semibold">Available Utility Types</h4>
+                        <Link href="/utility-types">
+                          <Button variant="ghost" size="sm" className="h-7 text-xs">
+                            Manage
+                            <ExternalLink className="ml-1 h-3 w-3" />
+                          </Button>
+                        </Link>
+                      </div>
+                      
+                      {activeUtilityTypes.length === 0 ? (
+                        <Alert>
+                          <Zap className="h-4 w-4" />
+                          <AlertDescription>
+                            No utility types configured.{' '}
+                            <Link href="/utility-types" className="underline font-medium">
+                              Create utility types
+                            </Link>{' '}
+                            to enable meter tracking.
+                          </AlertDescription>
+                        </Alert>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {activeUtilityTypes.map((ut) => {
+                            const Icon = ut.code === 'electric' ? Zap 
+                              : ut.code === 'water' ? Droplets 
+                              : ut.code === 'gas' ? Flame : Zap;
+                            return (
+                              <Badge key={ut.id} variant="secondary" className="flex items-center gap-1.5 py-1">
+                                <Icon className="h-3 w-3" />
+                                {ut.name} ({ut.unit})
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <Separator />
+                    <h4 className="text-sm font-semibold">Meter Assignments</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="electricMeterId"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Electric Meter ID</FormLabel>
+                            <FormLabel className="flex items-center gap-1.5">
+                              <Zap className="h-3.5 w-3.5 text-yellow-500" />
+                              Electric Meter ID
+                            </FormLabel>
                             <FormControl>
-                              <Input placeholder="EL-001234" {...field} disabled />
+                              <Input placeholder="EL-001234" {...field} />
                             </FormControl>
-                            <FormDescription>System-managed</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -966,11 +1016,13 @@ export function ApartmentFormDialog({
                         name="waterMeterId"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Water Meter ID</FormLabel>
+                            <FormLabel className="flex items-center gap-1.5">
+                              <Droplets className="h-3.5 w-3.5 text-blue-500" />
+                              Water Meter ID
+                            </FormLabel>
                             <FormControl>
-                              <Input placeholder="WA-001234" {...field} disabled />
+                              <Input placeholder="WA-001234" {...field} />
                             </FormControl>
-                            <FormDescription>System-managed</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -982,11 +1034,13 @@ export function ApartmentFormDialog({
                         name="gasMeterId"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Gas Meter ID</FormLabel>
+                            <FormLabel className="flex items-center gap-1.5">
+                              <Flame className="h-3.5 w-3.5 text-orange-500" />
+                              Gas Meter ID
+                            </FormLabel>
                             <FormControl>
-                              <Input placeholder="GA-001234" {...field} disabled />
+                              <Input placeholder="GA-001234" {...field} />
                             </FormControl>
-                            <FormDescription>System-managed</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -998,9 +1052,8 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Power Capacity (A)</FormLabel>
                             <FormControl>
-                              <Input type="number" min={0} placeholder="32" {...field} value={field.value ?? ''} disabled />
+                              <Input type="number" min={0} placeholder="32" {...field} value={field.value ?? ''} />
                             </FormControl>
-                            <FormDescription>Building default</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1017,9 +1070,8 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>AC Units</FormLabel>
                             <FormControl>
-                              <Input type="number" min={0} placeholder="3" {...field} value={field.value ?? ''} disabled />
+                              <Input type="number" min={0} placeholder="3" {...field} value={field.value ?? ''} />
                             </FormControl>
-                            <FormDescription>Building default</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1031,9 +1083,8 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Fire Detector ID</FormLabel>
                             <FormControl>
-                              <Input placeholder="FD-1205" {...field} disabled />
+                              <Input placeholder="FD-1205" {...field} />
                             </FormControl>
-                            <FormDescription>System-managed</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1047,9 +1098,8 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Sprinklers</FormLabel>
                             <FormControl>
-                              <Input type="number" min={0} placeholder="2" {...field} value={field.value ?? ''} disabled />
+                              <Input type="number" min={0} placeholder="2" {...field} value={field.value ?? ''} />
                             </FormControl>
-                            <FormDescription>Building default</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1059,11 +1109,10 @@ export function ApartmentFormDialog({
                         name="internetTerminalLoc"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Internet Terminal</FormLabel>
+                            <FormLabel>Internet Terminal Location</FormLabel>
                             <FormControl>
-                              <Input placeholder="Living room wall" {...field} disabled />
+                              <Input placeholder="Living room wall" {...field} />
                             </FormControl>
-                            <FormDescription>Building standard</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1080,9 +1129,8 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Car Slot</FormLabel>
                             <FormControl>
-                              <Input placeholder="B1-A-023" {...field} disabled />
+                              <Input placeholder="B1-A-023" {...field} />
                             </FormControl>
-                            <FormDescription>Managed by parking module</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1094,9 +1142,8 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Moto Slot</FormLabel>
                             <FormControl>
-                              <Input placeholder="B2-M-045" {...field} disabled />
+                              <Input placeholder="B2-M-045" {...field} />
                             </FormControl>
-                            <FormDescription>Managed by parking module</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1110,9 +1157,8 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Mailbox</FormLabel>
                             <FormControl>
-                              <Input placeholder="MB-1205" {...field} disabled />
+                              <Input placeholder="MB-1205" {...field} />
                             </FormControl>
-                            <FormDescription>Auto-assigned</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1124,9 +1170,8 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Storage Unit</FormLabel>
                             <FormControl>
-                              <Input placeholder="SU-023" {...field} disabled />
+                              <Input placeholder="SU-023" {...field} />
                             </FormControl>
-                            <FormDescription>Managed by storage module</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}

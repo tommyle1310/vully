@@ -651,22 +651,33 @@ export function ContractFormDialog({
   const onSubmit = async (values: ContractFormValues) => {
     try {
       if (mode === 'create') {
-        // Build input based on contract type
+        // Build input based on contract type - send actual field values
         const input: CreateContractInput = {
           apartmentId: values.apartmentId,
           tenantId: values.partyId, // API still uses tenantId
           start_date: values.startDate,
           endDate: values.endDate || undefined,
-          rentAmount: values.contractType === 'rental' 
-            ? (values.rentAmount || 0) 
-            : values.contractType === 'lease_to_own' 
-              ? (values.rentAmount || 0)
-              : 0,
+          // Base rental fields
+          rentAmount: values.contractType === 'rental' || values.contractType === 'lease_to_own'
+            ? (values.rentAmount || 0)
+            : 0,
           depositMonths: values.depositMonths,
           depositAmount: values.depositAmount,
           citizenId: values.citizenId || undefined,
           numberOfResidents: values.numberOfResidents,
           termsNotes: buildTermsNotes(values),
+          // Contract type specific fields
+          contractType: values.contractType,
+          paymentDueDay: values.paymentDueDay,
+          // Purchase fields
+          purchasePrice: values.contractType === 'purchase' ? values.purchasePrice : undefined,
+          downPayment: values.contractType === 'purchase' ? values.downPayment : undefined,
+          transferDate: values.contractType === 'purchase' ? values.transferDate : undefined,
+          // Lease-to-own fields
+          optionFee: values.contractType === 'lease_to_own' ? values.optionFee : undefined,
+          purchaseOptionPrice: values.contractType === 'lease_to_own' ? values.purchaseOptionPrice : undefined,
+          optionPeriodMonths: values.contractType === 'lease_to_own' ? values.optionPeriodMonths : undefined,
+          rentCreditPercent: values.contractType === 'lease_to_own' ? values.rentCreditPercent : undefined,
         };
         await createContract.mutateAsync(input);
         toast({

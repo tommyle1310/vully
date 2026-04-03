@@ -272,3 +272,19 @@ export class GenerateRentScheduleDto {
   @Max(28)
   paymentDueDay?: number;
 }
+
+export class GeneratePurchaseMilestonesDto {
+  @ApiPropertyOptional({ example: 3, description: 'Number of progress payments (default: 3)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  progressPaymentCount?: number;
+
+  @ApiPropertyOptional({ example: 30, description: 'Down payment percentage (default: 30%)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  downPaymentPercent?: number;
+}

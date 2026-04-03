@@ -41,13 +41,21 @@ Role: Senior Fullstack Engineer (NestJS & Next.js expert)
 
 **Implemented Modules (✅)**:
 - Identity: Auth (JWT access+refresh), Users, Multi-role RBAC (UserRoleAssignment + Permissions + RolePermission)
-- Apartments: Buildings (with SVG maps), Apartments, Contracts (CRUD + terminate)
+- Apartments: Buildings (with SVG maps), Apartments (50+ fields), Contracts (CRUD + terminate)
+- Payment Tracking: Contract Payment Schedules, Payments, Financial Summaries, Void Support (NEW)
 - Billing: Invoices, Meter Readings, Utility Types/Tiers (tiered pricing), BullMQ processor, Billing Jobs
 - Incidents: CRUD, Comments, WebSocket Gateway
 - Stats: Dashboard analytics (Redis-cached, 5-min TTL)
 - AI Assistant: RAG chatbot (Gemini + pgvector + LangChain), Documents, Document Chunks
 
 **Skeleton Modules (🚧)**: Accounting, Management Board (empty controllers, need implementation)
+
+**Planned Modules (📋)**:
+- Multi-Tenant: Organization, OrganizationMember, PostgreSQL RLS
+- Trust Accounting: FinancialAccount, EscrowLedger, EscrowTransaction
+- Regional Compliance: ComplianceRule, ComplianceAlert
+- Payment Gateway: PaymentIntent, PaymentWebhookLog (Stripe/VNPay/MoMo)
+- Communication Hub: NotificationTemplate, NotificationDelivery, UserNotificationPreference
 
 ### Frontend (Next.js)
 - Use **App Router** with Server Components by default
@@ -124,6 +132,12 @@ apps/
 ├── api/                    # NestJS Backend
 │   └── src/
 │       ├── modules/        # Feature modules
+│       │   ├── identity/       # Auth, Users, RBAC
+│       │   ├── apartments/     # Buildings, Apartments, Contracts, Payments
+│       │   ├── billing/        # Invoices, Meter Readings, Utility Types/Tiers
+│       │   ├── incidents/      # Incidents, Comments, WebSocket Gateway
+│       │   ├── stats/          # Dashboard analytics
+│       │   └── ai-assistant/   # RAG chatbot
 │       ├── common/         # Shared utilities
 │       ├── providers/      # External services
 │       ├── database/       # Prisma schema & migrations
@@ -131,8 +145,14 @@ apps/
 └── web/                    # Next.js Frontend
     └── src/
         ├── app/            # App Router pages
-        ├── components/     # UI components
-        ├── hooks/          # Custom hooks
+        │   └── (dashboard)/
+        │       └── contracts/[id]/  # Contract detail with payment schedule
+        ├── components/
+        │   ├── ui/             # Shadcn/UI (27 components)
+        │   ├── payments/       # PaymentScheduleTable, RecordPaymentDialog, etc.
+        │   ├── maps/           # SVG floor plan viewer + builder
+        │   └── 3d/             # Three.js building 3D viewer
+        ├── hooks/          # 15 custom hooks (including use-payments.ts)
         ├── stores/         # Zustand stores
         └── lib/            # Utilities
 
@@ -175,15 +195,44 @@ export function useInvoices(filters: InvoiceFilters) {
 }
 ```
 
+### Payment Tracking Pattern (NEW)
+```typescript
+// Payment schedule + recording pattern
+export function usePaymentSchedules(contractId: string) {
+  return useQuery({
+    queryKey: ['contracts', contractId, 'payment-schedules'],
+    queryFn: () => contractApi.getPaymentSchedules(contractId),
+  });
+}
+
+export function useRecordPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: RecordPaymentDto) => contractApi.recordPayment(data),
+    onSuccess: (_, variables) => {
+      // Invalidate both schedules and financial summary
+      queryClient.invalidateQueries({ queryKey: ['contracts', variables.contractId] });
+    },
+  });
+}
+
+export function useContractFinancialSummary(contractId: string) {
+  return useQuery({
+    queryKey: ['contracts', contractId, 'financial-summary'],
+    queryFn: () => contractApi.getFinancialSummary(contractId),
+  });
+}
+```
+
 ## RBAC Reference
 
-| Role       | Apartments | Invoices | Incidents | Users | AI Chatbot |
-|------------|------------|----------|-----------|-------|------------|
-| Admin      | CRUD       | CRUD     | CRUD      | CRUD  | Unlimited  |
-| Technician | Read       | Read     | Update*   | -     | 20/day     |
-| Resident   | Read*      | Read*    | Create*   | -     | 20/day     |
+| Role       | Apartments | Contracts | Payments | Invoices | Incidents | Users | AI Chatbot |
+|------------|------------|-----------|----------|----------|-----------|-------|------------|
+| Admin      | CRUD       | CRUD      | CRUD     | CRUD     | CRUD      | CRUD  | Unlimited  |
+| Technician | Read       | —         | —        | Read     | Update*   | —     | 20/day     |
+| Resident   | Read*      | Read*     | Read*    | Read*    | Create*   | —     | 20/day     |
 
-*Scoped to own resources only (tenant's apartment, own incidents, own invoices)
+*Scoped to own resources only (tenant's apartment, own incidents, own invoices, own payments)
 
 **Multi-Role Support**: Users can hold multiple roles via `UserRoleAssignment` table (e.g., a user can be both `resident` and `technician`). Permissions are union of all assigned roles.
 ## Specialized Agents

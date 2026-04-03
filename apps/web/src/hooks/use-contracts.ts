@@ -16,6 +16,16 @@ export interface Contract {
   citizenId?: string;
   numberOfResidents?: number;
   termsNotes?: string;
+  // Payment tracking fields
+  contractType?: 'rental' | 'purchase' | 'lease_to_own';
+  purchasePrice?: number;
+  downPayment?: number;
+  transferDate?: string;
+  optionFee?: number;
+  purchaseOptionPrice?: number;
+  optionPeriodMonths?: number;
+  rentCreditPercent?: number;
+  paymentDueDay?: number;
   created_at: string;
   updatedAt: string;
   apartment?: {
@@ -68,6 +78,16 @@ export interface CreateContractInput {
   citizenId?: string;
   numberOfResidents?: number;
   termsNotes?: string;
+  // Payment tracking fields
+  contractType?: 'rental' | 'purchase' | 'lease_to_own';
+  purchasePrice?: number;
+  downPayment?: number;
+  transferDate?: string;
+  optionFee?: number;
+  purchaseOptionPrice?: number;
+  optionPeriodMonths?: number;
+  rentCreditPercent?: number;
+  paymentDueDay?: number;
 }
 
 export interface UpdateContractInput {

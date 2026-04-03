@@ -138,10 +138,12 @@ model utility_tiers {
 4. **Data Validation**: Use Prisma constraints (@unique, @db.VarChar(length)) and PostgreSQL CHECK constraints
 5. **Migrations**: Create migration files with `prisma migrate dev --name <description>`, include raw SQL for complex changes
 6. **Query Optimization**: Use Prisma `select` to limit fields, `include` for eager loading, avoid N+1 queries
-7. **Multi-Tenant Patterns**: Scope data by building_id or user_id for tenant isolation
+7. **Multi-Tenant Patterns**: PostgreSQL Row-Level Security (RLS) with organization_id scoping; tenant context injection via session variables
 8. **Soft Deletes**: Use `is_active` or `deleted_at` fields instead of hard deletes for important records
 9. **Audit Trail**: Log sensitive operations to `audit_logs` table with old/new values
 10. **Vector Search**: Use pgvector extension for AI similarity search (cosine distance on embeddings)
+11. **Trust Accounting Schema**: FinancialAccount (operating/trust/maintenance), EscrowLedger per contract, EscrowTransaction for audit trail
+12. **Compliance Schema**: ComplianceRule (jurisdiction-specific), ComplianceAlert (deadline tracking), regional parameters in JSONB
 
 ## Prisma Workflow
 

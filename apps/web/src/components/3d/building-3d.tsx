@@ -11,22 +11,42 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ZoomIn, ZoomOut, RotateCcw, Maximize2, Minimize2 } from 'lucide-react';
 
+// Apartment status types
+export type ApartmentStatus = 'vacant' | 'occupied' | 'maintenance' | 'reserved';
+
+export interface ApartmentStatusInfo {
+  svgElementId: string; // SVG data-apartment-id attribute
+  floorIndex: number;   // Floor number (1-indexed)
+  status: ApartmentStatus;
+}
+
+// Status color mapping
+export const STATUS_COLORS: Record<ApartmentStatus, string> = {
+  vacant: '#eee',      // green-500
+  occupied: '#3b82f6',    // blue-500
+  maintenance: '#f59e0b', // amber-500
+  reserved: '#8b5cf6',    // violet-500
+};
+
 interface Building3DProps {
   svgContent: string;
   totalFloors: number;
   buildingName?: string;
   floorHeights?: Record<string, number>; // Per-floor heights
+  apartmentStatuses?: ApartmentStatusInfo[]; // NEW: Apartment status colors
   className?: string;
 }
 
 function Building3DScene({ 
   svgContent, 
   totalFloors, 
-  floorHeights 
+  floorHeights,
+  apartmentStatuses,
 }: { 
   svgContent: string; 
   totalFloors: number; 
   floorHeights?: Record<string, number>;
+  apartmentStatuses?: ApartmentStatusInfo[];
 }) {
   const floorData = useSVGto3D(svgContent);
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
@@ -168,6 +188,7 @@ function Building3DScene({
                 height={floorHeight}
                 baseHeight={baseHeight}
                 totalFloors={totalFloors}
+                apartmentStatuses={apartmentStatuses}
               />
               
               {/* Floor label */}
@@ -196,6 +217,7 @@ export function Building3D({
   totalFloors, 
   buildingName,
   floorHeights,
+  apartmentStatuses,
   className 
 }: Building3DProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -264,6 +286,7 @@ export function Building3D({
                 svgContent={svgContent}
                 totalFloors={totalFloors}
                 floorHeights={floorHeights}
+                apartmentStatuses={apartmentStatuses}
               />
             </Suspense>
           </Canvas>

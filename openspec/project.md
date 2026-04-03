@@ -79,6 +79,22 @@ Vully is an apartment management platform that enables property administrators t
 - **Redis**: Caching + BullMQ message broker
 - **PostgreSQL**: Primary database with pgvector extension
 
+## Planned Enterprise MVP Features
+
+Based on [Technical Execution & AI Automation Roadmap](../docs/Technical-Execution&AI-Automation-Roadmap.md):
+
+### Phase 1: Fiduciary & Security Core
+- **Multi-Tenant Architecture**: Organization model, PostgreSQL Row-Level Security (RLS), X-Organization-ID header
+- **Trust Accounting**: Financial accounts (operating/trust/maintenance), escrow ledger, co-mingling prevention
+- **Enhanced RBAC**: Organization-scoped roles
+
+### Phase 2: Compliance & Payments  
+- **Regional Compliance Engine**: US escrow laws, Vietnamese 2% maintenance fund
+- **Payment Gateway Integration**: Stripe, VNPay, MoMo, VietQR
+
+### Phase 3: Communications
+- **Notification Hub**: Multi-channel delivery, customizable templates
+
 ## Specialized Agents
 
 Domain-specific agents are available in `agents/` for focused tasks:

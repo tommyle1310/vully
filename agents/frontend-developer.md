@@ -36,11 +36,12 @@ You are a Next.js frontend developer specializing in Vully's apartment managemen
 - **Users (2)**: user management dialogs
 - **Common (4)**: auth-sync, protected-route, floating-chat-widget, user-profile-dropdown, web-vitals-tracker
 
-**Custom Hooks (14)**:
+**Custom Hooks (14+)**:
 - use-auth, use-buildings, use-apartments, use-contracts
 - use-invoices, use-meter-readings, use-billing, use-incidents
 - use-stats, use-ai-assistant, use-websocket
 - use-svg-to-3d, use-tour-guide, use-toast
+- (Upcoming) use-organizations, use-escrow, use-payment-intent, use-notification-preferences, use-compliance-alerts
 
 ## Architecture Patterns to Follow
 

@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { ExtrudeGeometry } from 'three';
+import { ApartmentStatusInfo, STATUS_COLORS } from './building-3d';
 
 interface FloorProps {
   shapes: THREE.Shape[];
@@ -16,9 +17,10 @@ interface FloorProps {
   height: number;
   baseHeight?: number;
   totalFloors: number;
+  apartmentStatuses?: ApartmentStatusInfo[];
 }
 
-export function Floor({ shapes, paths, floorIndex, height, baseHeight = 3.0, totalFloors }: FloorProps) {
+export function Floor({ shapes, paths, floorIndex, height, baseHeight = 3.0, totalFloors, apartmentStatuses }: FloorProps) {
   // Y position is cumulative height (already calculated by parent)
   const yPosition = 0; // Parent group handles positioning
 
@@ -27,6 +29,22 @@ export function Floor({ shapes, paths, floorIndex, height, baseHeight = 3.0, tot
     // Slight brightness variation per floor (0.9 to 1.1)
     return 0.95 + (floorIndex / totalFloors) * 0.1;
   }, [floorIndex, totalFloors]);
+
+  // Helper to get color based on apartment status (matches by svgElementId AND floorIndex)
+  const getApartmentColor = (apartmentId?: string, originalColor?: string): string => {
+    if (!apartmentId || !apartmentStatuses) {
+      return originalColor || '#9ca3af'; // Default gray
+    }
+    // floorIndex in Floor component is 0-indexed, but data is 1-indexed
+    const floorNum = floorIndex + 1;
+    const statusInfo = apartmentStatuses.find(
+      s => s.svgElementId === apartmentId && s.floorIndex === floorNum
+    );
+    if (statusInfo) {
+      return STATUS_COLORS[statusInfo.status] || originalColor || '#9ca3af';
+    }
+    return originalColor || '#9ca3af';
+  };
 
   // Memoize geometries to avoid recalculation on every render
   const geometries = useMemo(() => {
@@ -51,15 +69,20 @@ export function Floor({ shapes, paths, floorIndex, height, baseHeight = 3.0, tot
       // Create edges geometry for borders
       const edges = new THREE.EdgesGeometry(geometry, 15); // 15 degree threshold
       
+      // Determine color: use status-based color for apartments
+      const color = pathData.type === 'apartment' 
+        ? getApartmentColor(pathData.apartmentId, pathData.color)
+        : pathData.color;
+      
       return {
         geometry,
         edges,
-        color: pathData.color,
+        color,
         type: pathData.type,
         apartmentId: pathData.apartmentId,
       };
     });
-  }, [paths, height]);
+  }, [paths, height, apartmentStatuses]);
 
   return (
     <group position={[0, yPosition, 0]}>
