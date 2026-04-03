@@ -310,3 +310,87 @@ export const NotificationTypeSchema = z.enum([
   'announcement',
 ]);
 export type NotificationType = z.infer<typeof NotificationTypeSchema>;
+
+// ============================================================================
+// Payment Tracking
+// ============================================================================
+
+/**
+ * Contract type classification (rental, purchase, lease-to-own)
+ */
+export const ContractTypeSchema = z.enum([
+  'rental',
+  'purchase',
+  'lease_to_own',
+]);
+export type ContractType = z.infer<typeof ContractTypeSchema>;
+
+export const ContractType = {
+  rental: 'rental' as const,
+  purchase: 'purchase' as const,
+  lease_to_own: 'lease_to_own' as const,
+} as const;
+
+/**
+ * Payment category for schedule entries
+ */
+export const PaymentTypeSchema = z.enum([
+  'downpayment',
+  'installment',
+  'rent',
+  'deposit',
+  'option_fee',
+  'penalty',
+  'adjustment',
+]);
+export type PaymentType = z.infer<typeof PaymentTypeSchema>;
+
+export const PaymentType = {
+  downpayment: 'downpayment' as const,
+  installment: 'installment' as const,
+  rent: 'rent' as const,
+  deposit: 'deposit' as const,
+  option_fee: 'option_fee' as const,
+  penalty: 'penalty' as const,
+  adjustment: 'adjustment' as const,
+} as const;
+
+/**
+ * Payment schedule entry status
+ */
+export const PaymentStatusSchema = z.enum([
+  'pending',
+  'partial',
+  'paid',
+  'overdue',
+  'waived',
+]);
+export type PaymentStatus = z.infer<typeof PaymentStatusSchema>;
+
+export const PaymentStatus = {
+  pending: 'pending' as const,
+  partial: 'partial' as const,
+  paid: 'paid' as const,
+  overdue: 'overdue' as const,
+  waived: 'waived' as const,
+} as const;
+
+/**
+ * Payment method for recording transactions
+ */
+export const PaymentMethodSchema = z.enum([
+  'bank_transfer',
+  'cash',
+  'check',
+  'card',
+  'other',
+]);
+export type PaymentMethod = z.infer<typeof PaymentMethodSchema>;
+
+export const PaymentMethod = {
+  bank_transfer: 'bank_transfer' as const,
+  cash: 'cash' as const,
+  check: 'check' as const,
+  card: 'card' as const,
+  other: 'other' as const,
+} as const;

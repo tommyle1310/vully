@@ -168,10 +168,24 @@ model contracts {
   created_by                        String?        @db.Uuid
   created_at                        DateTime       @default(now()) @db.Timestamptz(6)
   updated_at                        DateTime       @db.Timestamptz(6)
+
+  // Payment tracking fields (new)
+  contract_type                     ContractType   @default(rental)
+  purchase_price                    Decimal?       @db.Decimal(15, 2)
+  down_payment                      Decimal?       @db.Decimal(15, 2)
+  transfer_date                     DateTime?      @db.Date
+  option_fee                        Decimal?       @db.Decimal(15, 2)
+  purchase_option_price             Decimal?       @db.Decimal(15, 2)
+  option_period_months              Int?
+  rent_credit_percent               Decimal?       @db.Decimal(5, 2)
+  payment_due_day                   Int?           // Day of month (1-28)
+
+  // Relations
   apartments                        apartments     @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
   users_contracts_created_byTousers users?         @relation("contracts_created_byTousers", fields: [created_by], references: [id])
   users_contracts_tenant_idTousers  users          @relation("contracts_tenant_idTousers", fields: [tenant_id], references: [id])
   invoices                          invoices[]
+  payment_schedules                 contract_payment_schedules[]
 
   @@index([apartment_id])
   @@index([status])
@@ -421,6 +435,7 @@ model users {
   password_reset_tokens                  password_reset_tokens[]
   refresh_tokens                         refresh_tokens[]
   user_role_assignments                  user_role_assignments[]
+  contract_payments                      contract_payments[]
 }
 
 model utility_tiers {
@@ -449,6 +464,66 @@ model utility_types {
   invoice_line_items invoice_line_items[]
   meter_readings     meter_readings[]
   utility_tiers      utility_tiers[]
+}
+
+// ============================================================================
+// Payment Tracking Models
+// ============================================================================
+
+model contract_payment_schedules {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contract_id     String        @db.Uuid
+
+  // Payment info
+  period_label    String        @db.VarChar(100)   // "Downpayment", "Rent Apr 2026", "Milestone: Foundation"
+  payment_type    PaymentType
+  sequence_number Int                              // Order for display
+
+  // Amounts
+  due_date        DateTime      @db.Date
+  expected_amount Decimal       @db.Decimal(15, 2)
+  received_amount Decimal       @default(0) @db.Decimal(15, 2)
+
+  // Status
+  status          PaymentStatus @default(pending)
+
+  // Metadata
+  notes           String?
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime      @db.Timestamptz(6)
+
+  // Relations
+  contracts       contracts     @relation(fields: [contract_id], references: [id], onDelete: Cascade)
+  payments        contract_payments[]
+
+  @@index([contract_id, due_date])
+  @@index([status])
+}
+
+model contract_payments {
+  id                String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  schedule_id       String                     @db.Uuid
+
+  // Payment details
+  amount            Decimal                    @db.Decimal(15, 2)
+  payment_date      DateTime                   @db.Date
+  payment_method    PaymentMethod?
+  reference_number  String?                    @db.VarChar(100)  // Bank transfer ref, receipt no.
+
+  // Who recorded it
+  recorded_by       String                     @db.Uuid
+  recorded_at       DateTime                   @default(now()) @db.Timestamptz(6)
+
+  // Evidence
+  receipt_url       String?
+  notes             String?
+
+  // Relations
+  schedule          contract_payment_schedules @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
+  users             users                      @relation(fields: [recorded_by], references: [id])
+
+  @@index([schedule_id])
+  @@index([recorded_by])
 }
 
 enum ApartmentStatus {
@@ -552,4 +627,40 @@ enum UserRole {
   admin
   technician
   resident
+}
+
+// ============================================================================
+// Payment Tracking Enums
+// ============================================================================
+
+enum ContractType {
+  rental
+  purchase
+  lease_to_own
+}
+
+enum PaymentType {
+  downpayment
+  installment
+  rent
+  deposit
+  option_fee
+  penalty
+  adjustment
+}
+
+enum PaymentStatus {
+  pending
+  partial
+  paid
+  overdue
+  waived
+}
+
+enum PaymentMethod {
+  bank_transfer
+  cash
+  check
+  card
+  other
 }

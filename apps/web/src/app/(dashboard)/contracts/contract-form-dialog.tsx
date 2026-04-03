@@ -367,14 +367,29 @@ function PartyCombobox({ value, onChange, disabled, partyLabel }: PartyComboboxP
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[400px] p-0" align="start">
+      <PopoverContent className="w-[400px] p-0" align="start" side="bottom" sideOffset={4}>
         <Command shouldFilter={false}>
           <CommandInput
             placeholder={`Search by name or email...`}
             value={search}
             onValueChange={setSearch}
           />
-          <CommandList>
+          {/* Create New Resident - Always at top */}
+          <div className="border-b px-2 py-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => {
+                setShowQuickCreate(true);
+                setOpen(false);
+              }}
+            >
+              <UserPlus className="mr-2 h-4 w-4" />
+              Create New Resident
+            </Button>
+          </div>
+          <CommandList className="max-h-[300px] overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -382,21 +397,13 @@ function PartyCombobox({ value, onChange, disabled, partyLabel }: PartyComboboxP
             ) : filteredUsers.length === 0 ? (
               <CommandEmpty>
                 <div className="text-center py-4">
-                  <p className="text-sm text-muted-foreground mb-2">
-                    No users found
+                  <p className="text-sm text-muted-foreground">
+                    No users found matching your search
                   </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowQuickCreate(true)}
-                  >
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Create New Resident
-                  </Button>
                 </div>
               </CommandEmpty>
             ) : (
-              <CommandGroup>
+              <CommandGroup heading="Select existing user">
                 {filteredUsers.slice(0, 50).map((user) => (
                   <CommandItem
                     key={user.id}
@@ -405,7 +412,7 @@ function PartyCombobox({ value, onChange, disabled, partyLabel }: PartyComboboxP
                       onChange(user.id);
                       setOpen(false);
                     }}
-                    className="flex items-center justify-between"
+                    className="flex items-center justify-between cursor-pointer"
                   >
                     <div className="flex flex-col">
                       <span>
@@ -438,19 +445,6 @@ function PartyCombobox({ value, onChange, disabled, partyLabel }: PartyComboboxP
                 )}
               </CommandGroup>
             )}
-            <CommandSeparator />
-            <CommandGroup>
-              <CommandItem
-                onSelect={() => {
-                  setShowQuickCreate(true);
-                  setOpen(false);
-                }}
-                className="justify-center text-primary"
-              >
-                <UserPlus className="mr-2 h-4 w-4" />
-                Create New Resident
-              </CommandItem>
-            </CommandGroup>
           </CommandList>
         </Command>
       </PopoverContent>
@@ -523,11 +517,81 @@ export function ContractFormDialog({
     return 'rental';
   };
 
+  // Helper to parse financial fields from termsNotes
+  const parseTermsNotesFields = (termsNotes?: string) => {
+    const fields: Partial<ContractFormValues> = {};
+    if (!termsNotes) return fields;
+
+    // Parse Vietnamese number format (1.000.000) or standard format
+    const parseVndAmount = (str: string): number | undefined => {
+      // Remove "VND" and spaces, then handle both 1.000.000 and 1000000 formats
+      const cleaned = str.replace(/\s*VND\s*/gi, '').trim();
+      // If it contains dots and no commas, it's likely Vietnamese format (thousand separators)
+      if (cleaned.includes('.') && !cleaned.includes(',')) {
+        const num = parseInt(cleaned.replace(/\./g, ''), 10);
+        return isNaN(num) ? undefined : num;
+      }
+      const num = parseInt(cleaned.replace(/,/g, ''), 10);
+      return isNaN(num) ? undefined : num;
+    };
+
+    // Purchase fields
+    const purchasePriceMatch = termsNotes.match(/Purchase Price:\s*([\d.,]+)\s*VND/i);
+    if (purchasePriceMatch) fields.purchasePrice = parseVndAmount(purchasePriceMatch[1]);
+
+    const downPaymentMatch = termsNotes.match(/Down Payment:\s*([\d.,]+)\s*VND/i);
+    if (downPaymentMatch) fields.downPayment = parseVndAmount(downPaymentMatch[1]);
+
+    const transferDateMatch = termsNotes.match(/Transfer Date:\s*(\d{4}-\d{2}-\d{2})/i);
+    if (transferDateMatch) fields.transferDate = transferDateMatch[1];
+
+    const paymentScheduleMatch = termsNotes.match(/Payment Schedule:\s*(.+?)(?:\n|$)/i);
+    if (paymentScheduleMatch) fields.paymentSchedule = paymentScheduleMatch[1].trim();
+
+    // Lease-to-own fields
+    const optionFeeMatch = termsNotes.match(/Option Fee:\s*([\d.,]+)\s*VND/i);
+    if (optionFeeMatch) fields.optionFee = parseVndAmount(optionFeeMatch[1]);
+
+    const purchaseOptionPriceMatch = termsNotes.match(/Purchase Option Price:\s*([\d.,]+)\s*VND/i);
+    if (purchaseOptionPriceMatch) fields.purchaseOptionPrice = parseVndAmount(purchaseOptionPriceMatch[1]);
+
+    const optionPeriodMatch = termsNotes.match(/Option Period:\s*(\d+)\s*months/i);
+    if (optionPeriodMatch) fields.optionPeriodMonths = parseInt(optionPeriodMatch[1], 10);
+
+    const rentCreditMatch = termsNotes.match(/Rent Credit:\s*(\d+)%/i);
+    if (rentCreditMatch) fields.rentCreditPercent = parseInt(rentCreditMatch[1], 10);
+
+    // Rental fields
+    const paymentDueDayMatch = termsNotes.match(/Payment Due:\s*Day\s*(\d+)/i);
+    if (paymentDueDayMatch) fields.paymentDueDay = parseInt(paymentDueDayMatch[1], 10);
+
+    return fields;
+  };
+
+  // Helper to strip metadata from termsNotes for display
+  const getCleanTermsNotes = (termsNotes?: string): string => {
+    if (!termsNotes) return '';
+    return termsNotes
+      .replace(/\[Contract Type: [^\]]+\]\n?/g, '')
+      .replace(/Purchase Price:\s*[\d.,]+\s*VND\n?/gi, '')
+      .replace(/Down Payment:\s*[\d.,]+\s*VND\n?/gi, '')
+      .replace(/Transfer Date:\s*\d{4}-\d{2}-\d{2}\n?/gi, '')
+      .replace(/Payment Schedule:\s*.+?(?:\n|$)/gi, '')
+      .replace(/Option Fee:\s*[\d.,]+\s*VND\n?/gi, '')
+      .replace(/Purchase Option Price:\s*[\d.,]+\s*VND\n?/gi, '')
+      .replace(/Option Period:\s*\d+\s*months\n?/gi, '')
+      .replace(/Rent Credit:\s*\d+%\n?/gi, '')
+      .replace(/Payment Due:\s*Day\s*\d+.*\n?/gi, '')
+      .replace(/^---\n?/gm, '')
+      .trim();
+  };
+
   useEffect(() => {
     if (open) {
       if (mode === 'edit' && contract) {
-        // Parse contract type from termsNotes
+        // Parse contract type and financial fields from termsNotes
         const detectedType = parseContractType(contract.termsNotes);
+        const parsedFields = parseTermsNotesFields(contract.termsNotes);
         form.reset({
           contractType: detectedType,
           apartmentId: contract.apartmentId,
@@ -541,10 +605,21 @@ export function ContractFormDialog({
           rentAmount: contract.rentAmount,
           depositMonths: contract.depositMonths,
           depositAmount: contract.depositAmount,
-          paymentDueDay: 5,
+          paymentDueDay: parsedFields.paymentDueDay ?? 5,
+          // Purchase fields
+          purchasePrice: parsedFields.purchasePrice,
+          downPayment: parsedFields.downPayment,
+          transferDate: parsedFields.transferDate ?? '',
+          paymentSchedule: parsedFields.paymentSchedule ?? '',
+          // Lease-to-own fields  
+          optionFee: parsedFields.optionFee,
+          optionPeriodMonths: parsedFields.optionPeriodMonths ?? 12,
+          purchaseOptionPrice: parsedFields.purchaseOptionPrice,
+          rentCreditPercent: parsedFields.rentCreditPercent ?? 25,
+          // Common fields
           citizenId: contract.citizenId || '',
           numberOfResidents: contract.numberOfResidents,
-          termsNotes: contract.termsNotes?.replace(/\[Contract Type: [^\]]+\]\n?/, '').replace(/^---\n/, '') || '',
+          termsNotes: getCleanTermsNotes(contract.termsNotes),
         });
       } else {
         form.reset({
@@ -648,46 +723,44 @@ export function ContractFormDialog({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Contract Type Selection */}
-            {mode === 'create' && (
-              <FormField
-                control={form.control}
-                name="contractType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contract Type</FormLabel>
-                    <div className="grid grid-cols-3 gap-3">
-                      {(Object.entries(CONTRACT_TYPES) as [ContractType, typeof CONTRACT_TYPES[ContractType]][]).map(
-                        ([type, config]) => {
-                          const Icon = config.icon;
-                          return (
-                            <button
-                              key={type}
-                              type="button"
-                              onClick={() => field.onChange(type)}
-                              className={cn(
-                                'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors',
-                                field.value === type
-                                  ? 'border-primary bg-primary/5'
-                                  : 'border-muted hover:border-muted-foreground/50',
-                              )}
-                            >
-                              <Icon className="h-6 w-6" />
-                              <div className="text-center">
-                                <p className="font-medium text-sm">{config.label}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {config.description}
-                                </p>
-                              </div>
-                            </button>
-                          );
-                        },
-                      )}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+            <FormField
+              control={form.control}
+              name="contractType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contract Type</FormLabel>
+                  <div className="grid grid-cols-3 gap-3">
+                    {(Object.entries(CONTRACT_TYPES) as [ContractType, typeof CONTRACT_TYPES[ContractType]][]).map(
+                      ([type, config]) => {
+                        const Icon = config.icon;
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => field.onChange(type)}
+                            className={cn(
+                              'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors',
+                              field.value === type
+                                ? 'border-primary bg-primary/5'
+                                : 'border-muted hover:border-muted-foreground/50',
+                            )}
+                          >
+                            <Icon className="h-6 w-6" />
+                            <div className="text-center">
+                              <p className="font-medium text-sm">{config.label}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {config.description}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      },
+                    )}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <Separator />
 

@@ -26,6 +26,12 @@ import {
   Layers,
   KeyRound,
   FileText,
+  Banknote,
+  Receipt,
+  TrendingUp,
+  Clock,
+  Home,
+  Key,
 } from 'lucide-react';
 import { Apartment, useUpdateApartmentStatus } from '@/hooks/use-apartments';
 import { useContracts } from '@/hooks/use-contracts';
@@ -107,15 +113,92 @@ const ORIENTATION_LABELS: Record<string, string> = {
   southwest: 'Southwest',
 };
 
+// Helper to provide clear billing cycle descriptions (for SERVICE FEES only)
+const BILLING_CYCLE_DESCRIPTIONS: Record<string, string> = {
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  yearly: 'Yearly',
+};
+
+function getBillingCycleDescription(cycle: string): string {
+  return BILLING_CYCLE_DESCRIPTIONS[cycle] || cycle.charAt(0).toUpperCase() + cycle.slice(1);
+}
+
+// Helper to parse contract type from termsNotes
+function getContractType(termsNotes?: string): 'rental' | 'purchase' | 'lease_to_own' {
+  if (!termsNotes) return 'rental';
+  if (termsNotes.includes('[Contract Type: Purchase]')) return 'purchase';
+  if (termsNotes.includes('[Contract Type: Lease to Own]')) return 'lease_to_own';
+  return 'rental';
+}
+
+// Helper to parse financial details from termsNotes
+interface ParsedContractDetails {
+  purchasePrice?: number;
+  downPayment?: number;
+  transferDate?: string;
+  paymentSchedule?: string;
+  optionFee?: number;
+  purchaseOptionPrice?: number;
+  optionPeriodMonths?: number;
+  rentCreditPercent?: number;
+  paymentDueDay?: number;
+}
+
+function parseContractDetails(termsNotes?: string): ParsedContractDetails {
+  const details: ParsedContractDetails = {};
+  if (!termsNotes) return details;
+
+  // Parse Vietnamese number format (1.000.000) or standard format
+  const parseVndAmount = (str: string): number | undefined => {
+    const cleaned = str.replace(/\s*VND\s*/gi, '').trim();
+    if (cleaned.includes('.') && !cleaned.includes(',')) {
+      const num = parseInt(cleaned.replace(/\./g, ''), 10);
+      return isNaN(num) ? undefined : num;
+    }
+    const num = parseInt(cleaned.replace(/,/g, ''), 10);
+    return isNaN(num) ? undefined : num;
+  };
+
+  const purchasePriceMatch = termsNotes.match(/Purchase Price:\s*([\d.,]+)\s*VND/i);
+  if (purchasePriceMatch) details.purchasePrice = parseVndAmount(purchasePriceMatch[1]);
+
+  const downPaymentMatch = termsNotes.match(/Down Payment:\s*([\d.,]+)\s*VND/i);
+  if (downPaymentMatch) details.downPayment = parseVndAmount(downPaymentMatch[1]);
+
+  const transferDateMatch = termsNotes.match(/Transfer Date:\s*(\d{4}-\d{2}-\d{2})/i);
+  if (transferDateMatch) details.transferDate = transferDateMatch[1];
+
+  const paymentScheduleMatch = termsNotes.match(/Payment Schedule:\s*(.+?)(?:\n|$)/i);
+  if (paymentScheduleMatch) details.paymentSchedule = paymentScheduleMatch[1].trim();
+
+  const optionFeeMatch = termsNotes.match(/Option Fee:\s*([\d.,]+)\s*VND/i);
+  if (optionFeeMatch) details.optionFee = parseVndAmount(optionFeeMatch[1]);
+
+  const purchaseOptionPriceMatch = termsNotes.match(/Purchase Option Price:\s*([\d.,]+)\s*VND/i);
+  if (purchaseOptionPriceMatch) details.purchaseOptionPrice = parseVndAmount(purchaseOptionPriceMatch[1]);
+
+  const optionPeriodMatch = termsNotes.match(/Option Period:\s*(\d+)\s*months/i);
+  if (optionPeriodMatch) details.optionPeriodMonths = parseInt(optionPeriodMatch[1], 10);
+
+  const rentCreditMatch = termsNotes.match(/Rent Credit:\s*(\d+)%/i);
+  if (rentCreditMatch) details.rentCreditPercent = parseInt(rentCreditMatch[1], 10);
+
+  const paymentDueDayMatch = termsNotes.match(/Payment Due:\s*Day\s*(\d+)/i);
+  if (paymentDueDayMatch) details.paymentDueDay = parseInt(paymentDueDayMatch[1], 10);
+
+  return details;
+}
+
 function DetailRow({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon?: React.ComponentType<{ className?: string }> }) {
   if (value == null || value === '' || value === false) return null;
   return (
-    <div className="flex items-center justify-between py-1.5">
-      <span className="text-sm text-muted-foreground flex items-center gap-2">
+    <div className="flex items-start justify-between py-1.5 gap-4">
+      <span className="text-sm text-muted-foreground flex items-center gap-2 shrink-0">
         {Icon && <Icon className="h-3.5 w-3.5" />}
         {label}
       </span>
-      <span className="text-sm font-medium text-right max-w-[60%] truncate">{value}</span>
+      <span className="text-sm font-medium text-right">{value}</span>
     </div>
   );
 }
@@ -194,13 +277,14 @@ export function ApartmentDetailSheet({
               <Badge variant={statusVariants[apartment.status] || 'default'} className="text-sm">
                 {apartment.status.charAt(0).toUpperCase() + apartment.status.slice(1).toLowerCase()}
               </Badge>
-              {apartment.isRented && (
+              {apartment.isRented && activeContract && (
                 <Badge variant="outline" className="text-sm">
-                  {activeContract?.termsNotes?.includes('[Contract Type: Purchase]')
-                    ? 'Purchased'
-                    : activeContract?.termsNotes?.includes('[Contract Type: Lease to Own]')
-                    ? 'Lease to Own'
-                    : 'Rented'}
+                  {(() => {
+                    const contractType = getContractType(activeContract.termsNotes);
+                    if (contractType === 'purchase') return 'Under Purchase';
+                    if (contractType === 'lease_to_own') return 'Lease to Own';
+                    return 'Rented';
+                  })()}
                 </Badge>
               )}
               {onEdit && (
@@ -280,94 +364,242 @@ export function ApartmentDetailSheet({
           </div>
 
           {/* Active Contract */}
-          {activeContract && (
-            <div className="space-y-1">
-              <SectionHeader title="Active Contract" />
-              <Card className="mt-2">
-                <CardContent className="p-4 space-y-2">
-                  {activeContract.termsNotes?.startsWith('[Contract Type:') && (
-                    <div className="flex justify-between">
+          {activeContract && (() => {
+            const contractType = getContractType(activeContract.termsNotes);
+            const details = parseContractDetails(activeContract.termsNotes);
+            const remainingBalance = details.purchasePrice && details.downPayment 
+              ? details.purchasePrice - details.downPayment 
+              : undefined;
+            const paidPercent = details.purchasePrice && details.downPayment
+              ? ((details.downPayment / details.purchasePrice) * 100).toFixed(1)
+              : undefined;
+
+            return (
+              <div className="space-y-1">
+                <SectionHeader title="Active Contract" />
+                <Card className="mt-2">
+                  <CardContent className="p-4 space-y-3">
+                    {/* Contract Type & Basic Info */}
+                    <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground flex items-center gap-2">
                         <FileText className="h-3.5 w-3.5" />
                         Type
                       </span>
-                      <span className="text-sm font-medium">
-                        {activeContract.termsNotes.match(/\[Contract Type: ([^\]]+)\]/)?.[1] ?? 'Rental'}
-                      </span>
+                      <Badge variant={contractType === 'purchase' ? 'default' : contractType === 'lease_to_own' ? 'secondary' : 'outline'}>
+                        {contractType === 'purchase' ? 'Purchase' : contractType === 'lease_to_own' ? 'Lease to Own' : 'Rental'}
+                      </Badge>
                     </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground flex items-center gap-2">
-                      <Calendar className="h-3.5 w-3.5" />
-                      Start
-                    </span>
-                    <span className="text-sm font-medium">
-                      {new Date(activeContract.start_date).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {activeContract.endDate && (
+                    
+                    {/* Dates */}
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground flex items-center gap-2">
                         <Calendar className="h-3.5 w-3.5" />
-                        End
+                        Contract Date
                       </span>
                       <span className="text-sm font-medium">
-                        {new Date(activeContract.endDate).toLocaleDateString()}
+                        {new Date(activeContract.start_date).toLocaleDateString()}
+                        {activeContract.endDate && ` - ${new Date(activeContract.endDate).toLocaleDateString()}`}
                       </span>
                     </div>
-                  )}
-                  {activeContract.rentAmount > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground flex items-center gap-2">
-                        <CreditCard className="h-3.5 w-3.5" />
-                        Monthly Rent
-                      </span>
-                      <span className="text-sm font-medium">
-                        {activeContract.rentAmount.toLocaleString()} VND
-                      </span>
-                    </div>
-                  )}
-                  {activeContract.depositAmount != null && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Deposit</span>
-                      <span className="text-sm font-medium">
-                        {activeContract.depositAmount.toLocaleString()} VND
-                      </span>
-                    </div>
-                  )}
-                  {activeContract.citizenId && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground flex items-center gap-2">
-                        <User className="h-3.5 w-3.5" />
-                        Citizen ID
-                      </span>
-                      <span className="text-sm font-medium font-mono">{activeContract.citizenId}</span>
-                    </div>
-                  )}
-                  {activeContract.numberOfResidents != null && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Users className="h-3.5 w-3.5" />
-                        Registered Residents
-                      </span>
-                      <span className="text-sm font-medium">{activeContract.numberOfResidents}</span>
-                    </div>
-                  )}
-                  {activeContract.tenant && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground flex items-center gap-2">
-                        <User className="h-3.5 w-3.5" />
-                        {activeContract.termsNotes?.includes('Purchase') ? 'Buyer' : 'Tenant'}
-                      </span>
-                      <span className="text-sm font-medium">
-                        {activeContract.tenant.firstName} {activeContract.tenant.lastName}
-                      </span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          )}
+
+                    {/* Party Info */}
+                    {activeContract.tenant && (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground flex items-center gap-2">
+                          <User className="h-3.5 w-3.5" />
+                          {contractType === 'purchase' ? 'Buyer' : contractType === 'lease_to_own' ? 'Lessee/Buyer' : 'Tenant'}
+                        </span>
+                        <span className="text-sm font-medium">
+                          {activeContract.tenant.firstName} {activeContract.tenant.lastName}
+                        </span>
+                      </div>
+                    )}
+
+                    {activeContract.citizenId && (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground flex items-center gap-2">
+                          <User className="h-3.5 w-3.5" />
+                          Citizen ID
+                        </span>
+                        <span className="text-sm font-medium font-mono">{activeContract.citizenId}</span>
+                      </div>
+                    )}
+
+                    {activeContract.numberOfResidents != null && (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Users className="h-3.5 w-3.5" />
+                          Registered Residents
+                        </span>
+                        <span className="text-sm font-medium">{activeContract.numberOfResidents}</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Purchase Contract Financial Info */}
+                {contractType === 'purchase' && details.purchasePrice && (
+                  <Card className="mt-2 border-primary/20 bg-primary/5">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                        <Banknote className="h-4 w-4" />
+                        Purchase Financial Summary
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Total Purchase Price</span>
+                        <span className="text-sm font-semibold">{details.purchasePrice.toLocaleString()} VND</span>
+                      </div>
+                      
+                      {details.downPayment && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Down Payment</span>
+                          <span className="text-sm font-medium text-green-600">
+                            {details.downPayment.toLocaleString()} VND
+                            {paidPercent && <span className="text-xs ml-1">({paidPercent}%)</span>}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {remainingBalance != null && remainingBalance > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Remaining Balance</span>
+                          <span className="text-sm font-medium text-orange-600">{remainingBalance.toLocaleString()} VND</span>
+                        </div>
+                      )}
+
+                      {details.transferDate && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground flex items-center gap-2">
+                            <Home className="h-3.5 w-3.5" />
+                            Ownership Transfer
+                          </span>
+                          <span className="text-sm font-medium">{details.transferDate}</span>
+                        </div>
+                      )}
+
+                      {details.paymentSchedule && (
+                        <div className="pt-2 border-t">
+                          <span className="text-xs text-muted-foreground">Payment Schedule:</span>
+                          <p className="text-sm mt-1">{details.paymentSchedule}</p>
+                        </div>
+                      )}
+
+                      {/* Note about payment tracking */}
+                      <div className="pt-2 border-t">
+                        <p className="text-xs text-muted-foreground italic">
+                          Note: Detailed payment milestones and tracking coming soon. 
+                          Purchase payments are typically milestone-based (not monthly).
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Rental Contract Financial Info */}
+                {contractType === 'rental' && activeContract.rentAmount > 0 && (
+                  <Card className="mt-2 border-blue-500/20 bg-blue-500/5">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-blue-600">
+                        <Key className="h-4 w-4" />
+                        Rental Payment Info
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Monthly Rent</span>
+                        <span className="text-sm font-semibold">{activeContract.rentAmount.toLocaleString()} VND/month</span>
+                      </div>
+
+                      {details.paymentDueDay && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground flex items-center gap-2">
+                            <Clock className="h-3.5 w-3.5" />
+                            Payment Due
+                          </span>
+                          <span className="text-sm font-medium">Day {details.paymentDueDay} of each month</span>
+                        </div>
+                      )}
+
+                      {activeContract.depositAmount != null && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Security Deposit</span>
+                          <span className="text-sm font-medium">{activeContract.depositAmount.toLocaleString()} VND</span>
+                        </div>
+                      )}
+
+                      {activeContract.depositMonths > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Deposit Months</span>
+                          <span className="text-sm font-medium">{activeContract.depositMonths} months</span>
+                        </div>
+                      )}
+
+                      {/* Note about payment tracking */}
+                      <div className="pt-2 border-t">
+                        <p className="text-xs text-muted-foreground italic">
+                          Note: Monthly payment tracking and history coming soon.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Lease-to-Own Contract Financial Info */}
+                {contractType === 'lease_to_own' && (
+                  <Card className="mt-2 border-purple-500/20 bg-purple-500/5">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-purple-600">
+                        <TrendingUp className="h-4 w-4" />
+                        Lease-to-Own Terms
+                      </div>
+
+                      {activeContract.rentAmount > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Monthly Rent</span>
+                          <span className="text-sm font-semibold">{activeContract.rentAmount.toLocaleString()} VND/month</span>
+                        </div>
+                      )}
+
+                      {details.optionFee && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Option Fee (non-refundable)</span>
+                          <span className="text-sm font-medium">{details.optionFee.toLocaleString()} VND</span>
+                        </div>
+                      )}
+
+                      {details.purchaseOptionPrice && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Purchase Option Price</span>
+                          <span className="text-sm font-semibold">{details.purchaseOptionPrice.toLocaleString()} VND</span>
+                        </div>
+                      )}
+
+                      {details.optionPeriodMonths && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Option Period</span>
+                          <span className="text-sm font-medium">{details.optionPeriodMonths} months</span>
+                        </div>
+                      )}
+
+                      {details.rentCreditPercent && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Rent Credit toward Purchase</span>
+                          <span className="text-sm font-medium text-green-600">{details.rentCreditPercent}%</span>
+                        </div>
+                      )}
+
+                      {activeContract.depositAmount != null && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Security Deposit</span>
+                          <span className="text-sm font-medium">{activeContract.depositAmount.toLocaleString()} VND</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Spatial Details */}
           <div className="space-y-1">
@@ -424,12 +656,19 @@ export function ApartmentDetailSheet({
             </div>
           )}
 
-          {/* Billing Config */}
+          {/* Service Fees (Recurring) */}
           <div className="space-y-1">
-            <SectionHeader title="Billing" />
-            <DetailRow label="Billing Cycle" value={apartment.billingCycle ? apartment.billingCycle.charAt(0).toUpperCase() + apartment.billingCycle.slice(1) : null} icon={CreditCard} />
-            <DetailRow label="Billing Start" value={apartment.billingStartDate} icon={Calendar} />
-            <DetailRow label="Virtual Account" value={apartment.bankAccountVirtual} />
+            <SectionHeader title="Service Fees (Recurring)" />
+            <p className="text-xs text-muted-foreground mb-2">
+              Management fees, parking, utilities billed separately from rent/purchase payments
+            </p>
+            <DetailRow 
+              label="Billing Cycle" 
+              value={apartment.billingCycle ? getBillingCycleDescription(apartment.billingCycle) : null} 
+              icon={Receipt} 
+            />
+            <DetailRow label="Billing Start Date" value={apartment.billingStartDate} icon={Calendar} />
+            <DetailRow label="Virtual Bank Account" value={apartment.bankAccountVirtual} />
             <DetailRow label="Late Fee Waived" value={apartment.lateFeeWaived ? 'Yes' : null} />
           </div>
 

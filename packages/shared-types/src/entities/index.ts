@@ -17,6 +17,11 @@ import {
   OrientationSchema,
   BillingCycleSchema,
   SyncStatusSchema,
+  // Payment tracking enums
+  ContractTypeSchema,
+  PaymentTypeSchema,
+  PaymentStatusSchema,
+  PaymentMethodSchema,
 } from '../enums';
 
 // =============================================================================
@@ -217,6 +222,17 @@ export const ContractSchema = z.object({
   depositAmount: z.number().nonnegative().optional(),
   termsNotes: z.string().optional(),
   createdBy: UUIDSchema.optional(),
+  // Payment tracking fields
+  contractType: ContractTypeSchema.optional().default('rental'),
+  purchasePrice: z.number().nonnegative().optional(),
+  downPayment: z.number().nonnegative().optional(),
+  transferDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  optionFee: z.number().nonnegative().optional(),
+  purchaseOptionPrice: z.number().nonnegative().optional(),
+  optionPeriodMonths: z.number().int().positive().optional(),
+  rentCreditPercent: z.number().min(0).max(100).optional(),
+  paymentDueDay: z.number().int().min(1).max(28).optional(),
+  // Timestamps
   created_at: TimestampSchema,
   updatedAt: TimestampSchema,
 });
@@ -230,6 +246,16 @@ export const CreateContractSchema = z.object({
   rentAmount: z.number().positive(),
   depositMonths: z.number().int().nonnegative().optional().default(2),
   termsNotes: z.string().optional(),
+  // Payment tracking fields
+  contractType: ContractTypeSchema.optional().default('rental'),
+  purchasePrice: z.number().nonnegative().optional(),
+  downPayment: z.number().nonnegative().optional(),
+  transferDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  optionFee: z.number().nonnegative().optional(),
+  purchaseOptionPrice: z.number().nonnegative().optional(),
+  optionPeriodMonths: z.number().int().positive().optional(),
+  rentCreditPercent: z.number().min(0).max(100).optional(),
+  paymentDueDay: z.number().int().min(1).max(28).optional(),
 });
 export type CreateContractInput = z.infer<typeof CreateContractSchema>;
 
@@ -327,3 +353,84 @@ export const UpdateIncidentSchema = z.object({
   resolutionNotes: z.string().optional(),
 });
 export type UpdateIncidentInput = z.infer<typeof UpdateIncidentSchema>;
+
+// =============================================================================
+// Payment Schedule Entity
+// =============================================================================
+
+export const PaymentScheduleSchema = z.object({
+  id: UUIDSchema,
+  contractId: UUIDSchema,
+  periodLabel: z.string().min(1).max(100),
+  paymentType: PaymentTypeSchema,
+  sequenceNumber: z.number().int().positive(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  expectedAmount: z.number().nonnegative(),
+  receivedAmount: z.number().nonnegative(),
+  status: PaymentStatusSchema,
+  notes: z.string().optional(),
+  created_at: TimestampSchema,
+  updatedAt: TimestampSchema,
+});
+export type PaymentSchedule = z.infer<typeof PaymentScheduleSchema>;
+
+export const CreatePaymentScheduleSchema = z.object({
+  periodLabel: z.string().min(1).max(100),
+  paymentType: PaymentTypeSchema,
+  sequenceNumber: z.number().int().positive(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  expectedAmount: z.number().nonnegative(),
+  notes: z.string().optional(),
+});
+export type CreatePaymentScheduleInput = z.infer<typeof CreatePaymentScheduleSchema>;
+
+export const UpdatePaymentScheduleSchema = z.object({
+  periodLabel: z.string().min(1).max(100).optional(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  expectedAmount: z.number().nonnegative().optional(),
+  status: PaymentStatusSchema.optional(),
+  notes: z.string().optional(),
+});
+export type UpdatePaymentScheduleInput = z.infer<typeof UpdatePaymentScheduleSchema>;
+
+// =============================================================================
+// Payment Transaction Entity
+// =============================================================================
+
+export const PaymentSchema = z.object({
+  id: UUIDSchema,
+  scheduleId: UUIDSchema,
+  amount: z.number().positive(),
+  paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  paymentMethod: PaymentMethodSchema.optional(),
+  referenceNumber: z.string().max(100).optional(),
+  recordedBy: UUIDSchema,
+  recordedAt: TimestampSchema,
+  receiptUrl: z.string().url().optional(),
+  notes: z.string().optional(),
+});
+export type Payment = z.infer<typeof PaymentSchema>;
+
+export const RecordPaymentSchema = z.object({
+  amount: z.number().positive(),
+  paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  paymentMethod: PaymentMethodSchema.optional(),
+  referenceNumber: z.string().max(100).optional(),
+  receiptUrl: z.string().url().optional(),
+  notes: z.string().optional(),
+});
+export type RecordPaymentInput = z.infer<typeof RecordPaymentSchema>;
+
+// =============================================================================
+// Contract Financial Summary
+// =============================================================================
+
+export const ContractFinancialSummarySchema = z.object({
+  totalContractValue: z.number().nonnegative(),
+  totalPaid: z.number().nonnegative(),
+  paidPercent: z.number().nonnegative(),
+  outstanding: z.number().nonnegative(),
+  remainingBalance: z.number().nonnegative(),
+  nextDue: PaymentScheduleSchema.optional(),
+});
+export type ContractFinancialSummary = z.infer<typeof ContractFinancialSummarySchema>;

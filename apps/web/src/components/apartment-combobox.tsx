@@ -124,7 +124,7 @@ export function ApartmentCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[420px] p-0" align="start">
+      <PopoverContent className="w-[420px] p-0" align="start" side="bottom" sideOffset={4}>
         {/* ── Building filter ── */}
         <div className="border-b p-2">
           <Command className="border-none shadow-none">
@@ -133,12 +133,13 @@ export function ApartmentCombobox({
               value={buildingSearch}
               onValueChange={setBuildingSearch}
             />
-            <CommandList className="max-h-[110px]">
+            <CommandList className="max-h-[120px] overflow-y-auto">
               <CommandEmpty>No buildings found.</CommandEmpty>
               <CommandGroup>
                 <CommandItem
                   value="__all__"
                   onSelect={() => setSelectedBuildingId(undefined)}
+                  className="cursor-pointer"
                 >
                   <Check
                     className={cn(
@@ -153,6 +154,7 @@ export function ApartmentCombobox({
                     key={b.id}
                     value={b.id}
                     onSelect={() => setSelectedBuildingId(b.id)}
+                    className="cursor-pointer"
                   >
                     <Check
                       className={cn(
@@ -181,7 +183,7 @@ export function ApartmentCombobox({
             value={aptSearch}
             onValueChange={setAptSearch}
           />
-          <CommandList>
+          <CommandList className="max-h-[280px] overflow-y-auto">
             <CommandEmpty>
               {loadingApts ? 'Loading apartments…' : 'No apartments found.'}
             </CommandEmpty>
@@ -196,6 +198,7 @@ export function ApartmentCombobox({
                     onChange(apt.id);
                     setOpen(false);
                   }}
+                  className="cursor-pointer"
                 >
                   <Check
                     className={cn(

@@ -65,6 +65,16 @@ export class ContractsService {
           number_of_residents: dto.numberOfResidents ?? null,
           terms_notes: dto.termsNotes,
           created_by: createdById,
+          // Payment tracking fields
+          contract_type: dto.contractType || 'rental',
+          purchase_price: dto.purchasePrice,
+          down_payment: dto.downPayment,
+          transfer_date: dto.transferDate ? new Date(dto.transferDate) : null,
+          option_fee: dto.optionFee,
+          purchase_option_price: dto.purchaseOptionPrice,
+          option_period_months: dto.optionPeriodMonths,
+          rent_credit_percent: dto.rentCreditPercent,
+          payment_due_day: dto.paymentDueDay,
           updated_at: new Date(),
         },
         include: {
@@ -309,6 +319,15 @@ export class ContractsService {
     citizen_id?: string | null;
     number_of_residents?: number | null;
     terms_notes: string | null;
+    contract_type?: string;
+    purchase_price?: unknown;
+    down_payment?: unknown;
+    transfer_date?: Date | null;
+    option_fee?: unknown;
+    purchase_option_price?: unknown;
+    option_period_months?: number | null;
+    rent_credit_percent?: unknown;
+    payment_due_day?: number | null;
     created_at: Date;
     updated_at: Date;
     apartments?: {
@@ -338,6 +357,17 @@ export class ContractsService {
       citizenId: contracts.citizen_id || undefined,
       numberOfResidents: contracts.number_of_residents ?? undefined,
       termsNotes: contracts.terms_notes || undefined,
+      // Payment tracking fields
+      contractType: contracts.contract_type as ContractResponseDto['contractType'],
+      purchasePrice: contracts.purchase_price ? Number(contracts.purchase_price) : undefined,
+      downPayment: contracts.down_payment ? Number(contracts.down_payment) : undefined,
+      transferDate: contracts.transfer_date || undefined,
+      optionFee: contracts.option_fee ? Number(contracts.option_fee) : undefined,
+      purchaseOptionPrice: contracts.purchase_option_price ? Number(contracts.purchase_option_price) : undefined,
+      optionPeriodMonths: contracts.option_period_months ?? undefined,
+      rentCreditPercent: contracts.rent_credit_percent ? Number(contracts.rent_credit_percent) : undefined,
+      paymentDueDay: contracts.payment_due_day ?? undefined,
+      // Timestamps
       created_at: contracts.created_at,
       updatedAt: contracts.updated_at,
       apartment: contracts.apartments ? {
