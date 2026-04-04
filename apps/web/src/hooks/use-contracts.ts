@@ -173,3 +173,51 @@ export function useTerminateContract() {
     },
   });
 }
+
+// =============================================================================
+// MY CONTRACTS (for residents/current user)
+// =============================================================================
+
+interface MyContractsResponse {
+  data: Contract[];
+  meta: { total: number };
+}
+
+/**
+ * Get contracts for the current user (as a tenant)
+ * Used by residents to view their own contracts
+ */
+export function useMyContracts(filters?: { status?: string }) {
+  const queryString = new URLSearchParams();
+  if (filters?.status) queryString.set('status', filters.status);
+
+  const endpoint = `/contracts/my${queryString.toString() ? `?${queryString}` : ''}`;
+
+  return useQuery({
+    queryKey: ['contracts', 'my', filters],
+    queryFn: () => apiClient.get<MyContractsResponse>(endpoint),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+interface MyApartmentResponse {
+  data: {
+    apartmentId: string;
+    apartmentUnitNumber: string;
+    buildingId: string;
+    buildingName: string;
+    contractId: string;
+  } | null;
+}
+
+/**
+ * Get the current user's active apartment based on their active contract
+ * Returns null if no active contract exists
+ */
+export function useMyApartment() {
+  return useQuery({
+    queryKey: ['contracts', 'my', 'apartment'],
+    queryFn: () => apiClient.get<MyApartmentResponse>('/contracts/my/apartment'),
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes since this rarely changes
+  });
+}

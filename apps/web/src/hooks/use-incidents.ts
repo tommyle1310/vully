@@ -7,6 +7,7 @@ import {
   WS_EVENTS,
   WS_ROOMS,
   IncidentEventPayload,
+  IncidentCommentEventPayload,
 } from '@vully/shared-types';
 import { useWebSocketEvent, useWebSocket } from './use-websocket';
 import { useToast } from './use-toast';
@@ -514,6 +515,69 @@ export function useIncidentRealTime(options: UseIncidentRealTimeOptions = {}) {
       }
     },
     [showToasts]
+  );
+
+  return {
+    connected,
+  };
+}
+
+// =============================================================================
+// INCIDENT DETAIL REAL-TIME (for comments)
+// =============================================================================
+
+interface UseIncidentDetailRealTimeOptions {
+  incidentId: string;
+  showToasts?: boolean;
+}
+
+/**
+ * Hook to enable real-time comment updates for a specific incident
+ * Joins the incident-specific room and listens for comment events
+ */
+export function useIncidentDetailRealTime(options: UseIncidentDetailRealTimeOptions) {
+  const { incidentId, showToasts = true } = options;
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { user } = useAuthStore();
+  const { joinRoom, leaveRoom, connected } = useWebSocket();
+
+  // Join the incident room when connected
+  useEffect(() => {
+    if (!connected || !incidentId) return;
+
+    const room = WS_ROOMS.incidents(incidentId);
+    joinRoom(room);
+
+    return () => {
+      leaveRoom(room);
+    };
+  }, [connected, incidentId, joinRoom, leaveRoom]);
+
+  // Listen for comment:created events
+  useWebSocketEvent<IncidentCommentEventPayload>(
+    WS_EVENTS.INCIDENT_COMMENT_CREATED,
+    (payload) => {
+      console.log('[Incidents] New comment created:', payload);
+
+      // Only process comments for this incident
+      if (payload.incidentId !== incidentId) return;
+
+      // Invalidate comments query to refetch
+      queryClient.invalidateQueries({
+        queryKey: incidentKeys.comments(incidentId),
+      });
+
+      // Show toast notification if it's from another user
+      if (showToasts && user?.id !== payload.authorId) {
+        toast({
+          title: '💬 New Comment',
+          description: `${payload.authorName}: ${payload.content.slice(0, 50)}${payload.content.length > 50 ? '...' : ''}`,
+          duration: 4000,
+        });
+      }
+    },
+    [incidentId, showToasts, user?.id]
   );
 
   return {

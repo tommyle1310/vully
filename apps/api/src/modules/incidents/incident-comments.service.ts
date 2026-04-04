@@ -3,20 +3,28 @@ import {
   NotFoundException,
   ForbiddenException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { WS_EVENTS, WS_ROOMS, IncidentCommentEventPayload } from '@vully/shared-types';
 import {
   CreateIncidentCommentDto,
   UpdateIncidentCommentDto,
   IncidentCommentResponseDto,
 } from './dto';
+import { IncidentsGateway } from './incidents.gateway';
 
 @Injectable()
 export class IncidentCommentsService {
   private readonly logger = new Logger(IncidentCommentsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => IncidentsGateway))
+    private readonly incidentsGateway: IncidentsGateway,
+  ) {}
 
   async create(
     incidentId: string,
@@ -69,6 +77,38 @@ export class IncidentCommentsService {
       incidentId,
       commentId: comment.id,
       isInternal,
+    });
+
+    // Emit WebSocket event for real-time updates
+    const commentPayload: IncidentCommentEventPayload = {
+      commentId: comment.id,
+      incidentId,
+      authorId: actorId,
+      authorName: comment.users
+        ? `${comment.users.first_name} ${comment.users.last_name}`
+        : 'Unknown',
+      content: comment.content,
+      isInternal: isInternal ?? false,
+      created_at: comment.created_at.toISOString(),
+    };
+
+    // Emit to the incident room - users viewing this incident will receive the update
+    this.incidentsGateway.server
+      .to(WS_ROOMS.incidents(incidentId))
+      .emit(WS_EVENTS.INCIDENT_COMMENT_CREATED, commentPayload);
+
+    // Also emit to the apartment room for broader visibility
+    if (incident.apartment_id) {
+      this.incidentsGateway.server
+        .to(WS_ROOMS.apartments(incident.apartment_id))
+        .emit(WS_EVENTS.INCIDENT_COMMENT_CREATED, commentPayload);
+    }
+
+    this.logger.log({
+      event: 'ws_comment_emitted',
+      incidentId,
+      commentId: comment.id,
+      rooms: [WS_ROOMS.incidents(incidentId), incident.apartment_id ? WS_ROOMS.apartments(incident.apartment_id) : null].filter(Boolean),
     });
 
     return this.toResponseDto(comment);

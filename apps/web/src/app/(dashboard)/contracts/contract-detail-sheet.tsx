@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Contract, useTerminateContract } from '@/hooks/use-contracts';
 import { useContractFinancialSummary } from '@/hooks/use-payments';
+import { useAuthStore } from '@/stores/authStore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -169,6 +170,8 @@ export function ContractDetailSheet({
   onEdit,
 }: ContractDetailSheetProps) {
   const { toast } = useToast();
+  const { hasAnyRole } = useAuthStore();
+  const isAdmin = hasAnyRole(['admin']);
   const terminateContract = useTerminateContract();
   const [terminateOpen, setTerminateOpen] = useState(false);
   const [terminateDate, setTerminateDate] = useState('');
@@ -231,30 +234,24 @@ export function ContractDetailSheet({
                 {contract.status.charAt(0).toUpperCase() + contract.status.slice(1)}
               </Badge>
               <div className="flex gap-2">
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/contracts/${contract.id}`}>
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    View Details
+                  </Link>
+                </Button>
                 {onEdit && (
                   <Button
                     variant="outline"
                     size="sm"
+                    disabled={!isAdmin}
                     onClick={() => onEdit(contract)}
                   >
                     <Pencil className="h-4 w-4 mr-1" />
                     Edit
                   </Button>
                 )}
-                {contract.status === 'active' && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => {
-                      setTerminateDate(new Date().toISOString().split('T')[0]);
-                      setTerminateReason('');
-                      setTerminateOpen(true);
-                    }}
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Terminate
-                  </Button>
-                )}
+              
               </div>
             </div>
 
@@ -382,6 +379,22 @@ export function ContractDetailSheet({
               <p>Created: {new Date(contract.created_at).toLocaleString()}</p>
               <p>Updated: {new Date(contract.updatedAt).toLocaleString()}</p>
             </div>
+              {contract.status === 'active' && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className='w-full'
+                    disabled={!isAdmin}
+                    onClick={() => {
+                      setTerminateDate(new Date().toISOString().split('T')[0]);
+                      setTerminateReason('');
+                      setTerminateOpen(true);
+                    }}
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Terminate
+                  </Button>
+                )}
           </motion.div>
         </SheetContent>
       </Sheet>

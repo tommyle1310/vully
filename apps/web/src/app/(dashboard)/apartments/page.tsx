@@ -14,7 +14,9 @@ import {
 } from '@tanstack/react-table';
 import { Building, Search, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { parseAsString, parseAsArrayOf, parseAsInteger, useQueryStates } from 'nuqs';
-import { useApartments, Apartment } from '@/hooks/use-apartments';
+import { useAuthStore } from '@/stores/authStore';
+import { useMyApartment, useMyContracts } from '@/hooks/use-contracts';
+import { useApartments, useApartment, Apartment } from '@/hooks/use-apartments';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -108,6 +110,16 @@ function TableSkeleton() {
 }
 
 export default function ApartmentsPage() {
+  const { hasAnyRole } = useAuthStore();
+  const isAdmin = hasAnyRole(['admin', 'technician']);
+  const { data: myApartmentData } = useMyApartment();
+  const { data: myContractsData } = useMyContracts();
+  const myApartment = myApartmentData?.data;
+  
+  // Fallback: If useMyApartment doesn't return data, try to get apartment from active contract
+  const activeContract = myContractsData?.data?.find((c) => c.status === 'active');
+  const residentApartmentId = myApartment?.apartmentId || activeContract?.apartment?.id;
+  
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
@@ -165,19 +177,30 @@ export default function ApartmentsPage() {
     setSelectedApartment(null); // Close the detail sheet
   };
 
-  const { data, isLoading, error } = useApartments({
-    buildingId: urlFilters.buildingId || undefined,
-    status: urlFilters.status.length > 0 ? urlFilters.status : undefined,
-    unitType: urlFilters.unitType.length > 0 ? urlFilters.unitType : undefined,
-    minBedrooms: urlFilters.minBedrooms || undefined,
-    maxBedrooms: urlFilters.maxBedrooms || undefined,
-    minFloor: urlFilters.minFloor || undefined,
-    maxFloor: urlFilters.maxFloor || undefined,
-    page: urlFilters.page,
-    limit: urlFilters.limit,
+  // For admin: fetch paginated apartments with filters
+  // For resident: fetch their specific apartment by ID
+  const { data, isLoading: isLoadingAllApartments, error } = useApartments({
+    buildingId: isAdmin ? (urlFilters.buildingId || undefined) : undefined,
+    status: isAdmin && urlFilters.status.length > 0 ? urlFilters.status : undefined,
+    unitType: isAdmin && urlFilters.unitType.length > 0 ? urlFilters.unitType : undefined,
+    minBedrooms: isAdmin ? (urlFilters.minBedrooms || undefined) : undefined,
+    maxBedrooms: isAdmin ? (urlFilters.maxBedrooms || undefined) : undefined,
+    minFloor: isAdmin ? (urlFilters.minFloor || undefined) : undefined,
+    maxFloor: isAdmin ? (urlFilters.maxFloor || undefined) : undefined,
+    page: isAdmin ? urlFilters.page : 1,
+    limit: isAdmin ? urlFilters.limit : 1,
   });
+  
+  const { data: residentApartmentData, isLoading: isLoadingResidentApartment } = useApartment(
+    !isAdmin && residentApartmentId ? residentApartmentId : ''
+  );
+  
+  // Combine results
+  const apartments = isAdmin 
+    ? (data?.data || []) 
+    : (residentApartmentData?.data ? [residentApartmentData.data] : []);
+  const isLoading = isAdmin ? isLoadingAllApartments : isLoadingResidentApartment;
 
-  const apartments = data?.data || [];
   const meta = data?.meta;
   const totalPages = meta ? Math.ceil(meta.total / meta.limit) : 1;
 
@@ -227,30 +250,40 @@ export default function ApartmentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Apartments</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          {isAdmin ? 'Apartments' : 'My Apartment'}
+        </h1>
         <p className="text-muted-foreground">
-          Manage all apartments across your buildings.
+          {isAdmin
+            ? 'Manage all apartments across your buildings.'
+            : 'View your apartment details and information.'}
         </p>
       </div>
 
       {/* Filters & Actions */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search apartments..."
-              value={globalFilter ?? ''}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <Button onClick={handleCreateApartment}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Apartment
-          </Button>
+          {isAdmin && (
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search apartments..."
+                value={globalFilter ?? ''}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          )}
+          {isAdmin && (
+            <Button onClick={handleCreateApartment}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Apartment
+            </Button>
+          )}
         </div>
-        <ApartmentFilters filters={filterValues} onFiltersChange={handleFiltersChange} />
+        {isAdmin && (
+          <ApartmentFilters filters={filterValues} onFiltersChange={handleFiltersChange} />
+        )}
       </div>
 
       {/* Table */}
@@ -313,7 +346,7 @@ export default function ApartmentsPage() {
       </div>
 
       {/* Pagination */}
-      {meta && (
+      {isAdmin && meta && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <p className="text-sm text-muted-foreground">

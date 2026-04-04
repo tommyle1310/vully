@@ -8,6 +8,7 @@ import {
   Query,
   ParseUUIDPipe,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -54,6 +55,45 @@ export class ContractsController {
     return { data: contract };
   }
 
+  @Get('my/apartment')
+  @Roles('admin', 'technician', 'resident')
+  @ApiOperation({ summary: "Get current user's active apartment (based on active contract)" })
+  @ApiResponse({ status: 200, description: "User's active apartment" })
+  @ApiResponse({ status: 404, description: 'No active contract found' })
+  async getMyApartment(
+    @CurrentUser() user: AuthUser,
+  ): Promise<{
+    data: {
+      apartmentId: string;
+      apartmentUnitNumber: string;
+      buildingId: string;
+      buildingName: string;
+      contractId: string;
+    } | null;
+  }> {
+    const result = await this.contractsService.getMyApartment(user.id);
+    return { data: result };
+  }
+
+  @Get('my')
+  @Roles('admin', 'technician', 'resident')
+  @ApiOperation({ summary: "Get current user's contracts (as tenant)" })
+  @ApiQuery({ name: 'status', required: false, enum: ['draft', 'active', 'expired', 'terminated'] })
+  @ApiResponse({ status: 200, description: "User's contracts list" })
+  async getMyContracts(
+    @CurrentUser() user: AuthUser,
+    @Query('status') status?: string,
+  ): Promise<{
+    data: ContractResponseDto[];
+    meta: { total: number };
+  }> {
+    const result = await this.contractsService.findMyContracts(user.id, { status });
+    return {
+      data: result.data,
+      meta: { total: result.total },
+    };
+  }
+
   @Get()
   @Roles('admin')
   @ApiOperation({ summary: 'List contracts (admin only)' })
@@ -93,14 +133,23 @@ export class ContractsController {
   }
 
   @Get(':id')
-  @Roles('admin')
-  @ApiOperation({ summary: 'Get contract by ID (admin only)' })
+  @Roles('admin', 'technician', 'resident')
+  @ApiOperation({ summary: 'Get contract by ID' })
   @ApiResponse({ status: 200, description: 'Contract details', type: ContractResponseDto })
   @ApiResponse({ status: 404, description: 'Contract not found' })
+  @ApiResponse({ status: 403, description: 'Forbidden - not your contract' })
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
   ): Promise<{ data: ContractResponseDto }> {
     const contract = await this.contractsService.findOne(id);
+    
+    // Check authorization: residents can only view their own contracts
+    const isAdmin = user.role === 'admin' || user.role === 'technician';
+    if (!isAdmin && contract.tenantId !== user.id) {
+      throw new ForbiddenException('You can only view your own contracts');
+    }
+    
     return { data: contract };
   }
 

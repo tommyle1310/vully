@@ -108,6 +108,7 @@ export class IncidentsGateway implements OnGatewayConnection, OnGatewayDisconnec
     const validPatterns = [
       /^buildings:[a-f0-9-]{36}$/,
       /^apartments:[a-f0-9-]{36}$/,
+      /^incidents:[a-f0-9-]{36}$/,
       /^user:[a-f0-9-]{36}$/,
       /^role:(admin|technician)$/,
     ];

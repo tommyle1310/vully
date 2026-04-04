@@ -11,8 +11,9 @@ import {
   createColumnHelper,
   SortingState,
 } from '@tanstack/react-table';
-import { FileSignature, Search, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useContracts, Contract } from '@/hooks/use-contracts';
+import { FileSignature, Search, Plus, ChevronLeft, ChevronRight, Home } from 'lucide-react';
+import { useContracts, useMyContracts, Contract } from '@/hooks/use-contracts';
+import { useAuthStore } from '@/stores/authStore';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -196,14 +197,29 @@ export default function ContractsPage() {
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
 
-  const { data, isLoading, error } = useContracts({
+  // Role-based access control
+  const { hasRole, hasAnyRole } = useAuthStore();
+  const isAdmin = hasRole('admin');
+  const isResidentOnly = hasRole('resident') && !hasAnyRole(['admin', 'technician']);
+
+  // Use different hooks based on role
+  const adminQuery = useContracts({
     page,
     limit,
     status: statusFilter !== 'all' ? statusFilter : undefined,
   });
+  
+  const myContractsQuery = useMyContracts({
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+  });
+
+  // Select the appropriate data based on role
+  const { data, isLoading, error } = isResidentOnly ? myContractsQuery : adminQuery;
 
   const contracts = data?.data || [];
-  const meta = data?.meta;
+  const meta = isResidentOnly 
+    ? { total: data?.meta?.total || 0, limit: contracts.length, page: 1 } 
+    : adminQuery.data?.meta;
   const totalPages = meta ? Math.ceil(meta.total / meta.limit) : 1;
 
   const handleCreate = () => {
@@ -238,9 +254,14 @@ export default function ContractsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Contracts</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {isResidentOnly ? 'My Contracts' : 'Contracts'}
+          </h1>
           <p className="text-muted-foreground">
-            Manage tenant lease contracts and apartment assignments.
+            {isResidentOnly 
+              ? 'View your rental contracts and lease agreements.' 
+              : 'Manage tenant lease contracts and apartment assignments.'
+            }
           </p>
         </div>
         <TableSkeleton />
@@ -265,24 +286,50 @@ export default function ContractsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Contracts</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          {isResidentOnly ? 'My Contracts' : 'Contracts'}
+        </h1>
         <p className="text-muted-foreground">
-          Manage tenant lease contracts and apartment assignments.
+          {isResidentOnly 
+            ? 'View your rental contracts and lease agreements.' 
+            : 'Manage tenant lease contracts and apartment assignments.'
+          }
         </p>
       </div>
+
+      {/* Resident: Show summary card for active contract */}
+      {isResidentOnly && contracts.length > 0 && (
+        <div className="rounded-lg border bg-card p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="rounded-full bg-primary/10 p-2">
+              <Home className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium">Your Active Residence</p>
+              <p className="text-sm text-muted-foreground">
+                {contracts.find(c => c.status === 'active')?.apartment?.building?.name || 'N/A'} 
+                {' - Unit '}
+                {contracts.find(c => c.status === 'active')?.apartment?.unit_number || 'N/A'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters & Actions */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-1">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search contracts..."
-              value={globalFilter ?? ''}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+          {!isResidentOnly && (
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search contracts..."
+                value={globalFilter ?? ''}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          )}
           <Select
             value={statusFilter}
             onValueChange={(v) => {
@@ -302,10 +349,12 @@ export default function ContractsPage() {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={handleCreate}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Contract
-        </Button>
+        {isAdmin && (
+          <Button onClick={handleCreate}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Contract
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -423,16 +472,18 @@ export default function ContractsPage() {
         contract={selectedContract}
         open={!!selectedContract}
         onOpenChange={(open: boolean) => !open && setSelectedContract(null)}
-        onEdit={handleEdit}
+        onEdit={isAdmin ? handleEdit : undefined}
       />
 
-      {/* Create/Edit Dialog */}
-      <ContractFormDialog
-        open={formDialogOpen}
-        onOpenChange={setFormDialogOpen}
-        contract={editingContract}
-        mode={formMode}
-      />
+      {/* Create/Edit Dialog - Admin only */}
+      {isAdmin && (
+        <ContractFormDialog
+          open={formDialogOpen}
+          onOpenChange={setFormDialogOpen}
+          contract={editingContract}
+          mode={formMode}
+        />
+      )}
     </div>
   );
 }

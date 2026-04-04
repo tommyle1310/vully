@@ -35,9 +35,9 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/buildings', label: 'Buildings', icon: Building2, roles: [UserRole.admin] },
   { href: '/apartments', label: 'Apartments', icon: Building },
-  { href: '/contracts', label: 'Contracts', icon: FileSignature, roles: [UserRole.admin] },
+  { href: '/contracts', label: 'Contracts', icon: FileSignature },
+  { href: '/buildings', label: 'Buildings', icon: Building2 },
   { href: '/users', label: 'Users', icon: Users, roles: [UserRole.admin] },
   { href: '/invoices', label: 'Invoices', icon: FileText },
   { href: '/meter-readings', label: 'Meter Readings', icon: Gauge },

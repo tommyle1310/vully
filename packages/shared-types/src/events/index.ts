@@ -21,6 +21,17 @@ export const IncidentEventPayloadSchema = z.object({
 });
 export type IncidentEventPayload = z.infer<typeof IncidentEventPayloadSchema>;
 
+export const IncidentCommentEventPayloadSchema = z.object({
+  commentId: z.string().uuid(),
+  incidentId: z.string().uuid(),
+  authorId: z.string().uuid(),
+  authorName: z.string(),
+  content: z.string(),
+  isInternal: z.boolean(),
+  created_at: z.string().datetime(),
+});
+export type IncidentCommentEventPayload = z.infer<typeof IncidentCommentEventPayloadSchema>;
+
 export const InvoiceEventPayloadSchema = z.object({
   invoiceId: z.string().uuid(),
   contractId: z.string().uuid(),
@@ -57,6 +68,7 @@ export const WS_EVENTS = {
   INCIDENT_UPDATED: 'incident:updated',
   INCIDENT_ASSIGNED: 'incident:assigned',
   INCIDENT_RESOLVED: 'incident:resolved',
+  INCIDENT_COMMENT_CREATED: 'incident:comment:created',
   
   // Server -> Client: Invoices
   INVOICE_GENERATED: 'invoice:generated',
@@ -81,6 +93,7 @@ export type WsEventName = (typeof WS_EVENTS)[keyof typeof WS_EVENTS];
 export const WS_ROOMS = {
   buildings: (buildingId: string) => `buildings:${buildingId}`,
   apartments: (apartmentId: string) => `apartments:${apartmentId}`,
+  incidents: (incidentId: string) => `incidents:${incidentId}`,
   user: (userId: string) => `user:${userId}`,
   admin: () => 'role:admin',
   technician: () => 'role:technician',

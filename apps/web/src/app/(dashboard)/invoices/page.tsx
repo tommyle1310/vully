@@ -23,6 +23,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { useInvoices, Invoice } from '@/hooks/use-invoices';
+import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -168,6 +169,8 @@ function TableSkeleton() {
 }
 
 export default function InvoicesPage() {
+  const { hasAnyRole } = useAuthStore();
+  const isAdmin = hasAnyRole(['admin', 'technician']);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
@@ -205,9 +208,13 @@ export default function InvoicesPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {isAdmin ? 'Invoices' : 'My Invoices'}
+          </h1>
           <p className="text-muted-foreground">
-            Manage billing and invoices for all tenants.
+            {isAdmin
+              ? 'Manage billing and invoices for all tenants.'
+              : 'View your billing history and invoices.'}
           </p>
         </div>
         <TableSkeleton />
@@ -231,12 +238,16 @@ export default function InvoicesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {isAdmin ? 'Invoices' : 'My Invoices'}
+          </h1>
           <p className="text-muted-foreground">
-            Manage billing and invoices for all tenants.
+            {isAdmin
+              ? 'Manage billing and invoices for all tenants.'
+              : 'View your billing history and invoices.'}
           </p>
         </div>
-        <BulkGenerateInvoicesDialog />
+        {isAdmin && <BulkGenerateInvoicesDialog />}
       </div>
 
       {/* Filters */}

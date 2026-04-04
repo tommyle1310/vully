@@ -1,11 +1,12 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, Building, Home } from 'lucide-react';
 import { useCreateIncident, CreateIncidentData } from '@/hooks/use-incidents';
-import { useApartments } from '@/hooks/use-apartments';
+import { useMyApartment } from '@/hooks/use-contracts';
 import { useAuthStore } from '@/stores/authStore';
 import { ApartmentCombobox } from '@/components/apartment-combobox';
 import { Button } from '@/components/ui/button';
@@ -92,13 +93,14 @@ export function CreateIncidentDialog({
   onOpenChange,
 }: CreateIncidentDialogProps) {
   const { toast } = useToast();
-  const { user, hasRole } = useAuthStore();
+  const { user, hasRole, hasAnyRole } = useAuthStore();
   const createIncident = useCreateIncident();
-  // Minimal query just to detect if the resident has any apartments at all
-  const { data: apartmentsData, isLoading: loadingApartments } = useApartments({
-    page: 1,
-    limit: 1,
-  });
+  
+  // For residents, get their assigned apartment
+  const isResident = hasRole('resident');
+  const isAdminOrTechnician = hasAnyRole(['admin', 'technician']);
+  const { data: myApartmentData, isLoading: loadingMyApartment } = useMyApartment();
+  const myApartment = myApartmentData?.data;
 
   const form = useForm<FormData>({
     resolver: zodResolver(createIncidentSchema),
@@ -110,6 +112,13 @@ export function CreateIncidentDialog({
       apartmentId: '',
     },
   });
+
+  // Auto-set apartment for residents when their apartment data is loaded
+  useEffect(() => {
+    if (isResident && !isAdminOrTechnician && myApartment?.apartmentId) {
+      form.setValue('apartmentId', myApartment.apartmentId);
+    }
+  }, [isResident, isAdminOrTechnician, myApartment?.apartmentId, form]);
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -130,8 +139,8 @@ export function CreateIncidentDialog({
     }
   };
 
-  const isResident = hasRole('resident');
-  const hasNoApartments = !loadingApartments && (apartmentsData?.meta?.total ?? 0) === 0;
+  // Check if resident has no active apartment
+  const residentHasNoApartment = isResident && !isAdminOrTechnician && !loadingMyApartment && !myApartment;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -146,7 +155,7 @@ export function CreateIncidentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {hasNoApartments && isResident ? (
+        {residentHasNoApartment ? (
           <div className="py-8 text-center space-y-4">
             <div className="text-muted-foreground">
               <p className="font-medium">No apartment assigned</p>
@@ -164,22 +173,40 @@ export function CreateIncidentDialog({
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="apartmentId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Apartment</FormLabel>
-                  <FormControl>
-                    <ApartmentCombobox
-                      value={field.value}
-                      onChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Apartment Selection: Show read-only for residents, selector for admin/tech */}
+            {isResident && !isAdminOrTechnician ? (
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-primary/10 p-2">
+                    <Home className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Your Apartment</p>
+                    <p className="text-sm text-muted-foreground">
+                      {myApartment?.buildingName} - Unit {myApartment?.apartmentUnitNumber}
+                    </p>
+                  </div>
+                </div>
+                <input type="hidden" {...form.register('apartmentId')} />
+              </div>
+            ) : (
+              <FormField
+                control={form.control}
+                name="apartmentId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Apartment</FormLabel>
+                    <FormControl>
+                      <ApartmentCombobox
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}

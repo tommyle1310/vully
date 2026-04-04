@@ -25,6 +25,7 @@ import {
   UpdateUserDto,
   UserResponseDto,
   ChangePasswordDto,
+  UpdateProfileDto,
 } from './dto/user.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -118,6 +119,17 @@ export class UsersController {
       dto.currentPassword,
       dto.newPassword,
     );
+  }
+
+  @Patch('me')
+  @ApiOperation({ summary: 'Update own profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated', type: UserResponseDto })
+  async updateProfile(
+    @Body() dto: UpdateProfileDto,
+    @CurrentUser() user: AuthUser,
+  ): Promise<{ data: UserResponseDto }> {
+    const updatedUser = await this.usersService.updateProfile(user.id, dto);
+    return { data: updatedUser };
   }
 
   @Post(':id/roles/:role')

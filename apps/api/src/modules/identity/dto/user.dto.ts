@@ -114,6 +114,42 @@ export class ChangePasswordDto {
   newPassword: string;
 }
 
+/**
+ * DTO for updating own profile (non-admin users)
+ * More restricted than UpdateUserDto - can't change roles, email, etc.
+ */
+export class UpdateProfileDto {
+  @ApiPropertyOptional({ example: 'Nguyen' })
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @ApiPropertyOptional({ example: 'Van A' })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @ApiPropertyOptional({ example: '+84901234567' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({
+    description: 'Profile data including avatarUrl, citizenId, taxId, etc.',
+    example: { avatarUrl: 'https://...', citizenId: '123456789', taxId: 'TX123' },
+  })
+  @IsOptional()
+  @IsObject()
+  profileData?: {
+    avatarUrl?: string;
+    citizenId?: string;
+    taxId?: string;
+    dateOfBirth?: string;
+    address?: string;
+    [key: string]: unknown;
+  };
+}
+
 export class ResetPasswordRequestDto {
   @ApiProperty({ example: 'user@vully.vn' })
   @IsEmail()

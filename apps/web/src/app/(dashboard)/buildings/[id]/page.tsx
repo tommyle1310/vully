@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { Building, MapPin, Layers, ArrowLeft, Upload, Pencil, Box, Home, ChevronDown, ChevronRight } from 'lucide-react';
 import { useBuilding } from '@/hooks/use-buildings';
 import { useApartments } from '@/hooks/use-apartments';
+import { useAuthStore } from '@/stores/authStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,10 @@ export default function BuildingDetailPage() {
   const [svgUploadOpen, setSvgUploadOpen] = useState(false);
   const [svgBuilderOpen, setSvgBuilderOpen] = useState(false);
   const [expandedFloors, setExpandedFloors] = useState<Set<number>>(new Set());
+
+  // Role-based access control
+  const { hasAnyRole } = useAuthStore();
+  const canEditBuilding = hasAnyRole(['admin', 'technician']);
 
   const building = buildingData?.data;
   const apartments = apartmentsData?.data || [];
@@ -155,34 +160,36 @@ export default function BuildingDetailPage() {
           </div>
         </div>
         
-        {/* Floor Plan Actions */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button>
-              {building.svgMapData ? (
-                <>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Manage Floor Plan
-                </>
-              ) : (
-                <>
-                  <Building className="mr-2 h-4 w-4" />
-                  Add Floor Plan
-                </>
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setSvgBuilderOpen(true)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              {building.svgMapData ? 'Edit with Builder' : 'Build Floor Plan'}
-            </DropdownMenuItem>
+        {/* Floor Plan Actions - Only show for admin/technician */}
+        {canEditBuilding && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                {building.svgMapData ? (
+                  <>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Manage Floor Plan
+                  </>
+                ) : (
+                  <>
+                    <Building className="mr-2 h-4 w-4" />
+                    Add Floor Plan
+                  </>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setSvgBuilderOpen(true)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                {building.svgMapData ? 'Edit with Builder' : 'Build Floor Plan'}
+              </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setSvgUploadOpen(true)}>
               <Upload className="mr-2 h-4 w-4" />
               {building.svgMapData ? 'Replace SVG File' : 'Upload SVG File'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        )}
       </div>
 
       {/* Stats Cards */}

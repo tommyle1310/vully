@@ -8,6 +8,8 @@ import { motion } from 'framer-motion';
 import { useMeterReadings } from '@/hooks/use-meter-readings';
 import { useApartments } from '@/hooks/use-apartments';
 import { useUtilityTypes } from '@/hooks/use-billing';
+import { useAuthStore } from '@/stores/authStore';
+import { useMyApartment, useMyContracts } from '@/hooks/use-contracts';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +35,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MeterReadingFormSheet } from './meter-reading-form-sheet';
 
 export default function MeterReadingsPage() {
+  const { hasAnyRole } = useAuthStore();
+  const isAdmin = hasAnyRole(['admin', 'technician']);
+  const { data: myApartmentData } = useMyApartment();
+  const { data: myContractsData } = useMyContracts();
+  const myApartment = myApartmentData?.data;
+  
+  // Fallback: If useMyApartment doesn't return data, try to get apartment from active contract
+  const activeContract = myContractsData?.data?.find((c: { status: string }) => c.status === 'active');
+  const apartmentId = myApartment?.apartmentId || activeContract?.apartment?.id;
+  
   const [page, setPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedApartmentId, setSelectedApartmentId] = useState<string>('');
@@ -43,7 +55,7 @@ export default function MeterReadingsPage() {
   const { data: meterReadingsData, isLoading: isLoadingReadings } = useMeterReadings({
     page,
     limit: 20,
-    apartmentId: selectedApartmentId || undefined,
+    apartmentId: !isAdmin && apartmentId ? apartmentId : (selectedApartmentId || undefined),
     utilityTypeId: selectedUtilityTypeId || undefined,
     billingPeriod: selectedBillingPeriod || undefined,
   });
@@ -65,89 +77,97 @@ export default function MeterReadingsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Meter Readings</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {isAdmin ? 'Meter Readings' : 'My Meter Readings'}
+          </h1>
           <p className="text-muted-foreground">
-            Record and manage utility meter readings for apartments
+            {isAdmin
+              ? 'Record and manage utility meter readings for apartments'
+              : 'View your utility meter readings and usage history'}
           </p>
         </div>
 
-        <Button onClick={() => setIsFormOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Reading
-        </Button>
+        {isAdmin && (
+          <Button onClick={() => setIsFormOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Reading
+          </Button>
+        )}
       </div>
 
       {/* Meter Reading Form Sheet */}
       <MeterReadingFormSheet open={isFormOpen} onOpenChange={setIsFormOpen} />
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <div className="w-[200px]">
-              <Select
-                value={selectedApartmentId || 'all'}
-                onValueChange={(value) => setSelectedApartmentId(value === 'all' ? '' : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Apartments" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Apartments</SelectItem>
-                  {apartments.map((apt) => (
-                    <SelectItem key={apt.id} value={apt.id}>
-                      {apt.building?.name} - Unit {apt.unit_number}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Filters</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4">
+              <div className="w-[200px]">
+                <Select
+                  value={selectedApartmentId || 'all'}
+                  onValueChange={(value) => setSelectedApartmentId(value === 'all' ? '' : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Apartments" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Apartments</SelectItem>
+                    {apartments.map((apt) => (
+                      <SelectItem key={apt.id} value={apt.id}>
+                        {apt.building?.name} - Unit {apt.unit_number}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="w-[180px]">
-              <Select
-                value={selectedUtilityTypeId || 'all'}
-                onValueChange={(value) => setSelectedUtilityTypeId(value === 'all' ? '' : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Utilities" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Utilities</SelectItem>
-                  {utilityTypes.map((ut) => (
-                    <SelectItem key={ut.id} value={ut.id}>
-                      {ut.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="w-[180px]">
+                <Select
+                  value={selectedUtilityTypeId || 'all'}
+                  onValueChange={(value) => setSelectedUtilityTypeId(value === 'all' ? '' : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Utilities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Utilities</SelectItem>
+                    {utilityTypes.map((ut) => (
+                      <SelectItem key={ut.id} value={ut.id}>
+                        {ut.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="w-[140px]">
-              <Input
-                placeholder="YYYY-MM"
-                value={selectedBillingPeriod}
-                onChange={(e) => setSelectedBillingPeriod(e.target.value)}
-              />
-            </div>
+              <div className="w-[140px]">
+                <Input
+                  placeholder="YYYY-MM"
+                  value={selectedBillingPeriod}
+                  onChange={(e) => setSelectedBillingPeriod(e.target.value)}
+                />
+              </div>
 
-            {(selectedApartmentId || selectedUtilityTypeId || selectedBillingPeriod) && (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setSelectedApartmentId('');
-                  setSelectedUtilityTypeId('');
-                  setSelectedBillingPeriod('');
-                }}
-              >
-                Clear Filters
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              {(selectedApartmentId || selectedUtilityTypeId || selectedBillingPeriod) && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setSelectedApartmentId('');
+                    setSelectedUtilityTypeId('');
+                    setSelectedBillingPeriod('');
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Readings Table */}
       <Card>
@@ -163,12 +183,16 @@ export default function MeterReadingsPage() {
               <Gauge className="h-12 w-12 text-muted-foreground/50 mb-4" />
               <h3 className="text-lg font-semibold">No Meter Readings</h3>
               <p className="text-muted-foreground mb-4">
-                Start by recording your first meter reading.
+                {isAdmin
+                  ? 'Start by recording your first meter reading.'
+                  : 'No meter readings recorded yet for your apartment.'}
               </p>
-              <Button onClick={() => setIsFormOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                New Reading
-              </Button>
+              {isAdmin && (
+                <Button onClick={() => setIsFormOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Reading
+                </Button>
+              )}
             </div>
           ) : (
             <>

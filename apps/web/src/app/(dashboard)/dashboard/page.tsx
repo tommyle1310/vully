@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthStore } from '@/stores/authStore';
 import { useDashboardStats } from '@/hooks/use-stats';
+import { ResidentDashboard } from '@/components/dashboard/resident-dashboard';
 
 // Lazy load chart components for better performance
 const OccupancyChart = dynamic(
@@ -120,9 +121,15 @@ const item = {
 };
 
 export default function DashboardPage() {
-  const { user } = useAuthStore();
-  const { data: statsResponse, isLoading } = useDashboardStats();
+  const { user, hasAnyRole } = useAuthStore();
+  const isAdmin = hasAnyRole(['admin', 'technician']);
+  const { data: statsResponse, isLoading } = useDashboardStats({ enabled: isAdmin });
   const stats = statsResponse?.data;
+
+  // Show resident dashboard for non-admin users
+  if (!isAdmin) {
+    return <ResidentDashboard />;
+  }
 
   return (
     <div className="space-y-6">

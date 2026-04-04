@@ -8,6 +8,7 @@ import {
   Param,
   ParseUUIDPipe,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,6 +17,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { PaymentScheduleService } from './payment-schedule.service';
+import { ContractsService } from './contracts.service';
 import {
   CreatePaymentScheduleDto,
   UpdatePaymentScheduleDto,
@@ -42,19 +44,33 @@ interface AuthUser {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class PaymentScheduleController {
-  constructor(private readonly paymentScheduleService: PaymentScheduleService) {}
+  constructor(
+    private readonly paymentScheduleService: PaymentScheduleService,
+    private readonly contractsService: ContractsService,
+  ) {}
 
   // =========================================================================
   // Payment Schedule Endpoints
   // =========================================================================
 
   @Get('contracts/:contractId/payment-schedules')
-  @Roles('admin')
+  @Roles('admin', 'technician', 'resident')
   @ApiOperation({ summary: 'Get payment schedules for a contract' })
   @ApiResponse({ status: 200, description: 'Payment schedules list', type: [PaymentScheduleResponseDto] })
+  @ApiResponse({ status: 403, description: 'Forbidden - not your contract' })
   async findSchedulesByContract(
     @Param('contractId', ParseUUIDPipe) contractId: string,
+    @CurrentUser() user: AuthUser,
   ): Promise<{ data: PaymentScheduleResponseDto[] }> {
+    // Verify contract ownership for residents
+    const isAdmin = user.role === 'admin' || user.role === 'technician';
+    if (!isAdmin) {
+      const contract = await this.contractsService.findOne(contractId);
+      if (contract.tenantId !== user.id) {
+        throw new ForbiddenException('You can only view your own contract schedules');
+      }
+    }
+    
     const schedules = await this.paymentScheduleService.findAllByContract(contractId);
     return { data: schedules };
   }
@@ -155,12 +171,23 @@ export class PaymentScheduleController {
   // =========================================================================
 
   @Get('contracts/:contractId/financial-summary')
-  @Roles('admin')
+  @Roles('admin', 'technician', 'resident')
   @ApiOperation({ summary: 'Get contract financial summary' })
   @ApiResponse({ status: 200, description: 'Financial summary', type: ContractFinancialSummaryDto })
+  @ApiResponse({ status: 403, description: 'Forbidden - not your contract' })
   async getFinancialSummary(
     @Param('contractId', ParseUUIDPipe) contractId: string,
+    @CurrentUser() user: AuthUser,
   ): Promise<{ data: ContractFinancialSummaryDto }> {
+    // Verify contract ownership for residents
+    const isAdmin = user.role === 'admin' || user.role === 'technician';
+    if (!isAdmin) {
+      const contract = await this.contractsService.findOne(contractId);
+      if (contract.tenantId !== user.id) {
+        throw new ForbiddenException('You can only view your own contract financial summary');
+      }
+    }
+    
     const summary = await this.paymentScheduleService.getContractFinancialSummary(contractId);
     return { data: summary };
   }
@@ -170,14 +197,25 @@ export class PaymentScheduleController {
   // =========================================================================
 
   @Post('contracts/:contractId/generate-rent-schedule')
-  @Roles('admin')
+  @Roles('admin', 'technician', 'resident')
   @ApiOperation({ summary: 'Auto-generate rent schedules for a rental contract' })
   @ApiResponse({ status: 201, description: 'Schedules generated', type: [PaymentScheduleResponseDto] })
   @ApiResponse({ status: 400, description: 'Not a rental contract or schedules already exist' })
+  @ApiResponse({ status: 403, description: 'Forbidden - not your contract' })
   async generateRentSchedule(
     @Param('contractId', ParseUUIDPipe) contractId: string,
     @Body() dto: GenerateRentScheduleDto,
+    @CurrentUser() user: AuthUser,
   ): Promise<{ data: PaymentScheduleResponseDto[]; message: string }> {
+    // Verify contract ownership for residents
+    const isAdmin = user.role === 'admin' || user.role === 'technician';
+    if (!isAdmin) {
+      const contract = await this.contractsService.findOne(contractId);
+      if (contract.tenantId !== user.id) {
+        throw new ForbiddenException('You can only generate schedules for your own contract');
+      }
+    }
+    
     const schedules = await this.paymentScheduleService.generateRentSchedules(contractId, dto);
     return {
       data: schedules,
@@ -186,14 +224,25 @@ export class PaymentScheduleController {
   }
 
   @Post('contracts/:contractId/generate-purchase-milestones')
-  @Roles('admin')
+  @Roles('admin', 'technician', 'resident')
   @ApiOperation({ summary: 'Auto-generate payment milestones for a purchase contract' })
   @ApiResponse({ status: 201, description: 'Milestones generated', type: [PaymentScheduleResponseDto] })
   @ApiResponse({ status: 400, description: 'Not a purchase contract or schedules already exist' })
+  @ApiResponse({ status: 403, description: 'Forbidden - not your contract' })
   async generatePurchaseMilestones(
     @Param('contractId', ParseUUIDPipe) contractId: string,
     @Body() dto: GeneratePurchaseMilestonesDto,
+    @CurrentUser() user: AuthUser,
   ): Promise<{ data: PaymentScheduleResponseDto[]; message: string }> {
+    // Verify contract ownership for residents
+    const isAdmin = user.role === 'admin' || user.role === 'technician';
+    if (!isAdmin) {
+      const contract = await this.contractsService.findOne(contractId);
+      if (contract.tenantId !== user.id) {
+        throw new ForbiddenException('You can only generate milestones for your own contract');
+      }
+    }
+    
     const schedules = await this.paymentScheduleService.generatePurchaseMilestones(contractId, dto);
     return {
       data: schedules,

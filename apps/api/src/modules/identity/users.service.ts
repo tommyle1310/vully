@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, UserRole as UserRoleEnum } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { CreateUserDto, UpdateUserDto, UserResponseDto } from './dto/user.dto';
+import { CreateUserDto, UpdateUserDto, UserResponseDto, UpdateProfileDto } from './dto/user.dto';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 
@@ -374,6 +374,46 @@ export class UsersService {
       userId,
       timestamp: new Date().toISOString(),
     });
+  }
+
+  /**
+   * Update user's own profile (non-admin fields only)
+   */
+  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<UserResponseDto> {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      include: { user_role_assignments: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Merge profileData with existing data
+    const existingProfileData = (user.profile_data as Record<string, unknown>) || {};
+    const mergedProfileData = dto.profileData
+      ? { ...existingProfileData, ...dto.profileData }
+      : existingProfileData;
+
+    const updated = await this.prisma.users.update({
+      where: { id: userId },
+      data: {
+        ...(dto.firstName && { first_name: dto.firstName }),
+        ...(dto.lastName && { last_name: dto.lastName }),
+        ...(dto.phone !== undefined && { phone: dto.phone }),
+        ...(dto.profileData && { profile_data: mergedProfileData as any }),
+        updated_at: new Date(),
+      },
+      include: { user_role_assignments: true },
+    });
+
+    this.logger.log({
+      event: 'profile_updated',
+      userId,
+      fields: Object.keys(dto),
+    });
+
+    return this.toResponseDto(updated);
   }
 
   private toResponseDto(user: {

@@ -388,4 +388,98 @@ export class ContractsService {
       } : undefined,
     };
   }
+
+  /**
+   * Get contracts for the current user (as a tenant)
+   */
+  async findMyContracts(
+    userId: string,
+    filters?: { status?: string },
+  ): Promise<{ data: ContractResponseDto[]; total: number }> {
+    const where: Record<string, unknown> = {
+      tenant_id: userId,
+    };
+    if (filters?.status) where.status = filters.status;
+
+    const [contracts, total] = await Promise.all([
+      this.prisma.contracts.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        include: {
+          apartments: {
+            select: {
+              id: true,
+              unit_number: true,
+              floor_index: true,
+              building_id: true,
+              buildings: { select: { id: true, name: true } },
+            },
+          },
+          users_contracts_tenant_idTousers: {
+            select: { id: true, email: true, first_name: true, last_name: true },
+          },
+        },
+      }),
+      this.prisma.contracts.count({ where }),
+    ]);
+
+    return {
+      data: contracts.map((c) => this.toResponseDto(c)),
+      total,
+    };
+  }
+
+  /**
+   * Get the active apartment for a user based on their active contract
+   */
+  async getMyApartment(userId: string): Promise<{
+    apartmentId: string;
+    apartmentUnitNumber: string;
+    buildingId: string;
+    buildingName: string;
+    contractId: string;
+  } | null> {
+    this.logger.log(`Getting apartment for user ${userId}`);
+    
+    const activeContract = await this.prisma.contracts.findFirst({
+      where: {
+        tenant_id: userId,
+        status: 'active',
+      },
+      include: {
+        apartments: {
+          select: {
+            id: true,
+            unit_number: true,
+            building_id: true,
+            buildings: { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (!activeContract || !activeContract.apartments) {
+      this.logger.warn(`No active contract found for user ${userId}`);
+      
+      // Debug: Check if user has any contracts at all
+      const allContracts = await this.prisma.contracts.findMany({
+        where: { tenant_id: userId },
+        select: { id: true, status: true, created_at: true },
+      });
+      this.logger.debug(`User ${userId} has ${allContracts.length} total contracts: ${JSON.stringify(allContracts)}`);
+      
+      return null;
+    }
+
+    this.logger.log(`Found active contract ${activeContract.id} for user ${userId}, apartment: ${activeContract.apartments.unit_number}`);
+
+    return {
+      apartmentId: activeContract.apartments.id,
+      apartmentUnitNumber: activeContract.apartments.unit_number,
+      buildingId: activeContract.apartments.building_id,
+      buildingName: activeContract.apartments.buildings?.name || '',
+      contractId: activeContract.id,
+    };
+  }
 }

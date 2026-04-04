@@ -20,6 +20,7 @@ import {
   useIncidentComments,
   useCreateComment,
   useUpdateIncidentStatus,
+  useIncidentDetailRealTime,
 } from '@/hooks/use-incidents';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
@@ -113,6 +114,12 @@ export function IncidentDetailSheet({
   const { data: commentsData, isLoading: loadingComments } = useIncidentComments(
     incident?.id ?? ''
   );
+
+  // Enable real-time comment updates when viewing an incident
+  useIncidentDetailRealTime({
+    incidentId: incident?.id ?? '',
+    showToasts: open, // Only show toasts when the sheet is open
+  });
 
   const createComment = useCreateComment();
   const updateStatus = useUpdateIncidentStatus();

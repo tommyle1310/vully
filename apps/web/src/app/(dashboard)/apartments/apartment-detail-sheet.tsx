@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import {
   Building,
   Bed,
@@ -32,9 +33,11 @@ import {
   Clock,
   Home,
   Key,
+  ExternalLink,
 } from 'lucide-react';
 import { Apartment, useUpdateApartmentStatus } from '@/hooks/use-apartments';
 import { useContracts } from '@/hooks/use-contracts';
+import { useAuthStore } from '@/stores/authStore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -218,6 +221,8 @@ export function ApartmentDetailSheet({
   onOpenChange,
   onEdit,
 }: ApartmentDetailSheetProps) {
+  const { hasAnyRole } = useAuthStore();
+  const isAdmin = hasAnyRole(['admin', 'technician']);
   const { toast } = useToast();
   const updateStatus = useUpdateApartmentStatus();
 
@@ -274,6 +279,12 @@ export function ApartmentDetailSheet({
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Status</span>
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/apartments/${apartment.id}`}>
+                  <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                  View Details
+                </Link>
+              </Button>
               <Badge variant={statusVariants[apartment.status] || 'default'} className="text-sm">
                 {apartment.status.charAt(0).toUpperCase() + apartment.status.slice(1).toLowerCase()}
               </Badge>

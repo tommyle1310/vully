@@ -46,7 +46,12 @@ interface AdminStatsResponse {
   data: AdminStats;
 }
 
-export function useDashboardStats() {
+interface UseDashboardStatsOptions {
+  enabled?: boolean;
+}
+
+export function useDashboardStats(options: UseDashboardStatsOptions = {}) {
+  const { enabled = true } = options;
   return useQuery({
     queryKey: ['stats', 'dashboard'],
     queryFn: async (): Promise<DashboardStatsResponse> => {
@@ -54,6 +59,7 @@ export function useDashboardStats() {
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+    enabled,
   });
 }
 
