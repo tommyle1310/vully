@@ -340,6 +340,35 @@ export class UpdateApartmentDto extends PartialType(CreateApartmentDto) {
   @IsOptional()
   @IsString()
   notesAdmin?: string;
+
+  // --- Policy Override Fields ---
+  @ApiPropertyOptional({ description: 'Override max residents (null to inherit from building)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  maxResidentsOverride?: number | null;
+
+  @ApiPropertyOptional({ description: 'Override access card limit (null to inherit from building)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  accessCardLimitOverride?: number | null;
+
+  @ApiPropertyOptional({ description: 'Override pet allowed (null to inherit from building)' })
+  @IsOptional()
+  @IsBoolean()
+  petAllowedOverride?: boolean | null;
+
+  @ApiPropertyOptional({ description: 'Override pet limit (null to inherit from building)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  petLimitOverride?: number | null;
+
+  @ApiPropertyOptional({ enum: BILLING_CYCLES, description: 'Override billing cycle (null to inherit from building)' })
+  @IsOptional()
+  @IsEnum(BILLING_CYCLES)
+  billingCycleOverride?: typeof BILLING_CYCLES[number] | null;
 }
 
 export class ApartmentResponseDto {
@@ -622,4 +651,57 @@ export class ApartmentFiltersDto {
   @IsOptional()
   @IsString()
   search?: string;
+}
+
+// =====================
+// Effective Config DTO - Policy Inheritance
+// =====================
+
+export class EffectiveValueDto<T = number | boolean | string> {
+  @ApiProperty({ description: 'The effective value' })
+  value: T;
+
+  @ApiProperty({ description: 'Where the value comes from', enum: ['apartment', 'building', 'default'] })
+  source: 'apartment' | 'building' | 'default';
+}
+
+export class ApartmentEffectiveConfigDto {
+  @ApiProperty({ description: 'Apartment ID' })
+  apartmentId: string;
+
+  @ApiProperty({ description: 'Building ID' })
+  buildingId: string;
+
+  @ApiProperty({ description: 'Policy ID (if building has a current policy)' })
+  policyId: string | null;
+
+  @ApiProperty({ description: 'Effective max residents' })
+  maxResidents: EffectiveValueDto<number>;
+
+  @ApiProperty({ description: 'Effective access card limit' })
+  accessCardLimit: EffectiveValueDto<number>;
+
+  @ApiProperty({ description: 'Whether pets are allowed' })
+  petAllowed: EffectiveValueDto<boolean>;
+
+  @ApiProperty({ description: 'Effective pet limit' })
+  petLimit: EffectiveValueDto<number>;
+
+  @ApiProperty({ description: 'Effective billing cycle' })
+  billingCycle: EffectiveValueDto<string>;
+
+  @ApiPropertyOptional({ description: 'Late fee rate percent' })
+  lateFeeRatePercent: number | null;
+
+  @ApiPropertyOptional({ description: 'Late fee grace days' })
+  lateFeeGraceDays: number | null;
+
+  @ApiPropertyOptional({ description: 'Trash collection days' })
+  trashCollectionDays: string[] | null;
+
+  @ApiPropertyOptional({ description: 'Trash collection time window' })
+  trashCollectionTime: string | null;
+
+  @ApiPropertyOptional({ description: 'Trash fee per month (VND)' })
+  trashFeePerMonth: number | null;
 }

@@ -332,3 +332,62 @@ export function useBuildings() {
     staleTime: 10 * 60 * 1000, // 10 minutes (rarely changes)
   });
 }
+
+// ===== Effective Config (Policy Inheritance) =====
+
+export interface EffectiveValue<T> {
+  value: T;
+  source: 'apartment' | 'building' | 'default';
+  overrideValue?: T | null;
+  buildingPolicyValue?: T | null;
+}
+
+export interface ApartmentEffectiveConfig {
+  maxResidents: EffectiveValue<number | null>;
+  accessCardLimit: EffectiveValue<number | null>;
+  petAllowed: EffectiveValue<boolean | null>;
+  petLimit: EffectiveValue<number | null>;
+  billingCycle: EffectiveValue<string>;
+}
+
+interface EffectiveConfigResponse {
+  data: ApartmentEffectiveConfig;
+}
+
+export function useApartmentEffectiveConfig(apartmentId: string) {
+  return useQuery({
+    queryKey: ['apartments', apartmentId, 'effective-config'],
+    queryFn: () => apiClient.get<EffectiveConfigResponse>(`/apartments/${apartmentId}/effective-config`),
+    enabled: !!apartmentId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// ===== Parking Slots for Apartment =====
+
+export interface ApartmentParkingSlot {
+  id: string;
+  zoneId: string;
+  slotNumber: string;
+  fullCode: string;
+  type: 'car' | 'motorcycle' | 'bicycle';
+  monthlyFee: number;
+  zone: {
+    id: string;
+    name: string;
+    code: string;
+  };
+}
+
+interface ApartmentParkingSlotsResponse {
+  data: ApartmentParkingSlot[];
+}
+
+export function useApartmentParkingSlots(apartmentId: string) {
+  return useQuery({
+    queryKey: ['apartments', apartmentId, 'parking-slots'],
+    queryFn: () => apiClient.get<ApartmentParkingSlotsResponse>(`/apartments/${apartmentId}/parking-slots`),
+    enabled: !!apartmentId,
+    staleTime: 5 * 60 * 1000,
+  });
+}

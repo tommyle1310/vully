@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams } from 'next/navigation';
-import { Building, MapPin, Layers, ArrowLeft, Upload, Pencil, Box, Home, ChevronDown, ChevronRight } from 'lucide-react';
+import { Building, MapPin, Layers, ArrowLeft, Upload, Pencil, Box, Home, ChevronDown, ChevronRight, Settings, Car } from 'lucide-react';
 import { useBuilding } from '@/hooks/use-buildings';
 import { useApartments } from '@/hooks/use-apartments';
 import { useAuthStore } from '@/stores/authStore';
@@ -18,6 +18,7 @@ import { MapControls } from '@/components/maps/map-controls';
 import { SvgUploadDialog } from '@/components/maps/svg-upload-dialog';
 import { SvgBuilderDialog } from '@/components/maps/svg-builder-dialog';
 import { Building3D, Building3DSkeleton, Building3DLegend } from '@/components/3d';
+import { BuildingPoliciesTab, BuildingParkingTab } from '@/components/buildings';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -259,6 +260,14 @@ export default function BuildingDetailPage() {
             <Box className="h-4 w-4" />
             3D Building View
           </TabsTrigger>
+          <TabsTrigger value="policies" className="gap-2">
+            <Settings className="h-4 w-4" />
+            Policies
+          </TabsTrigger>
+          <TabsTrigger value="parking" className="gap-2">
+            <Car className="h-4 w-4" />
+            Parking
+          </TabsTrigger>
         </TabsList>
 
         {/* 2D Floor Plan Tab */}
@@ -330,6 +339,16 @@ export default function BuildingDetailPage() {
               </Card>
             )}
           </motion.div>
+        </TabsContent>
+
+        {/* Building Policies Tab */}
+        <TabsContent value="policies" className="space-y-0">
+          <BuildingPoliciesTab buildingId={buildingId} />
+        </TabsContent>
+
+        {/* Parking Management Tab */}
+        <TabsContent value="parking" className="space-y-0">
+          <BuildingParkingTab buildingId={buildingId} />
         </TabsContent>
       </Tabs>
 

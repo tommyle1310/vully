@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Loader2, Zap, Droplets, Flame, ExternalLink } from 'lucide-react';
+import { Loader2, Zap, Droplets, Flame, ExternalLink, Car, Info, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import {
   Apartment,
@@ -13,6 +13,8 @@ import {
   UpdateApartmentInput,
   useCreateApartment,
   useUpdateApartment,
+  useApartmentEffectiveConfig,
+  useApartmentParkingSlots,
 } from '@/hooks/use-apartments';
 import { useBuildings } from '@/hooks/use-buildings';
 import { useUtilityTypes } from '@/hooks/use-billing';
@@ -49,6 +51,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { ParkingAssignmentDialog } from '@/components/apartments';
 
 const UNIT_TYPES = ['studio', 'one_bedroom', 'two_bedroom', 'three_bedroom', 'duplex', 'penthouse', 'shophouse'] as const;
 const ORIENTATIONS = ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest'] as const;
@@ -132,6 +142,11 @@ const apartmentFormSchema = z.object({
   syncStatus: z.enum(SYNC_STATUSES).optional(),
   portalAccessEnabled: z.boolean().optional(),
   notesAdmin: z.string().optional().or(z.literal('')),
+  // Override toggles (for policy inheritance)
+  maxResidentsOverride: z.boolean().optional(),
+  accessCardLimitOverride: z.boolean().optional(),
+  petAllowedOverride: z.boolean().optional(),
+  billingCycleOverride: z.boolean().optional(),
 });
 
 type ApartmentFormValues = z.infer<typeof apartmentFormSchema>;
@@ -159,6 +174,23 @@ export function ApartmentFormDialog({
   const { data: utilityTypesData, isLoading: utilityTypesLoading } = useUtilityTypes();
   const createApartment = useCreateApartment();
   const updateApartment = useUpdateApartment();
+
+  // Fetch effective config for policy inheritance (only when editing)
+  const { data: effectiveConfigData, isLoading: configLoading } = useApartmentEffectiveConfig(
+    apartment?.id || ''
+  );
+  const effectiveConfig = effectiveConfigData?.data;
+
+  // Fetch parking slots for the apartment
+  const { data: parkingSlotsData, refetch: refetchParkingSlots } = useApartmentParkingSlots(apartment?.id || '');
+  const parkingSlots = parkingSlotsData?.data || [];
+
+  // Parking dialog state
+  const [parkingDialogOpen, setParkingDialogOpen] = useState(false);
+
+  // Get apartment and building IDs for parking dialog
+  const apartmentId = apartment?.id;
+  const buildingId = apartment?.buildingId;
 
   const isEditing = mode === 'edit';
   const isLoading = createApartment.isPending || updateApartment.isPending;
@@ -215,12 +247,23 @@ export function ApartmentFormDialog({
       syncStatus: 'disconnected',
       portalAccessEnabled: true,
       notesAdmin: '',
+      // Override flags
+      maxResidentsOverride: false,
+      accessCardLimitOverride: false,
+      petAllowedOverride: false,
+      billingCycleOverride: false,
     },
   });
 
   useEffect(() => {
     if (open) {
       if (isEditing && apartment) {
+        // Determine override flags based on effective config
+        const hasMaxResidentsOverride = effectiveConfig?.maxResidents?.source === 'apartment';
+        const hasAccessCardOverride = effectiveConfig?.accessCardLimit?.source === 'apartment';
+        const hasPetOverride = effectiveConfig?.petAllowed?.source === 'apartment';
+        const hasBillingCycleOverride = effectiveConfig?.billingCycle?.source === 'apartment';
+
         form.reset({
           buildingId: apartment.buildingId,
           unit_number: apartment.unit_number,
@@ -268,6 +311,11 @@ export function ApartmentFormDialog({
           syncStatus: (apartment.syncStatus || 'disconnected') as typeof SYNC_STATUSES[number],
           portalAccessEnabled: apartment.portalAccessEnabled ?? true,
           notesAdmin: toFormValue(apartment.notesAdmin),
+          // Override flags based on effective config
+          maxResidentsOverride: hasMaxResidentsOverride,
+          accessCardLimitOverride: hasAccessCardOverride,
+          petAllowedOverride: hasPetOverride,
+          billingCycleOverride: hasBillingCycleOverride,
         } as ApartmentFormValues);
       } else {
         form.reset({
@@ -317,10 +365,15 @@ export function ApartmentFormDialog({
           syncStatus: 'disconnected',
           portalAccessEnabled: true,
           notesAdmin: '',
+          // Override flags (all false for create mode)
+          maxResidentsOverride: false,
+          accessCardLimitOverride: false,
+          petAllowedOverride: false,
+          billingCycleOverride: false,
         } as ApartmentFormValues);
       }
     }
-  }, [open, apartment, isEditing, form]);
+  }, [open, apartment, isEditing, form, effectiveConfig]);
 
   const cleanValue = (v: unknown) => {
     if (v === '' || v === undefined) return undefined;
@@ -432,6 +485,7 @@ export function ApartmentFormDialog({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
         <motion.div
@@ -770,7 +824,7 @@ export function ApartmentFormDialog({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Ownership Type</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || ''} disabled>
+                            <Select onValueChange={field.onChange} value={field.value || ''}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select type" />
@@ -782,7 +836,7 @@ export function ApartmentFormDialog({
                                 <SelectItem value="leasehold">Leasehold</SelectItem>
                               </SelectContent>
                             </Select>
-                            <FormDescription>Managed by contract</FormDescription>
+                            <FormDescription>Type of ownership rights</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -794,9 +848,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>VAT Rate (%)</FormLabel>
                             <FormControl>
-                              <Input type="number" step="0.1" min={0} max={100} placeholder="10" {...field} value={field.value ?? 10} disabled />
+                              <Input type="number" step="0.1" min={0} max={100} placeholder="10" {...field} value={field.value ?? ''} />
                             </FormControl>
-                            <FormDescription>Fixed at 10%</FormDescription>
+                            <FormDescription>Standard rate is 10%</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -850,23 +904,77 @@ export function ApartmentFormDialog({
 
                     <Separator />
 
-                    {/* Residents / Pets */}
+                    {/* Residents / Pets with Policy Inheritance */}
                     <h4 className="text-sm font-semibold">Residents</h4>
+                    
+                    {/* Max Residents with override */}
                     <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="maxResidents"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Max Residents</FormLabel>
-                            <FormControl>
-                              <Input type="number" min={0} placeholder="6" {...field} value={field.value ?? ''} disabled />
-                            </FormControl>
-                            <FormDescription>From building policy</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Label className="text-sm font-medium">Max Residents</Label>
+                            {effectiveConfig && (
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] px-1.5 py-0 h-5 font-normal ${
+                                  effectiveConfig.maxResidents.source === 'apartment'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : effectiveConfig.maxResidents.source === 'building'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
+                              >
+                                {effectiveConfig.maxResidents.source === 'apartment'
+                                  ? 'Overridden'
+                                  : effectiveConfig.maxResidents.source === 'building'
+                                  ? 'From policy'
+                                  : 'Default'}
+                              </Badge>
+                            )}
+                          </div>
+                          {isEditing && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Override</span>
+                              <Switch
+                                checked={form.watch('maxResidentsOverride')}
+                                onCheckedChange={(checked) => {
+                                  form.setValue('maxResidentsOverride', checked);
+                                  if (!checked) {
+                                    // Clear the override value when disabling
+                                    form.setValue('maxResidents', undefined);
+                                  }
+                                }}
+                                className="scale-75"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <FormField
+                          control={form.control}
+                          name="maxResidents"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  placeholder={String(effectiveConfig?.maxResidents.value ?? 6)}
+                                  {...field}
+                                  value={field.value ?? ''}
+                                  disabled={isEditing && !form.watch('maxResidentsOverride')}
+                                />
+                              </FormControl>
+                              {isEditing && !form.watch('maxResidentsOverride') && effectiveConfig && (
+                                <FormDescription>
+                                  Using policy value: {effectiveConfig.maxResidents.value}
+                                </FormDescription>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
                       <FormField
                         control={form.control}
                         name="currentResidentCount"
@@ -883,21 +991,72 @@ export function ApartmentFormDialog({
                       />
                     </div>
 
+                    {/* Access Card Limit with override */}
                     <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="accessCardLimit"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Access Card Limit</FormLabel>
-                            <FormControl>
-                              <Input type="number" min={0} placeholder="4" {...field} value={field.value ?? ''} disabled />
-                            </FormControl>
-                            <FormDescription>From building policy</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Label className="text-sm font-medium">Access Card Limit</Label>
+                            {effectiveConfig && (
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] px-1.5 py-0 h-5 font-normal ${
+                                  effectiveConfig.accessCardLimit.source === 'apartment'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : effectiveConfig.accessCardLimit.source === 'building'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
+                              >
+                                {effectiveConfig.accessCardLimit.source === 'apartment'
+                                  ? 'Overridden'
+                                  : effectiveConfig.accessCardLimit.source === 'building'
+                                  ? 'From policy'
+                                  : 'Default'}
+                              </Badge>
+                            )}
+                          </div>
+                          {isEditing && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Override</span>
+                              <Switch
+                                checked={form.watch('accessCardLimitOverride')}
+                                onCheckedChange={(checked) => {
+                                  form.setValue('accessCardLimitOverride', checked);
+                                  if (!checked) {
+                                    form.setValue('accessCardLimit', undefined);
+                                  }
+                                }}
+                                className="scale-75"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <FormField
+                          control={form.control}
+                          name="accessCardLimit"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  placeholder={String(effectiveConfig?.accessCardLimit.value ?? 4)}
+                                  {...field}
+                                  value={field.value ?? ''}
+                                  disabled={isEditing && !form.watch('accessCardLimitOverride')}
+                                />
+                              </FormControl>
+                              {isEditing && !form.watch('accessCardLimitOverride') && effectiveConfig && (
+                                <FormDescription>
+                                  Using policy value: {effectiveConfig.accessCardLimit.value}
+                                </FormDescription>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                       <FormField
                         control={form.control}
                         name="intercomCode"
@@ -905,32 +1064,84 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Intercom Code</FormLabel>
                             <FormControl>
-                              <Input placeholder="1205" {...field} disabled />
+                              <Input placeholder="Typically matches unit number" {...field} />
                             </FormControl>
-                            <FormDescription>Auto-assigned</FormDescription>
+                            <FormDescription>Typically matches unit number</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                     </div>
 
-                    <FormField
-                      control={form.control}
-                      name="petAllowed"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                    {/* Pets Allowed with override */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="flex items-center gap-2">
                           <div>
-                            <FormLabel>Pets Allowed</FormLabel>
-                            <FormDescription>From building policy</FormDescription>
+                            <div className="flex items-center gap-2">
+                              <Label className="text-sm font-medium">Pets Allowed</Label>
+                              {effectiveConfig && (
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[10px] px-1.5 py-0 h-5 font-normal ${
+                                    effectiveConfig.petAllowed.source === 'apartment'
+                                      ? 'bg-blue-100 text-blue-700'
+                                      : effectiveConfig.petAllowed.source === 'building'
+                                      ? 'bg-green-100 text-green-700'
+                                      : 'bg-gray-100 text-gray-600'
+                                  }`}
+                                >
+                                  {effectiveConfig.petAllowed.source === 'apartment'
+                                    ? 'Overridden'
+                                    : effectiveConfig.petAllowed.source === 'building'
+                                    ? 'From policy'
+                                    : 'Default'}
+                                </Badge>
+                              )}
+                            </div>
+                            {isEditing && !form.watch('petAllowedOverride') && effectiveConfig && (
+                              <p className="text-xs text-muted-foreground">
+                                Policy: {effectiveConfig.petAllowed.value ? 'Yes' : 'No'}
+                              </p>
+                            )}
                           </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} disabled />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {isEditing && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Override</span>
+                              <Switch
+                                checked={form.watch('petAllowedOverride')}
+                                onCheckedChange={(checked) => {
+                                  form.setValue('petAllowedOverride', checked);
+                                  if (!checked) {
+                                    form.setValue('petAllowed', effectiveConfig?.petAllowed.value ?? false);
+                                  }
+                                }}
+                                className="scale-75"
+                              />
+                            </div>
+                          )}
+                          <FormField
+                            control={form.control}
+                            name="petAllowed"
+                            render={({ field }) => (
+                              <FormItem className="flex items-center m-0">
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                    disabled={isEditing && !form.watch('petAllowedOverride')}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </div>
 
-                    {form.watch('petAllowed') && (
+                    {(form.watch('petAllowed') || effectiveConfig?.petAllowed.value) && (
                       <FormField
                         control={form.control}
                         name="petLimit"
@@ -1036,16 +1247,53 @@ export function ApartmentFormDialog({
                     )}
 
                     <Separator />
-                    <h4 className="text-sm font-semibold">Power & Infrastructure</h4>
+                    <h4 className="text-sm font-semibold">Infrastructure</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="powerCapacity"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Power Capacity (A)</FormLabel>
+                            <div className="flex items-center gap-2">
+                              <FormLabel>Circuit Breaker Rating (Amps)</FormLabel>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="max-w-xs text-xs">Maximum amperage for the unit's main circuit breaker</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
                             <FormControl>
                               <Input type="number" min={0} placeholder="32" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="acUnitCount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex items-center gap-2">
+                              <FormLabel>AC Connection Points</FormLabel>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="max-w-xs text-xs">Number of pre-installed AC connection points in this unit</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                            <FormControl>
+                              <Input type="number" min={0} placeholder="3" {...field} value={field.value ?? ''} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1054,27 +1302,29 @@ export function ApartmentFormDialog({
                     </div>
 
                     <Separator />
-                    <h4 className="text-sm font-semibold">Safety & Infrastructure</h4>
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-red-500" />
+                      <h4 className="text-sm font-semibold">Safety Equipment (PCCC Compliance)</h4>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="acUnitCount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>AC Units</FormLabel>
-                            <FormControl>
-                              <Input type="number" min={0} placeholder="3" {...field} value={field.value ?? ''} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
                       <FormField
                         control={form.control}
                         name="fireDetectorId"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Fire Detector ID</FormLabel>
+                            <div className="flex items-center gap-2">
+                              <FormLabel>Fire Detector ID</FormLabel>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="max-w-xs text-xs">Required per Vietnamese fire safety regulations (Nghị định 136/2020/NĐ-CP)</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
                             <FormControl>
                               <Input placeholder="FD-1205" {...field} />
                             </FormControl>
@@ -1082,14 +1332,24 @@ export function ApartmentFormDialog({
                           </FormItem>
                         )}
                       />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="sprinklerCount"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Sprinklers</FormLabel>
+                            <div className="flex items-center gap-2">
+                              <FormLabel>Sprinkler Count</FormLabel>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="max-w-xs text-xs">Number of fire sprinklers installed in this unit</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
                             <FormControl>
                               <Input type="number" min={0} placeholder="2" {...field} value={field.value ?? ''} />
                             </FormControl>
@@ -1097,6 +1357,8 @@ export function ApartmentFormDialog({
                           </FormItem>
                         )}
                       />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="internetTerminalLoc"
@@ -1113,42 +1375,46 @@ export function ApartmentFormDialog({
                     </div>
 
                     <Separator />
-                    <h4 className="text-sm font-semibold">Parking & Assets</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="assignedCarSlot"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Car Slot</FormLabel>
-                            <FormControl>
-                              <Input placeholder="B1-A-023" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="assignedMotoSlot"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Moto Slot</FormLabel>
-                            <FormControl>
-                              <Input placeholder="B2-M-045" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold">Parking Slots</h4>
+                      {isEditing && apartment && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setParkingDialogOpen(true)}
+                        >
+                          <Car className="mr-2 h-4 w-4" />
+                          Manage Parking
+                        </Button>
+                      )}
                     </div>
+                    {isEditing && parkingSlots.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {parkingSlots.map((slot) => (
+                          <Badge key={slot.id} variant="outline" className="py-1.5 px-3">
+                            <Car className="mr-1.5 h-3.5 w-3.5" />
+                            {slot.fullCode}
+                            <span className="ml-1.5 text-xs text-muted-foreground">
+                              ({new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', notation: 'compact' }).format(slot.monthlyFee)}/mo)
+                            </span>
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        {isEditing ? 'No parking slots assigned. Click "Manage Parking" to assign slots.' : 'Parking can be assigned after the apartment is created.'}
+                      </p>
+                    )}
+
+                    <h4 className="text-sm font-semibold mt-4">Other Assets</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="mailboxNumber"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Mailbox</FormLabel>
+                            <FormLabel>Mailbox Number</FormLabel>
                             <FormControl>
                               <Input placeholder="MB-1205" {...field} />
                             </FormControl>
@@ -1175,30 +1441,79 @@ export function ApartmentFormDialog({
                   {/* ===== BILLING TAB ===== */}
                   <TabsContent value="billing" className="space-y-4 mt-0">
                     <h4 className="text-sm font-semibold">Billing Configuration</h4>
+                    
+                    {/* Billing Cycle with policy inheritance */}
                     <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="billingCycle"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Billing Cycle</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || 'monthly'} disabled>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="monthly">Monthly</SelectItem>
-                                <SelectItem value="quarterly">Quarterly</SelectItem>
-                                <SelectItem value="yearly">Yearly</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormDescription>From building policy</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Label className="text-sm font-medium">Billing Cycle</Label>
+                            {effectiveConfig && (
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] px-1.5 py-0 h-5 font-normal ${
+                                  effectiveConfig.billingCycle.source === 'apartment'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : effectiveConfig.billingCycle.source === 'building'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
+                              >
+                                {effectiveConfig.billingCycle.source === 'apartment'
+                                  ? 'Overridden'
+                                  : effectiveConfig.billingCycle.source === 'building'
+                                  ? 'From policy'
+                                  : 'Default'}
+                              </Badge>
+                            )}
+                          </div>
+                          {isEditing && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Override</span>
+                              <Switch
+                                checked={form.watch('billingCycleOverride')}
+                                onCheckedChange={(checked) => {
+                                  form.setValue('billingCycleOverride', checked);
+                                  if (!checked) {
+                                    form.setValue('billingCycle', undefined);
+                                  }
+                                }}
+                                className="scale-75"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <FormField
+                          control={form.control}
+                          name="billingCycle"
+                          render={({ field }) => (
+                            <FormItem>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value || effectiveConfig?.billingCycle.value || 'monthly'}
+                                disabled={isEditing && !form.watch('billingCycleOverride')}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="monthly">Monthly</SelectItem>
+                                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                                  <SelectItem value="yearly">Yearly</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              {isEditing && !form.watch('billingCycleOverride') && effectiveConfig && (
+                                <FormDescription>
+                                  Using policy value: {effectiveConfig.billingCycle.value}
+                                </FormDescription>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                       <FormField
                         control={form.control}
                         name="billingStartDate"
@@ -1206,9 +1521,9 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Billing Start Date</FormLabel>
                             <FormControl>
-                              <Input type="date" {...field} disabled />
+                              <Input type="date" {...field} />
                             </FormControl>
-                            <FormDescription>From contract</FormDescription>
+                            <FormDescription>Date from which invoices will be generated</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1224,7 +1539,7 @@ export function ApartmentFormDialog({
                           <FormControl>
                             <Input placeholder="For payment matching" {...field} disabled />
                           </FormControl>
-                          <FormDescription>System-generated</FormDescription>
+                          <FormDescription>System-generated for automated payment matching</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1237,10 +1552,10 @@ export function ApartmentFormDialog({
                         <FormItem className="flex items-center justify-between rounded-lg border p-3">
                           <div>
                             <FormLabel>Waive Late Fees</FormLabel>
-                            <FormDescription>From building policy</FormDescription>
+                            <FormDescription>Exempt this unit from late payment penalties</FormDescription>
                           </div>
                           <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} disabled />
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -1343,5 +1658,22 @@ export function ApartmentFormDialog({
         </motion.div>
       </DialogContent>
     </Dialog>
+
+    {/* Parking Assignment Dialog */}
+    {buildingId && apartmentId && (
+      <ParkingAssignmentDialog
+        buildingId={buildingId}
+        apartmentId={apartmentId}
+        open={parkingDialogOpen}
+        onOpenChange={(open) => {
+          setParkingDialogOpen(open);
+          // Refetch parking slots when dialog closes
+          if (!open) {
+            refetchParkingSlots();
+          }
+        }}
+      />
+    )}
+    </>
   );
 }

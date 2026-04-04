@@ -10,65 +10,74 @@ datasource db {
 }
 
 model apartments {
-  id                     String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  building_id            String                  @db.Uuid
-  unit_number            String                  @db.VarChar(20)
+  id                     String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  building_id            String          @db.Uuid
+  unit_number            String          @db.VarChar(20)
   floor_index            Int
-  status                 ApartmentStatus         @default(vacant)
-  gross_area             Decimal?                @db.Decimal(10, 2)
-  bedroom_count          Int                     @default(1)
-  bathroom_count         Int                     @default(1)
-  features               Json                    @default("{}")
+  status                 ApartmentStatus @default(vacant)
+  gross_area             Decimal?        @db.Decimal(10, 2)
+  bedroom_count          Int             @default(1)
+  bathroom_count         Int             @default(1)
+  features               Json            @default("{}")
   svg_element_id         String?
-  created_at             DateTime                @default(now()) @db.Timestamptz(6)
-  updated_at             DateTime                @db.Timestamptz(6)
-  apartment_code         String?                 @unique @db.VarChar(30)
-  floor_label            String?                 @db.VarChar(10)
+  created_at             DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime        @db.Timestamptz(6)
+  apartment_code         String?         @unique @db.VarChar(30)
+  floor_label            String?         @db.VarChar(10)
   unit_type              UnitType?
-  net_area               Decimal?                @db.Decimal(10, 2)
-  ceiling_height         Decimal?                @db.Decimal(4, 2)
+  net_area               Decimal?        @db.Decimal(10, 2)
+  ceiling_height         Decimal?        @db.Decimal(4, 2)
   svg_path_data          String?
-  centroid_x             Decimal?                @db.Decimal(10, 4)
-  centroid_y             Decimal?                @db.Decimal(10, 4)
+  centroid_x             Decimal?        @db.Decimal(10, 4)
+  centroid_y             Decimal?        @db.Decimal(10, 4)
   orientation            Orientation?
   balcony_direction      Orientation?
-  is_corner_unit         Boolean                 @default(false)
-  owner_id               String?                 @db.Uuid
+  is_corner_unit         Boolean         @default(false)
+  owner_id               String?         @db.Uuid
   ownership_type         OwnershipType?
-  pink_book_id           String?                 @db.VarChar(50)
-  handover_date          DateTime?               @db.Date
-  warranty_expiry_date   DateTime?               @db.Date
-  is_rented              Boolean                 @default(false)
-  vat_rate               Decimal?                @db.Decimal(5, 2)
+  pink_book_id           String?         @db.VarChar(50)
+  handover_date          DateTime?       @db.Date
+  warranty_expiry_date   DateTime?       @db.Date
+  is_rented              Boolean         @default(false)
+  vat_rate               Decimal?        @db.Decimal(5, 2)
   max_residents          Int?
-  current_resident_count Int                     @default(0)
+  current_resident_count Int             @default(0)
   pet_allowed            Boolean?
   pet_limit              Int?
   access_card_limit      Int?
-  intercom_code          String?                 @db.VarChar(20)
-  electric_meter_id      String?                 @db.VarChar(50)
-  water_meter_id         String?                 @db.VarChar(50)
-  gas_meter_id           String?                 @db.VarChar(50)
+  intercom_code          String?         @db.VarChar(20)
+  electric_meter_id      String?         @db.VarChar(50)
+  water_meter_id         String?         @db.VarChar(50)
+  gas_meter_id           String?         @db.VarChar(50)
   power_capacity         Int?
   ac_unit_count          Int?
-  fire_detector_id       String?                 @db.VarChar(50)
+  fire_detector_id       String?         @db.VarChar(50)
   sprinkler_count        Int?
-  internet_terminal_loc  String?                 @db.VarChar(255)
-  assigned_car_slot      String?                 @db.VarChar(30)
-  assigned_moto_slot     String?                 @db.VarChar(30)
-  mailbox_number         String?                 @db.VarChar(20)
-  storage_unit_id        String?                 @db.VarChar(30)
-  mgmt_fee_config_id     String?                 @db.Uuid
-  billing_start_date     DateTime?               @db.Date
-  billing_cycle          BillingCycle            @default(monthly)
-  bank_account_virtual   String?                 @db.VarChar(30)
-  late_fee_waived        Boolean                 @default(false)
-  parent_unit_id         String?                 @db.Uuid
-  is_merged              Boolean                 @default(false)
-  sync_status            SyncStatus              @default(disconnected)
-  portal_access_enabled  Boolean                 @default(true)
+  internet_terminal_loc  String?         @db.VarChar(255)
+  assigned_car_slot      String?         @db.VarChar(30)
+  assigned_moto_slot     String?         @db.VarChar(30)
+  mailbox_number         String?         @db.VarChar(20)
+  storage_unit_id        String?         @db.VarChar(30)
+  mgmt_fee_config_id     String?         @db.Uuid
+  billing_start_date     DateTime?       @db.Date
+  billing_cycle          BillingCycle    @default(monthly)
+  bank_account_virtual   String?         @db.VarChar(30)
+  late_fee_waived        Boolean         @default(false)
+  parent_unit_id         String?         @db.Uuid
+  is_merged              Boolean         @default(false)
+  sync_status            SyncStatus      @default(disconnected)
+  portal_access_enabled  Boolean         @default(true)
   technical_drawing_url  String?
   notes_admin            String?
+
+  // Policy Override Fields (null = inherit from building policy)
+  max_residents_override     Int?
+  access_card_limit_override Int?
+  pet_allowed_override       Boolean?
+  pet_limit_override         Int?
+  billing_cycle_override     BillingCycle?
+
+  // Relations
   buildings              buildings               @relation(fields: [building_id], references: [id], onDelete: Cascade)
   management_fee_configs management_fee_configs? @relation(fields: [mgmt_fee_config_id], references: [id])
   users                  users?                  @relation(fields: [owner_id], references: [id])
@@ -77,6 +86,7 @@ model apartments {
   contracts              contracts[]
   incidents              incidents[]
   meter_readings         meter_readings[]
+  parking_slots          parking_slots[]
 
   @@unique([building_id, unit_number])
   @@index([building_id])
@@ -136,6 +146,91 @@ model buildings {
   apartments             apartments[]
   management_fee_configs management_fee_configs[]
   utility_tiers          utility_tiers[]
+  building_policies      building_policies[]
+  parking_zones          parking_zones[]
+}
+
+// ============================================================================
+// Building Policies (Versioned)
+// ============================================================================
+
+model building_policies {
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  building_id String @db.Uuid
+
+  // Occupancy Rules
+  default_max_residents     Int? // null = calculated by area formula (25m² per person)
+  access_card_limit_default Int     @default(4)
+  pet_allowed               Boolean @default(false)
+  pet_limit_default         Int     @default(0)
+
+  // Billing Configuration
+  default_billing_cycle BillingCycle @default(monthly)
+  late_fee_rate_percent Decimal?     @db.Decimal(5, 2) // e.g., 5.00 for 5%
+  late_fee_grace_days   Int          @default(7)
+
+  // Trash Collection
+  trash_collection_days String[] // ['monday', 'thursday']
+  trash_collection_time String?  @db.VarChar(20) // e.g., "07:00-09:00"
+  trash_fee_per_month   Decimal? @db.Decimal(12, 2)
+
+  // Versioning
+  effective_from DateTime  @db.Date
+  effective_to   DateTime? @db.Date // null = current policy
+  created_by     String?   @db.Uuid
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+
+  // Relations
+  buildings buildings @relation(fields: [building_id], references: [id], onDelete: Cascade)
+  users     users?    @relation(fields: [created_by], references: [id])
+
+  @@index([building_id, effective_from])
+  @@index([building_id, effective_to])
+}
+
+// ============================================================================
+// Parking Management
+// ============================================================================
+
+model parking_zones {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  building_id   String      @db.Uuid
+  name          String      @db.VarChar(50) // e.g., "Basement 1 - Zone A"
+  code          String      @db.VarChar(10) // e.g., "B1-A"
+  slot_type     ParkingType // car | motorcycle | bicycle
+  total_slots   Int
+  fee_per_month Decimal?    @db.Decimal(12, 2)
+  is_active     Boolean     @default(true)
+  created_at    DateTime    @default(now()) @db.Timestamptz(6)
+
+  // Relations
+  buildings     buildings       @relation(fields: [building_id], references: [id], onDelete: Cascade)
+  parking_slots parking_slots[]
+
+  @@unique([building_id, code])
+  @@index([building_id])
+}
+
+model parking_slots {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  zone_id         String            @db.Uuid
+  slot_number     String            @db.VarChar(10) // e.g., "023"
+  full_code       String            @db.VarChar(20) // e.g., "B1-A-023" (computed)
+  assigned_apt_id String?           @db.Uuid
+  assigned_at     DateTime?         @db.Timestamptz(6)
+  fee_override    Decimal?          @db.Decimal(12, 2) // null = use zone default
+  status          ParkingSlotStatus @default(available)
+  notes           String?
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime          @db.Timestamptz(6)
+
+  // Relations
+  parking_zones parking_zones @relation(fields: [zone_id], references: [id], onDelete: Cascade)
+  apartments    apartments?   @relation(fields: [assigned_apt_id], references: [id])
+
+  @@unique([zone_id, slot_number])
+  @@index([assigned_apt_id])
+  @@index([status])
 }
 
 model chat_queries {
@@ -153,37 +248,37 @@ model chat_queries {
 }
 
 model contracts {
-  id                                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  apartment_id                      String         @db.Uuid
-  tenant_id                         String         @db.Uuid
-  status                            ContractStatus @default(active)
-  start_date                        DateTime       @db.Date
-  end_date                          DateTime?      @db.Date
-  rent_amount                       Decimal        @db.Decimal(12, 2)
-  deposit_months                    Int            @default(2)
-  deposit_amount                    Decimal?       @db.Decimal(12, 2)
-  citizen_id                        String?        @db.VarChar(30)
-  number_of_residents               Int?
-  terms_notes                       String?
-  created_by                        String?        @db.Uuid
-  created_at                        DateTime       @default(now()) @db.Timestamptz(6)
-  updated_at                        DateTime       @db.Timestamptz(6)
+  id                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apartment_id        String         @db.Uuid
+  tenant_id           String         @db.Uuid
+  status              ContractStatus @default(active)
+  start_date          DateTime       @db.Date
+  end_date            DateTime?      @db.Date
+  rent_amount         Decimal        @db.Decimal(12, 2)
+  deposit_months      Int            @default(2)
+  deposit_amount      Decimal?       @db.Decimal(12, 2)
+  citizen_id          String?        @db.VarChar(30)
+  number_of_residents Int?
+  terms_notes         String?
+  created_by          String?        @db.Uuid
+  created_at          DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime       @db.Timestamptz(6)
 
   // Payment tracking fields (new)
-  contract_type                     ContractType   @default(rental)
-  purchase_price                    Decimal?       @db.Decimal(15, 2)
-  down_payment                      Decimal?       @db.Decimal(15, 2)
-  transfer_date                     DateTime?      @db.Date
-  option_fee                        Decimal?       @db.Decimal(15, 2)
-  purchase_option_price             Decimal?       @db.Decimal(15, 2)
-  option_period_months              Int?
-  rent_credit_percent               Decimal?       @db.Decimal(5, 2)
-  payment_due_day                   Int?           // Day of month (1-28)
+  contract_type         ContractType @default(rental)
+  purchase_price        Decimal?     @db.Decimal(15, 2)
+  down_payment          Decimal?     @db.Decimal(15, 2)
+  transfer_date         DateTime?    @db.Date
+  option_fee            Decimal?     @db.Decimal(15, 2)
+  purchase_option_price Decimal?     @db.Decimal(15, 2)
+  option_period_months  Int?
+  rent_credit_percent   Decimal?     @db.Decimal(5, 2)
+  payment_due_day       Int? // Day of month (1-28)
 
   // Relations
-  apartments                        apartments     @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
-  users_contracts_created_byTousers users?         @relation("contracts_created_byTousers", fields: [created_by], references: [id])
-  users_contracts_tenant_idTousers  users          @relation("contracts_tenant_idTousers", fields: [tenant_id], references: [id])
+  apartments                        apartments                   @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
+  users_contracts_created_byTousers users?                       @relation("contracts_created_byTousers", fields: [created_by], references: [id])
+  users_contracts_tenant_idTousers  users                        @relation("contracts_tenant_idTousers", fields: [tenant_id], references: [id])
   invoices                          invoices[]
   payment_schedules                 contract_payment_schedules[]
 
@@ -424,6 +519,7 @@ model users {
   updated_at                             DateTime                @db.Timestamptz(6)
   apartments                             apartments[]
   audit_logs                             audit_logs[]
+  building_policies                      building_policies[]
   chat_queries                           chat_queries[]
   contracts_contracts_created_byTousers  contracts[]             @relation("contracts_created_byTousers")
   contracts_contracts_tenant_idTousers   contracts[]             @relation("contracts_tenant_idTousers")
@@ -471,56 +567,56 @@ model utility_types {
 // ============================================================================
 
 model contract_payment_schedules {
-  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  contract_id     String        @db.Uuid
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contract_id String @db.Uuid
 
   // Payment info
-  period_label    String        @db.VarChar(100)   // "Downpayment", "Rent Apr 2026", "Milestone: Foundation"
+  period_label    String      @db.VarChar(100) // "Downpayment", "Rent Apr 2026", "Milestone: Foundation"
   payment_type    PaymentType
-  sequence_number Int                              // Order for display
+  sequence_number Int // Order for display
 
   // Amounts
-  due_date        DateTime      @db.Date
-  expected_amount Decimal       @db.Decimal(15, 2)
-  received_amount Decimal       @default(0) @db.Decimal(15, 2)
+  due_date        DateTime @db.Date
+  expected_amount Decimal  @db.Decimal(15, 2)
+  received_amount Decimal  @default(0) @db.Decimal(15, 2)
 
   // Status
-  status          PaymentStatus @default(pending)
+  status PaymentStatus @default(pending)
 
   // Metadata
-  notes           String?
-  created_at      DateTime      @default(now()) @db.Timestamptz(6)
-  updated_at      DateTime      @db.Timestamptz(6)
+  notes      String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @db.Timestamptz(6)
 
   // Relations
-  contracts       contracts     @relation(fields: [contract_id], references: [id], onDelete: Cascade)
-  payments        contract_payments[]
+  contracts contracts           @relation(fields: [contract_id], references: [id], onDelete: Cascade)
+  payments  contract_payments[]
 
   @@index([contract_id, due_date])
   @@index([status])
 }
 
 model contract_payments {
-  id                String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  schedule_id       String                     @db.Uuid
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  schedule_id String @db.Uuid
 
   // Payment details
-  amount            Decimal                    @db.Decimal(15, 2)
-  payment_date      DateTime                   @db.Date
-  payment_method    PaymentMethod?
-  reference_number  String?                    @db.VarChar(100)  // Bank transfer ref, receipt no.
+  amount           Decimal        @db.Decimal(15, 2)
+  payment_date     DateTime       @db.Date
+  payment_method   PaymentMethod?
+  reference_number String?        @db.VarChar(100) // Bank transfer ref, receipt no.
 
   // Who recorded it
-  recorded_by       String                     @db.Uuid
-  recorded_at       DateTime                   @default(now()) @db.Timestamptz(6)
+  recorded_by String   @db.Uuid
+  recorded_at DateTime @default(now()) @db.Timestamptz(6)
 
   // Evidence
-  receipt_url       String?
-  notes             String?
+  receipt_url String?
+  notes       String?
 
   // Relations
-  schedule          contract_payment_schedules @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
-  users             users                      @relation(fields: [recorded_by], references: [id])
+  schedule contract_payment_schedules @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
+  users    users                      @relation(fields: [recorded_by], references: [id])
 
   @@index([schedule_id])
   @@index([recorded_by])
@@ -663,4 +759,21 @@ enum PaymentMethod {
   check
   card
   other
+}
+
+// ============================================================================
+// Building Policies & Parking Enums
+// ============================================================================
+
+enum ParkingType {
+  car
+  motorcycle
+  bicycle
+}
+
+enum ParkingSlotStatus {
+  available
+  assigned
+  reserved
+  maintenance
 }

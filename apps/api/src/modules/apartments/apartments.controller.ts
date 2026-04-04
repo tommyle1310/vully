@@ -22,6 +22,7 @@ import {
   UpdateApartmentDto,
   ApartmentResponseDto,
   ApartmentFiltersDto,
+  ApartmentEffectiveConfigDto,
 } from './dto/apartment.dto';
 import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -166,6 +167,38 @@ export class ApartmentsController {
     }
 
     return { data: apartments };
+  }
+
+  @Get(':id/effective-config')
+  @ApiOperation({ summary: 'Get effective apartment configuration with policy inheritance' })
+  @ApiResponse({ status: 200, description: 'Effective config', type: ApartmentEffectiveConfigDto })
+  @ApiResponse({ status: 404, description: 'Apartment not found' })
+  async getEffectiveConfig(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{ data: ApartmentEffectiveConfigDto }> {
+    const config = await this.apartmentsService.getEffectiveConfig(id);
+    return { data: config as ApartmentEffectiveConfigDto };
+  }
+
+  @Get(':id/parking-slots')
+  @ApiOperation({ summary: 'Get parking slots assigned to an apartment' })
+  @ApiResponse({ status: 200, description: 'Parking slots list' })
+  @ApiResponse({ status: 404, description: 'Apartment not found' })
+  async getParkingSlots(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{
+    data: Array<{
+      id: string;
+      zoneId: string;
+      slotNumber: string;
+      fullCode: string;
+      type: string;
+      monthlyFee: number;
+      zone: { id: string; name: string; code: string };
+    }>;
+  }> {
+    const slots = await this.apartmentsService.getParkingSlots(id);
+    return { data: slots };
   }
 
   @Patch(':id')

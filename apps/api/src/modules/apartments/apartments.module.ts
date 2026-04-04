@@ -7,6 +7,10 @@ import { ContractsController } from './contracts.controller';
 import { ContractsService } from './contracts.service';
 import { PaymentScheduleController } from './payment-schedule.controller';
 import { PaymentScheduleService } from './payment-schedule.service';
+import { BuildingPoliciesController } from './building-policies.controller';
+import { BuildingPoliciesService } from './building-policies.service';
+import { ParkingController } from './parking.controller';
+import { ParkingService } from './parking.service';
 
 @Module({
   controllers: [
@@ -14,18 +18,24 @@ import { PaymentScheduleService } from './payment-schedule.service';
     ApartmentsController,
     ContractsController,
     PaymentScheduleController,
+    BuildingPoliciesController,
+    ParkingController,
   ],
   providers: [
     BuildingsService,
     ApartmentsService,
     ContractsService,
     PaymentScheduleService,
+    BuildingPoliciesService,
+    ParkingService,
   ],
   exports: [
     BuildingsService,
     ApartmentsService,
     ContractsService,
     PaymentScheduleService,
+    BuildingPoliciesService,
+    ParkingService,
   ],
 })
 export class ApartmentsModule {}

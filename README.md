@@ -46,8 +46,8 @@ pnpm dev                                # start all apps
 | Service | URL |
 |---------|-----|
 | Frontend | http://localhost:3000 |
-| API | http://localhost:3001 |
-| Swagger Docs | http://localhost:3001/api/docs |
+| API | http://localhost:3000 |
+| Swagger Docs | http://localhost:3000/api/docs |
 | Prisma Studio | `pnpm db:studio` → http://localhost:5555 |
 
 ### Default Login
@@ -63,7 +63,7 @@ admin@vully.com / Admin@123
 ```
 vully/
 ├── apps/
-│   ├── api/                        # NestJS backend (port 3001)
+│   ├── api/                        # NestJS backend (port 3000)
 │   │   ├── prisma/
 │   │   │   └── schema.prisma      # Database schema + migrations
 │   │   └── src/
