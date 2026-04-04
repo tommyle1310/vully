@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/authStore';
+import { UserRole } from '@vully/shared-types';
 
 interface LoginCredentials {
   email: string;
@@ -38,7 +39,8 @@ interface AuthResponse {
     email: string;
     firstName: string;
     lastName: string;
-    role: string;
+    role: string; // DEPRECATED - kept for backward compatibility
+    roles: string[]; // New multi-role array
   };
   accessToken: string;
   refreshToken: string;
@@ -75,8 +77,17 @@ export function useLogin() {
       apiClient.setAccessToken(accessToken);
       apiClient.setRefreshToken(refreshToken);
       
+      // Transform user to match authStore User interface
+      const storeUser = {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        roles: (user.roles || [user.role]) as UserRole[], // Cast to UserRole[]
+      };
+      
       // Store user + tokens in zustand
-      setAuth(user, accessToken, refreshToken);
+      setAuth(storeUser, accessToken, refreshToken);
       
       // Store refresh token in httpOnly cookie (handled by backend)
       // accessToken stored in memory for XSS protection

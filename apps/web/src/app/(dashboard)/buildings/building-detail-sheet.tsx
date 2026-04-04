@@ -26,10 +26,10 @@ import {
 } from '@/components/ui/sheet';
 
 interface BuildingDetailSheetProps {
-  buildings: Building | null;
+  building: Building | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onEdit: (buildings: Building) => void;
+  onEdit: (building: Building) => void;
 }
 
 function formatDate(dateString: string): string {
@@ -48,7 +48,7 @@ export function BuildingDetailSheet({
 }: BuildingDetailSheetProps) {
   const router = useRouter();
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.roles?.includes('admin');
 
   if (!building) return null;
 
@@ -79,8 +79,8 @@ export function BuildingDetailSheet({
           >
             {/* Status */}
             <div>
-              <Badge variant={building.is_active ? 'success' : 'secondary'}>
-                {building.is_active ? 'Active' : 'Inactive'}
+              <Badge variant={building.isActive ? 'success' : 'secondary'}>
+                {building.isActive ? 'Active' : 'Inactive'}
               </Badge>
             </div>
 

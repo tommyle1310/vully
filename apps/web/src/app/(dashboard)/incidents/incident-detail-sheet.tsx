@@ -94,7 +94,7 @@ function formatDate(dateString: string): string {
 
 function getFullName(user?: { firstName: string; lastName: string }): string {
   if (!user) return 'Unknown';
-  return `${user.first_name} ${user.last_name}`;
+  return `${user.firstName} ${user.lastName}`;
 }
 
 export function IncidentDetailSheet({
@@ -120,8 +120,8 @@ export function IncidentDetailSheet({
   const currentIncident = incidentData?.data ?? incident;
   const comments = commentsData?.data ?? [];
 
-  const isAdmin = user?.role === 'admin';
-  const isTechnician = user?.role === 'technician';
+  const isAdmin = user?.roles?.includes('admin');
+  const isTechnician = user?.roles?.includes('technician');
   const isAssigned = currentIncident?.assignedToId === user?.id;
 
   const handleSubmitComment = async () => {
@@ -229,7 +229,7 @@ export function IncidentDetailSheet({
                 <span>
                   {currentIncident?.apartment?.unit_number ?? '-'}
                   {currentIncident?.apartment?.building?.name &&
-                    ` - ${currentIncident.apartments.building.name}`}
+                    ` - ${currentIncident.apartment.building.name}`}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
@@ -332,7 +332,7 @@ export function IncidentDetailSheet({
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className={`p-3 rounded-lg border ${
-                        comment.is_internal
+                        comment.isInternal
                           ? 'bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800'
                           : 'bg-muted/50'
                       }`}
@@ -351,7 +351,7 @@ export function IncidentDetailSheet({
                         </span>
                       </div>
                       <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
-                      {comment.is_internal && (
+                      {comment.isInternal && (
                         <Badge variant="outline" className="mt-2 text-xs">
                           Internal Note
                         </Badge>

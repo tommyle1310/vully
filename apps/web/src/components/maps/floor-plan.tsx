@@ -271,7 +271,7 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
       const apartment = getApartmentBySvgId(svgId);
       if (!apartment) return;
 
-      setHoveredApartment(apartments.id);
+      setHoveredApartment(apartment.id);
 
       // Show tooltip (desktop only)
       if (window.innerWidth >= 768) {
@@ -281,7 +281,7 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
         setTooltip({
           x: rect.left + rect.width / 2 - containerRect.left,
           y: rect.top - containerRect.top - 10,
-          content: `${apartments.unit_number} - ${apartments.status}`,
+          content: `${apartment.unit_number} - ${apartment.status}`,
         });
       }
     };
@@ -300,8 +300,8 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
       const apartment = getApartmentBySvgId(svgId);
       if (!apartment) return;
 
-      setSelectedApartment(apartments.id);
-      onApartmentClick?.(apartments.id);
+      setSelectedApartment(apartment.id);
+      onApartmentClick?.(apartment.id);
     };
 
     // Touch support for mobile
@@ -314,7 +314,7 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
       if (!apartment) return;
 
       // On mobile, tap shows highlight
-      setHoveredApartment(apartments.id);
+      setHoveredApartment(apartment.id);
     };
 
     const handleTouchEnd = (e: Event) => {
@@ -328,8 +328,8 @@ export function FloorPlan({ svgContent, buildingId, apartments, onApartmentClick
 
       // Clear hover and trigger selection
       setHoveredApartment(null);
-      setSelectedApartment(apartments.id);
-      onApartmentClick?.(apartments.id);
+      setSelectedApartment(apartment.id);
+      onApartmentClick?.(apartment.id);
     };
 
     // Attach event listeners to apartment elements

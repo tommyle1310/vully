@@ -408,11 +408,11 @@ export function useIncidentRealTime(options: UseIncidentRealTimeOptions = {}) {
     const rooms: string[] = [];
 
     if (buildingId) {
-      rooms.push(WS_ROOMS.building(buildingId));
+      rooms.push(WS_ROOMS.buildings(buildingId));
     }
 
     if (apartmentId) {
-      rooms.push(WS_ROOMS.apartment(apartmentId));
+      rooms.push(WS_ROOMS.apartments(apartmentId));
     }
 
     rooms.forEach((room) => joinRoom(room));

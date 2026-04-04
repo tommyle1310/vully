@@ -127,7 +127,7 @@ export function useTourGuide({
   }, [tourId]);
 
   const startTour = useCallback(() => {
-    if (tour && !tour.is_active()) {
+    if (tour && !tour.isActive()) {
       tour.start();
     }
   }, [tour]);

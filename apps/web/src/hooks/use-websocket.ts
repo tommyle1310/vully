@@ -183,13 +183,13 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       joinRoom(WS_ROOMS.user(user.id));
 
       // Join role-based room (role values are lowercase from Prisma enum)
-      if (user.role === 'admin') {
+      if (user.roles?.includes('admin')) {
         joinRoom(WS_ROOMS.admin());
-      } else if (user.role === 'technician') {
+      } else if (user.roles?.includes('technician')) {
         joinRoom(WS_ROOMS.technician());
       }
     }
-  }, [state.connected, user?.id, user?.role, joinRoom]);
+  }, [state.connected, user?.id, user?.roles, joinRoom]);
 
   return {
     socket: socketRef.current,

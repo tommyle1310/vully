@@ -125,14 +125,14 @@ export function InvoiceDetailSheet({ invoice, onClose }: InvoiceDetailSheetProps
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="py-2">
-                    {invoice.contracts?.tenant ? (
+                    {invoice.contract?.tenant ? (
                       <>
                         <p className="font-medium">
-                          {invoice.contracts.tenant.first_name}{' '}
-                          {invoice.contracts.tenant.last_name}
+                          {invoice.contract.tenant.firstName}{' '}
+                          {invoice.contract.tenant.lastName}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {invoice.contracts.tenant.email}
+                          {invoice.contract.tenant.email}
                         </p>
                       </>
                     ) : (
@@ -149,13 +149,13 @@ export function InvoiceDetailSheet({ invoice, onClose }: InvoiceDetailSheetProps
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="py-2">
-                    {invoice.contracts?.apartment ? (
+                    {invoice.contract?.apartments ? (
                       <>
                         <p className="font-medium">
-                          Unit {invoice.contracts.apartments.unit_number}
+                          Unit {invoice.contract.apartments.unit_number}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {invoice.contracts.apartments.buildings.name}
+                          {invoice.contract.apartments.buildings.name}
                         </p>
                       </>
                     ) : (
@@ -229,7 +229,7 @@ export function InvoiceDetailSheet({ invoice, onClose }: InvoiceDetailSheetProps
                   )}
                   <div className="flex justify-between text-lg font-bold border-t pt-2">
                     <span>Total</span>
-                    <span>{formatCurrency(invoice.total_amounts)}</span>
+                    <span>{formatCurrency(invoice.totalAmount)}</span>
                   </div>
                   {invoice.paidAmount > 0 && (
                     <div className="flex justify-between text-sm text-green-600">
@@ -240,14 +240,14 @@ export function InvoiceDetailSheet({ invoice, onClose }: InvoiceDetailSheetProps
                       <span>{formatCurrency(invoice.paidAmount)}</span>
                     </div>
                   )}
-                  {invoice.status !== 'paid' && invoice.total_amounts > invoice.paidAmount && (
+                  {invoice.status !== 'paid' && invoice.totalAmount > invoice.paidAmount && (
                     <div className="flex justify-between text-sm text-orange-600">
                       <span className="flex items-center gap-1">
                         <AlertCircle className="h-4 w-4" />
                         Remaining
                       </span>
                       <span>
-                        {formatCurrency(invoice.total_amounts - invoice.paidAmount)}
+                        {formatCurrency(invoice.totalAmount - invoice.paidAmount)}
                       </span>
                     </div>
                   )}

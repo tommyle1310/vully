@@ -5,10 +5,10 @@ interface Apartment {
   unit_number: string;
   floorIndex: number;
   status: 'vacant' | 'occupied' | 'maintenance' | 'reserved';
-  grossArea?: number;
+  grossArea?: number | null;
   bedroomCount: number;
   bathroomCount: number;
-  svgElementId?: string;
+  svgElementId?: string | null;
   building?: {
     id: string;
     name: string;
@@ -19,7 +19,7 @@ interface Apartment {
       firstName: string;
       lastName: string;
     };
-  };
+  } | null;
 }
 
 interface MapState {

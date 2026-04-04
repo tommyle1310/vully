@@ -195,7 +195,7 @@ export default function MeterReadingsPage() {
                               Unit {reading.apartment.unit_number}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {reading.apartment.building?.name}
+                              {reading.apartment.buildings?.name}
                             </div>
                           </div>
                         ) : (
@@ -232,7 +232,7 @@ export default function MeterReadingsPage() {
                       <TableCell>
                         {reading.recordedBy ? (
                           <span className="text-sm">
-                            {reading.recordedBy.first_name} {reading.recordedBy.last_name}
+                            {reading.recordedBy.firstName} {reading.recordedBy.lastName}
                           </span>
                         ) : (
                           <span className="text-muted-foreground text-sm">System</span>

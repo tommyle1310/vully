@@ -88,21 +88,21 @@ const columns = [
       return (
         <div>
           <span className="font-medium">
-            {invoice.contracts?.apartments.unit_number || '-'}
+            {invoice.contract?.apartments.unit_number || '-'}
           </span>
           <span className="block text-xs text-muted-foreground">
-            {invoice.contracts?.apartments.building.name || ''}
+            {invoice.contract?.apartments.buildings.name || ''}
           </span>
         </div>
       );
     },
   }),
-  columnHelper.accessor('contract.tenant.first_name', {
+  columnHelper.accessor('contract.tenant.firstName', {
     header: 'Tenant',
     cell: (info) => {
       const tenant = info.row.original.contract?.tenant;
       if (!tenant) return '-';
-      return `${tenant.first_name} ${tenant.last_name}`;
+      return `${tenant.firstName} ${tenant.lastName}`;
     },
   }),
   columnHelper.accessor('billingPeriod', {

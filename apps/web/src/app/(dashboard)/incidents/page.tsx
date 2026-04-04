@@ -95,7 +95,7 @@ function formatDate(dateString: string): string {
 
 function getFullName(user?: { firstName: string; lastName: string }): string {
   if (!user) return '-';
-  return `${user.first_name} ${user.last_name}`;
+  return `${user.firstName} ${user.lastName}`;
 }
 
 const columns = [

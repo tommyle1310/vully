@@ -298,11 +298,17 @@ function PartyCombobox({ value, onChange, disabled, partyLabel }: PartyComboboxP
   const [showQuickCreate, setShowQuickCreate] = useState(false);
 
   // Fetch users
-  const { data: usersData, isLoading } = useQuery<UsersResponse>({
+  const { data: usersData, isLoading, error, isError } = useQuery<UsersResponse>({
     queryKey: ['users', 'all'],
     queryFn: () => apiClient.get<UsersResponse>('/users?limit=500'),
     staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
+
+  // Log errors for debugging
+  if (isError) {
+    console.error('[PartyCombobox] Failed to fetch users:', error);
+  }
 
   const users = usersData?.data || [];
 
@@ -394,11 +400,22 @@ function PartyCombobox({ value, onChange, disabled, partyLabel }: PartyComboboxP
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
+            ) : isError ? (
+              <div className="text-center py-4 px-2">
+                <p className="text-sm text-destructive">
+                  Failed to load users
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {error instanceof Error ? error.message : 'Please try again'}
+                </p>
+              </div>
             ) : filteredUsers.length === 0 ? (
               <CommandEmpty>
                 <div className="text-center py-4">
                   <p className="text-sm text-muted-foreground">
-                    No users found matching your search
+                    {users.length === 0 
+                      ? 'No users in system. Create one above.'
+                      : 'No users found matching your search'}
                   </p>
                 </div>
               </CommandEmpty>

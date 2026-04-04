@@ -90,7 +90,7 @@ export function BuildingFormDialog({
           city: building.city,
           floorCount: building.floorCount,
           amenities: building.amenities || [],
-          isActive: building.is_active,
+          isActive: building.isActive,
         });
       } else {
         form.reset({

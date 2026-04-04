@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Check, ChevronsUpDown, Building2 } from 'lucide-react';
+import { Check, ChevronsUpDown, Building2, Loader2 } from 'lucide-react';
 import { useBuildings } from '@/hooks/use-buildings';
 import { useApartments } from '@/hooks/use-apartments';
 import { Button } from '@/components/ui/button';
@@ -46,9 +46,9 @@ export function ApartmentCombobox({
     string | undefined
   >(undefined);
 
-  // Debounce the apartment text filter (triggers re-filter, not new API call)
+  // Debounce the apartment search for server-side query (500ms for API calls)
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedAptSearch(aptSearch), 300);
+    const timer = setTimeout(() => setDebouncedAptSearch(aptSearch), 500);
     return () => clearTimeout(timer);
   }, [aptSearch]);
 
@@ -66,22 +66,17 @@ export function ApartmentCombobox({
     );
   }, [allBuildings, buildingSearch]);
 
-  // Load apartments — server-side filtered by building when one is selected
-  const { data: apartmentsData, isLoading: loadingApts } = useApartments({
+  // Load apartments with server-side search (debounced)
+  const { data: apartmentsData, isLoading: loadingApts, isFetching } = useApartments({
     buildingId: selectedBuildingId,
     status: statusFilter,
-    limit: 200,
+    search: debouncedAptSearch || undefined, // Server-side search
+    limit: 100,
   });
   const apartments = apartmentsData?.data ?? [];
 
-  // Client-side apartment text filter (debounced)
-  const filteredApts = useMemo(() => {
-    if (!debouncedAptSearch.trim()) return apartments;
-    const s = debouncedAptSearch.toLowerCase();
-    return apartments.filter((a) =>
-      a.unit_number.toLowerCase().includes(s),
-    );
-  }, [apartments, debouncedAptSearch]);
+  // Show searching indicator when input differs from debounced value
+  const isSearching = aptSearch !== debouncedAptSearch || isFetching;
 
   // Resolve display label for the trigger button
   const selectedApt = useMemo(
@@ -177,44 +172,58 @@ export function ApartmentCombobox({
         </div>
 
         {/* ── Apartment list ── */}
-        <Command>
-          <CommandInput
-            placeholder="Search unit number..."
-            value={aptSearch}
-            onValueChange={setAptSearch}
-          />
+        <Command shouldFilter={false}>
+          <div className="relative">
+            <CommandInput
+              placeholder="Search unit number..."
+              value={aptSearch}
+              onValueChange={setAptSearch}
+            />
+            {isSearching && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+          </div>
           <CommandList className="max-h-[280px] overflow-y-auto">
-            <CommandEmpty>
-              {loadingApts ? 'Loading apartments…' : 'No apartments found.'}
-            </CommandEmpty>
-            <CommandGroup
-              heading={selectedBuilding ? selectedBuilding.name : 'Apartments'}
-            >
-              {filteredApts.map((apt) => (
-                <CommandItem
-                  key={apt.id}
-                  value={apt.id}
-                  onSelect={() => {
-                    onChange(apt.id);
-                    setOpen(false);
-                  }}
-                  className="cursor-pointer"
-                >
-                  <Check
-                    className={cn(
-                      'mr-2 h-4 w-4',
-                      value === apt.id ? 'opacity-100' : 'opacity-0',
+            {loadingApts ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : apartments.length === 0 ? (
+              <CommandEmpty>
+                {debouncedAptSearch 
+                  ? `No apartments found for "${debouncedAptSearch}"`
+                  : 'No apartments found.'}
+              </CommandEmpty>
+            ) : (
+              <CommandGroup
+                heading={selectedBuilding ? selectedBuilding.name : 'Apartments'}
+              >
+                {apartments.map((apt) => (
+                  <CommandItem
+                    key={apt.id}
+                    value={apt.id}
+                    onSelect={() => {
+                      onChange(apt.id);
+                      setOpen(false);
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Check
+                      className={cn(
+                        'mr-2 h-4 w-4',
+                        value === apt.id ? 'opacity-100' : 'opacity-0',
+                      )}
+                    />
+                    <span className="font-medium">{apt.unit_number}</span>
+                    {apt.building?.name && (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        — {apt.building.name}
+                      </span>
                     )}
-                  />
-                  <span className="font-medium">{apt.unit_number}</span>
-                  {apt.building?.name && (
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      — {apt.building.name}
-                    </span>
-                  )}
-                </CommandItem>
-              ))}
-            </CommandGroup>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>
