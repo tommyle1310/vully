@@ -293,7 +293,7 @@ model invoices {
   notes              String?
   price_snapshot     Json?
   created_at         DateTime             @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime             @db.Timestamptz(6)
+  updated_at         DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
   invoice_line_items invoice_line_items[]
   contracts          contracts            @relation(fields: [contract_id], references: [id], onDelete: Cascade)
 

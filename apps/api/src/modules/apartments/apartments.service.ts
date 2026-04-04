@@ -141,9 +141,13 @@ export class ApartmentsService {
     // Owner filter
     if (filters.ownerId) where.owner_id = filters.ownerId;
     
-    // Search filter (unit_number contains)
+    // Search filter - search across unit_number, apartment_code, and building name
     if (filters.search) {
-      where.unit_number = { contains: filters.search, mode: 'insensitive' };
+      where.OR = [
+        { unit_number: { contains: filters.search, mode: 'insensitive' } },
+        { apartment_code: { contains: filters.search, mode: 'insensitive' } },
+        { buildings: { name: { contains: filters.search, mode: 'insensitive' } } },
+      ];
     }
 
     const [apartments, total] = await Promise.all([

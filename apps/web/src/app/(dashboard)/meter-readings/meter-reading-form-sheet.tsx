@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { CalendarIcon, Loader2, Zap, Droplets, Flame } from 'lucide-react';
+import { CalendarIcon, Loader2, Zap, Droplets, Flame, Check, ChevronsUpDown } from 'lucide-react';
 import Link from 'next/link';
 
 import {
@@ -15,6 +15,7 @@ import {
 import { useApartments, type Apartment } from '@/hooks/use-apartments';
 import { useUtilityTypes, type UtilityType } from '@/hooks/use-billing';
 import { useToast } from '@/hooks/use-toast';
+import { useDebounce } from '@/hooks/use-debounce';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import {
   Form,
   FormControl,
@@ -88,12 +97,43 @@ export function MeterReadingFormSheet({
 }: MeterReadingFormSheetProps) {
   const { toast } = useToast();
   const createMeterReading = useCreateMeterReading();
-  const { data: apartmentsData } = useApartments({ limit: 100 });
+  const { data: apartmentsData, isLoading: apartmentsLoading } = useApartments({ limit: 500 });
   const { data: utilityTypesData } = useUtilityTypes();
+
+  const [apartmentSearch, setApartmentSearch] = useState('');
+  const [apartmentComboOpen, setApartmentComboOpen] = useState(false);
 
   const apartments = apartmentsData?.data ?? [];
   const utilityTypes = utilityTypesData?.data ?? [];
   const activeUtilityTypes = utilityTypes.filter((ut) => ut.isActive);
+
+  // Debug: Log apartments data
+  useEffect(() => {
+    if (open && apartments.length > 0) {
+      console.log('[MeterReading] Loaded apartments:', apartments.length);
+      console.log('[MeterReading] Sample:', apartments.slice(0, 3).map(a => ({
+        unit: a.unit_number,
+        building: a.building?.name,
+        code: a.apartmentCode
+      })));
+    }
+  }, [open, apartments]);
+
+  // Filter apartments - use immediate search value (no debounce needed for client-side filtering)
+  const filteredApartments = useMemo(() => {
+    if (!apartmentSearch.trim()) return apartments;
+    const searchLower = apartmentSearch.toLowerCase();
+    const filtered = apartments.filter(
+      (apt) => {
+        const unitMatch = apt.unit_number?.toLowerCase().includes(searchLower);
+        const buildingMatch = apt.building?.name?.toLowerCase().includes(searchLower);
+        const codeMatch = apt.apartmentCode?.toLowerCase().includes(searchLower);
+        return unitMatch || buildingMatch || codeMatch;
+      }
+    );
+    console.log('[MeterReading] Search:', searchLower, 'Results:', filtered.length);
+    return filtered;
+  }, [apartments, apartmentSearch]);
 
   const form = useForm<MeterReadingFormValues>({
     resolver: zodResolver(meterReadingSchema),
@@ -174,34 +214,87 @@ export function MeterReadingFormSheet({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-6">
-            {/* Apartment Select */}
+            {/* Apartment Combobox with Search */}
             <FormField
               control={form.control}
               name="apartmentId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Apartment</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value || undefined}
-                    disabled={!!apartmentId}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select apartment" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {apartments.map((apt) => (
-                        <SelectItem key={apt.id} value={apt.id}>
-                          {apt.building?.name} - Unit {apt.unit_number}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const selectedApartment = apartments.find((apt) => apt.id === field.value);
+                return (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Apartment</FormLabel>
+                    <Popover open={apartmentComboOpen} onOpenChange={setApartmentComboOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            disabled={!!apartmentId}
+                            className={cn(
+                              'w-full justify-between font-normal',
+                              !field.value && 'text-muted-foreground',
+                            )}
+                          >
+                            {selectedApartment ? (
+                              <span>
+                                {selectedApartment.building?.name} - Unit {selectedApartment.unit_number}
+                              </span>
+                            ) : (
+                              <span>Select apartment</span>
+                            )}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0" align="start">
+                        <Command shouldFilter={false}>
+                          <CommandInput
+                            placeholder="Search apartments..."
+                            value={apartmentSearch}
+                            onValueChange={setApartmentSearch}
+                          />
+                          <CommandList>
+                            <CommandEmpty>
+                              {apartmentsLoading ? 'Loading apartments...' : 
+                               apartments.length === 0 ? 'No apartments available.' :
+                               'No apartments found.'}
+                            </CommandEmpty>
+                            <CommandGroup>
+                              {filteredApartments.map((apt) => (
+                                <CommandItem
+                                  key={apt.id}
+                                  value={apt.id}
+                                  onSelect={() => {
+                                    field.onChange(apt.id);
+                                    setApartmentComboOpen(false);
+                                    setApartmentSearch('');
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      'mr-2 h-4 w-4',
+                                      field.value === apt.id ? 'opacity-100' : 'opacity-0',
+                                    )}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">
+                                      {apt.building?.name} - Unit {apt.unit_number}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      Floor {apt.floorIndex} • {apt.bedroomCount} beds
+                                    </span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
 
             {/* Utility Type Select */}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   useReactTable,
@@ -17,6 +17,7 @@ import { parseAsString, parseAsArrayOf, parseAsInteger, useQueryStates } from 'n
 import { useAuthStore } from '@/stores/authStore';
 import { useMyApartment, useMyContracts } from '@/hooks/use-contracts';
 import { useApartments, useApartment, Apartment } from '@/hooks/use-apartments';
+import { useDebounce } from '@/hooks/use-debounce';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -122,7 +123,8 @@ export default function ApartmentsPage() {
   
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [globalFilter, setGlobalFilter] = useState('');
+  const [searchInput, setSearchInput] = useState(''); // Local state for instant UI feedback
+  const debouncedSearch = useDebounce(searchInput, 300); // Debounced for API calls
   const [selectedApartment, setSelectedApartment] = useState<Apartment | null>(null);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
@@ -130,6 +132,7 @@ export default function ApartmentsPage() {
 
   // URL state with nuqs
   const [urlFilters, setUrlFilters] = useQueryStates({
+    search: parseAsString,
     buildingId: parseAsString,
     status: parseAsArrayOf(parseAsString).withDefault([]),
     unitType: parseAsArrayOf(parseAsString).withDefault([]),
@@ -140,6 +143,11 @@ export default function ApartmentsPage() {
     page: parseAsInteger.withDefault(1),
     limit: parseAsInteger.withDefault(20),
   });
+
+  // Update URL search when debounced value changes
+  useEffect(() => {
+    setUrlFilters({ search: debouncedSearch || undefined, page: 1 });
+  }, [debouncedSearch]);
 
   const filterValues: ApartmentFilterValues = {
     buildingId: urlFilters.buildingId,
@@ -180,6 +188,7 @@ export default function ApartmentsPage() {
   // For admin: fetch paginated apartments with filters
   // For resident: fetch their specific apartment by ID
   const { data, isLoading: isLoadingAllApartments, error } = useApartments({
+    search: isAdmin ? (urlFilters.search || undefined) : undefined, // Add search parameter
     buildingId: isAdmin ? (urlFilters.buildingId || undefined) : undefined,
     status: isAdmin && urlFilters.status.length > 0 ? urlFilters.status : undefined,
     unitType: isAdmin && urlFilters.unitType.length > 0 ? urlFilters.unitType : undefined,
@@ -204,21 +213,26 @@ export default function ApartmentsPage() {
   const meta = data?.meta;
   const totalPages = meta ? Math.ceil(meta.total / meta.limit) : 1;
 
+  // Sync debounced search to URL (triggers API refetch)
+  useEffect(() => {
+    if (isAdmin) {
+      setUrlFilters({ search: debouncedSearch || undefined, page: 1 });
+    }
+  }, [debouncedSearch, isAdmin]);
+
   const table = useReactTable({
     data: apartments,
     columns,
     state: {
       sorting,
       columnFilters,
-      globalFilter,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    manualPagination: true,
+    manualPagination: true, // Server-side pagination
+    manualFiltering: true, // Server-side filtering via API
   });
 
   if (isLoading) {
@@ -267,9 +281,9 @@ export default function ApartmentsPage() {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search apartments..."
-                value={globalFilter ?? ''}
-                onChange={(e) => setGlobalFilter(e.target.value)}
+                placeholder="Search by unit, building, code..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-9"
               />
             </div>

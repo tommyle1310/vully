@@ -106,7 +106,6 @@ export class InvoicesService {
           rentAmount: Number(contract.rent_amount),
           calculatedAt: new Date().toISOString(),
         },
-        updated_at: new Date(),
         invoice_line_items: {
           create: calculation.lineItems.map((item: any) => ({
             description: item.description,
@@ -116,7 +115,6 @@ export class InvoicesService {
             utility_type_id: item.utilityTypeId,
             meter_reading_id: item.meterReadingId,
             tier_breakdown: item.tierBreakdown as Prisma.InputJsonValue,
-            updated_at: new Date(),
           })),
         },
       },
