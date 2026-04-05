@@ -40,15 +40,15 @@ Role: Senior Fullstack Engineer (NestJS & Next.js expert)
 - WebSocket events MUST use Socket.IO gateway with room-based broadcasting (building, apartment, user scopes)
 
 **Implemented Modules (✅)**:
-- Identity: Auth (JWT access+refresh), Users, Multi-role RBAC (UserRoleAssignment + Permissions + RolePermission)
-- Apartments: Buildings (with SVG maps), Apartments (50+ fields), Contracts (CRUD + terminate)
-- Payment Tracking: Contract Payment Schedules, Payments, Financial Summaries, Void Support (NEW)
-- Billing: Invoices, Meter Readings, Utility Types/Tiers (tiered pricing), BullMQ processor, Billing Jobs
+- Identity: Auth (JWT access+refresh, password reset), Users, Multi-role RBAC (UserRoleAssignment + Permissions + RolePermission)
+- Apartments: Buildings (with SVG maps + policies), Apartments (50+ fields), Contracts (CRUD + terminate), Access Cards (issue/edit/deactivate/reactivate), Parking (zones + slots), Building Policies (versioned), Payment Schedules
+- Payment Tracking: Contract Payment Schedules, Payments, Financial Summaries, Void Support
+- Billing: Invoices, Meter Readings, Utility Types/Tiers (tiered pricing), BullMQ processor, Billing Jobs, Management Fee Configs
 - Incidents: CRUD, Comments, WebSocket Gateway
 - Stats: Dashboard analytics (Redis-cached, 5-min TTL)
 - AI Assistant: RAG chatbot (Gemini + pgvector + LangChain), Documents, Document Chunks
 
-**Skeleton Modules (🚧)**: Accounting, Management Board (empty controllers, need implementation)
+**Skeleton Modules (🚧)**: Management Board (empty controllers, need implementation)
 
 **Planned Modules (📋)**:
 - Multi-Tenant: Organization, OrganizationMember, PostgreSQL RLS
@@ -133,10 +133,11 @@ apps/
 │   └── src/
 │       ├── modules/        # Feature modules
 │       │   ├── identity/       # Auth, Users, RBAC
-│       │   ├── apartments/     # Buildings, Apartments, Contracts, Payments
-│       │   ├── billing/        # Invoices, Meter Readings, Utility Types/Tiers
-│       │   ├── incidents/      # Incidents, Comments, WebSocket Gateway
-│       │   ├── stats/          # Dashboard analytics
+│       │   ├── apartments/     # Buildings, Apartments, Contracts, Access Cards, Parking, Policies, Payments
+        │   ├── billing/        # Invoices, Meter Readings, Utility Types/Tiers, Management Fees
+        │   ├── incidents/      # Incidents, Comments, WebSocket Gateway
+        │   ├── stats/          # Dashboard analytics
+        │   ├── management-board/ # 🚧 Vendor, Investor, Board (skeleton)
 │       │   └── ai-assistant/   # RAG chatbot
 │       ├── common/         # Shared utilities
 │       ├── providers/      # External services
@@ -145,16 +146,25 @@ apps/
 └── web/                    # Next.js Frontend
     └── src/
         ├── app/            # App Router pages
-        │   └── (dashboard)/
-        │       └── contracts/[id]/  # Contract detail with payment schedule
+        │   ├── (auth)/         # Login, Register, Forgot/Reset Password
+        │   └── (dashboard)/    # 14 pages: dashboard, apartments, apartments/[id],
+        │                       # buildings, buildings/[id], contracts, contracts/[id],
+        │                       # incidents, invoices, meter-readings, users,
+        │                       # utility-types, settings
         ├── components/
-        │   ├── ui/             # Shadcn/UI (27 components)
+        │   ├── ui/             # Shadcn/UI (30 components)
         │   ├── payments/       # PaymentScheduleTable, RecordPaymentDialog, etc.
+        │   ├── access-cards/   # AccessCardsTab, IssueAccessCardDialog, etc.
+        │   ├── buildings/      # Parking management, building policies
+        │   ├── apartments/     # Inherited field wrapper, parking assignment
+        │   ├── dashboard/      # Charts, activity feed, resident dashboard
         │   ├── maps/           # SVG floor plan viewer + builder
-        │   └── 3d/             # Three.js building 3D viewer
-        ├── hooks/          # 15 custom hooks (including use-payments.ts)
-        ├── stores/         # Zustand stores
-        └── lib/            # Utilities
+        │   ├── 3d/             # Three.js building 3D viewer
+        │   ├── users/          # User dialogs, role management
+        │   └── date-picker/    # Date picker, date range picker
+        ├── hooks/          # 27 custom hooks
+        ├── stores/         # Zustand stores (authStore, mapStore)
+        └── lib/            # Utilities (api-client, format, performance, web-vitals)
 
 packages/
 ├── shared-types/           # Shared TypeScript types
