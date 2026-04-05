@@ -85,7 +85,7 @@ export function useMeterReadings(filters: MeterReadingFilters = {}) {
 
   return useQuery({
     queryKey: ['meter-readings', filters],
-    queryFn: async (): Promise<MeterReadingsResponse> => {
+    queryFn: (): Promise<MeterReadingsResponse> => {
       const url = `/meter-readings?${queryParams.toString()}`;
       return apiClient.get<MeterReadingsResponse>(url);
     },
@@ -97,9 +97,8 @@ export function useMeterReadings(filters: MeterReadingFilters = {}) {
 export function useMeterReading(id: string) {
   return useQuery({
     queryKey: ['meter-readings', id],
-    queryFn: async (): Promise<MeterReadingResponse> => {
-      return apiClient.get<MeterReadingResponse>(`/meter-readings/${id}`);
-    },
+    queryFn: (): Promise<MeterReadingResponse> =>
+      apiClient.get<MeterReadingResponse>(`/meter-readings/${id}`),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
   });
@@ -109,11 +108,10 @@ export function useMeterReading(id: string) {
 export function useLatestMeterReadings(apartmentId: string) {
   return useQuery({
     queryKey: ['meter-readings', 'latest', apartmentId],
-    queryFn: async (): Promise<{ data: MeterReading[] }> => {
-      return apiClient.get<{ data: MeterReading[] }>(
+    queryFn: (): Promise<{ data: MeterReading[] }> =>
+      apiClient.get<{ data: MeterReading[] }>(
         `/meter-readings/apartment/${apartmentId}/latest`,
-      );
-    },
+      ),
     enabled: !!apartmentId,
     staleTime: 5 * 60 * 1000,
   });
@@ -124,9 +122,8 @@ export function useCreateMeterReading() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (dto: CreateMeterReadingDto): Promise<MeterReadingResponse> => {
-      return apiClient.post<MeterReadingResponse>('/meter-readings', dto);
-    },
+    mutationFn: (dto: CreateMeterReadingDto): Promise<MeterReadingResponse> =>
+      apiClient.post<MeterReadingResponse>('/meter-readings', dto),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['meter-readings'] });
       queryClient.invalidateQueries({ 
@@ -144,15 +141,14 @@ export function useUpdateMeterReading() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       id,
       data,
     }: {
       id: string;
       data: UpdateMeterReadingDto;
-    }): Promise<MeterReadingResponse> => {
-      return apiClient.patch<MeterReadingResponse>(`/meter-readings/${id}`, data);
-    },
+    }): Promise<MeterReadingResponse> =>
+      apiClient.patch<MeterReadingResponse>(`/meter-readings/${id}`, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['meter-readings'] });
       queryClient.invalidateQueries({ queryKey: ['meter-readings', variables.id] });
@@ -165,9 +161,8 @@ export function useDeleteMeterReading() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string): Promise<void> => {
-      await apiClient.delete(`/meter-readings/${id}`);
-    },
+    mutationFn: (id: string): Promise<void> =>
+      apiClient.delete(`/meter-readings/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meter-readings'] });
     },

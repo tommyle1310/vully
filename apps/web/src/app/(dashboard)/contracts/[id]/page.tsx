@@ -3,6 +3,7 @@
 import { use } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { formatCurrency, formatDate } from '@/lib/format';
 import {
   ArrowLeft,
   Building,
@@ -12,13 +13,13 @@ import {
   FileText,
   Pencil,
 } from 'lucide-react';
-import { useContract, Contract } from '@/hooks/use-contracts';
+import { useContract } from '@/hooks/use-contracts';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import { ContractFinancialSummaryCard } from '@/components/payments/ContractFinancialSummary';
 import { PaymentScheduleTable } from '@/components/payments/PaymentScheduleTable';
 
@@ -32,22 +33,6 @@ const statusVariants: Record<string, 'default' | 'success' | 'warning' | 'destru
   expired: 'warning',
   terminated: 'destructive',
 };
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('vi-VN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
 
 /** Extract the contract type tag written by buildTermsNotes() */
 function parseContractType(
@@ -199,12 +184,12 @@ export default function ContractDetailPage({ params }: PageProps) {
               <InfoRow
                 icon={Calendar}
                 label="Start Date"
-                value={formatDate(contract.start_date)}
+                value={formatDate(contract.start_date, { year: 'numeric', month: 'long', day: 'numeric' })}
               />
               <InfoRow
                 icon={Calendar}
                 label="End Date"
-                value={contract.endDate ? formatDate(contract.endDate) : 'Open-ended'}
+                value={contract.endDate ? formatDate(contract.endDate, { year: 'numeric', month: 'long', day: 'numeric' }) : 'Open-ended'}
               />
               <Separator />
               <InfoRow

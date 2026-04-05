@@ -88,7 +88,7 @@ export function SvgBuilder({ initialSvg, onSave, buildingId }: SvgBuilderProps) 
 
   // Hooks
   const { toast } = useToast();
-  const { history, historyIndex, pushHistory, undo, redo, resetHistory, canUndo, canRedo } =
+  const { history, historyIndex, pushHistory, undo, redo, resetHistory } =
     useSvgHistory([]);
   const { isDragging, startDrag, updateDrag, endDrag } = useSvgDrag();
   const { getSVGCoordinates } = useSvgCoordinates(svgRef, viewBox);

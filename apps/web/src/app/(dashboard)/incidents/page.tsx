@@ -9,7 +9,6 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   flexRender,
-  createColumnHelper,
   SortingState,
   ColumnFiltersState,
 } from '@tanstack/react-table';
@@ -19,17 +18,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
-  AlertCircle,
-  Clock,
-  CheckCircle,
-  User,
-  Wrench,
-  CircleDot,
 } from 'lucide-react';
+import { parseAsString, parseAsInteger, useQueryStates } from 'nuqs';
 import { useIncidents, Incident, useIncidentRealTime } from '@/hooks/use-incidents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -48,144 +41,33 @@ import {
 } from '@/components/ui/select';
 import { IncidentDetailSheet } from './incident-detail-sheet';
 import { CreateIncidentDialog } from './create-incident-dialog';
-
-const columnHelper = createColumnHelper<Incident>();
-
-const statusConfig: Record<
-  Incident['status'],
-  { label: string; variant: 'default' | 'secondary' | 'warning' | 'success' | 'destructive'; icon: typeof Clock }
-> = {
-  open: { label: 'Open', variant: 'destructive', icon: AlertCircle },
-  assigned: { label: 'Assigned', variant: 'warning', icon: User },
-  in_progress: { label: 'In Progress', variant: 'default', icon: Wrench },
-  pending_review: { label: 'Pending Review', variant: 'secondary', icon: Clock },
-  resolved: { label: 'Resolved', variant: 'success', icon: CheckCircle },
-  closed: { label: 'Closed', variant: 'secondary', icon: CircleDot },
-};
-
-const priorityConfig: Record<
-  Incident['priority'],
-  { label: string; variant: 'default' | 'secondary' | 'warning' | 'destructive' }
-> = {
-  low: { label: 'Low', variant: 'secondary' },
-  medium: { label: 'Medium', variant: 'default' },
-  high: { label: 'High', variant: 'warning' },
-  urgent: { label: 'Urgent', variant: 'destructive' },
-};
-
-const categoryLabels: Record<string, string> = {
-  plumbing: 'Plumbing',
-  electrical: 'Electrical',
-  hvac: 'HVAC',
-  structural: 'Structural',
-  appliance: 'Appliance',
-  pest: 'Pest Control',
-  noise: 'Noise',
-  security: 'Security',
-  other: 'Other',
-};
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-function getFullName(user?: { firstName: string; lastName: string }): string {
-  if (!user) return '-';
-  return `${user.firstName} ${user.lastName}`;
-}
-
-const columns = [
-  columnHelper.accessor('title', {
-    header: 'Incident',
-    cell: (info) => {
-      const incident = info.row.original;
-      return (
-        <div className="max-w-[300px]">
-          <span className="font-medium line-clamp-1">{info.getValue()}</span>
-          <span className="block text-xs text-muted-foreground">
-            {categoryLabels[incident.category] ?? incident.category}
-          </span>
-        </div>
-      );
-    },
-  }),
-  columnHelper.accessor('apartment', {
-    header: 'Location',
-    cell: (info) => {
-      const apartment = info.getValue();
-      if (!apartment) return '-';
-      return (
-        <div>
-          <span className="font-medium">{apartment.unit_number}</span>
-          <span className="block text-xs text-muted-foreground">
-            {apartment.building?.name || ''}
-          </span>
-        </div>
-      );
-    },
-  }),
-  columnHelper.accessor('status', {
-    header: 'Status',
-    cell: (info) => {
-      const status = info.getValue();
-      const config = statusConfig[status];
-      const Icon = config.icon;
-      return (
-        <Badge variant={(config.variant ?? 'secondary') as 'default' | 'secondary' | 'destructive' | 'outline'} className="gap-1">
-          <Icon className="h-3 w-3" />
-          {config.label}
-        </Badge>
-      );
-    },
-  }),
-  columnHelper.accessor('priority', {
-    header: 'Priority',
-    cell: (info) => {
-      const priority = info.getValue();
-      const config = priorityConfig[priority];
-      return <Badge variant={(config.variant ?? 'secondary') as 'default' | 'secondary' | 'destructive' | 'outline'}>{config.label}</Badge>;
-    },
-  }),
-  columnHelper.accessor('assignedTo', {
-    header: 'Assigned To',
-    cell: (info) => getFullName(info.getValue()),
-  }),
-  columnHelper.accessor('reportedBy', {
-    header: 'Reported By',
-    cell: (info) => getFullName(info.getValue()),
-  }),
-  columnHelper.accessor('created_at', {
-    header: 'Created',
-    cell: (info) => formatDate(info.getValue()),
-  }),
-];
+import { columns } from './incident-columns';
 
 export default function IncidentsPage() {
-  const [page, setPage] = useState(1);
-  const [limit] = useState(20);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [priorityFilter, setPriorityFilter] = useState<string>('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
+  // URL state with nuqs
+  const [urlFilters, setUrlFilters] = useQueryStates({
+    search: parseAsString.withDefault(''),
+    status: parseAsString.withDefault(''),
+    priority: parseAsString.withDefault(''),
+    category: parseAsString.withDefault(''),
+    page: parseAsInteger.withDefault(1),
+  });
+  const limit = 20;
+
   const filters = {
-    ...(statusFilter && { status: statusFilter as 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'resolved' | 'closed' }),
-    ...(priorityFilter && { priority: priorityFilter as 'low' | 'medium' | 'high' | 'urgent' }),
-    ...(categoryFilter && { category: categoryFilter as 'plumbing' | 'electrical' | 'hvac' | 'structural' | 'appliance' | 'pest' | 'noise' | 'security' | 'other' }),
-    ...(search && { search }),
+    ...(urlFilters.status && { status: urlFilters.status as 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'resolved' | 'closed' }),
+    ...(urlFilters.priority && { priority: urlFilters.priority as 'low' | 'medium' | 'high' | 'urgent' }),
+    ...(urlFilters.category && { category: urlFilters.category as 'plumbing' | 'electrical' | 'hvac' | 'structural' | 'appliance' | 'pest' | 'noise' | 'security' | 'other' }),
+    ...(urlFilters.search && { search: urlFilters.search }),
   };
 
-  const { data, isLoading, isError } = useIncidents(filters, page, limit);
+  const { data, isLoading, isError } = useIncidents(filters, urlFilters.page, limit);
 
   // Enable real-time incident updates via WebSocket
   const { connected: wsConnected } = useIncidentRealTime({
@@ -214,12 +96,16 @@ export default function IncidentsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">Incidents</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Incidents</h1>
             {wsConnected && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 dark:bg-green-950 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
                 <span className="relative flex h-2 w-2">
@@ -246,20 +132,18 @@ export default function IncidentsPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search incidents..."
-            value={search}
+            value={urlFilters.search}
             onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
+              setUrlFilters({ search: e.target.value, page: 1 });
             }}
             className="pl-9"
           />
         </div>
 
         <Select
-          value={statusFilter}
+          value={urlFilters.status || 'all'}
           onValueChange={(value) => {
-            setStatusFilter(value === 'all' ? '' : value);
-            setPage(1);
+            setUrlFilters({ status: value === 'all' ? '' : value, page: 1 });
           }}
         >
           <SelectTrigger className="w-[140px]">
@@ -277,10 +161,9 @@ export default function IncidentsPage() {
         </Select>
 
         <Select
-          value={priorityFilter}
+          value={urlFilters.priority || 'all'}
           onValueChange={(value) => {
-            setPriorityFilter(value === 'all' ? '' : value);
-            setPage(1);
+            setUrlFilters({ priority: value === 'all' ? '' : value, page: 1 });
           }}
         >
           <SelectTrigger className="w-[130px]">
@@ -296,10 +179,9 @@ export default function IncidentsPage() {
         </Select>
 
         <Select
-          value={categoryFilter}
+          value={urlFilters.category || 'all'}
           onValueChange={(value) => {
-            setCategoryFilter(value === 'all' ? '' : value);
-            setPage(1);
+            setUrlFilters({ category: value === 'all' ? '' : value, page: 1 });
           }}
         >
           <SelectTrigger className="w-[140px]">
@@ -403,28 +285,28 @@ export default function IncidentsPage() {
       {data?.meta && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Showing {(page - 1) * limit + 1} to{' '}
-            {Math.min(page * limit, data.meta.total)} of {data.meta.total}{' '}
+            Showing {(urlFilters.page - 1) * limit + 1} to{' '}
+            {Math.min(urlFilters.page * limit, data.meta.total)} of {data.meta.total}{' '}
             incidents
           </p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
+              onClick={() => setUrlFilters({ page: Math.max(1, urlFilters.page - 1) })}
+              disabled={urlFilters.page === 1}
             >
               <ChevronLeft className="h-4 w-4" />
               Previous
             </Button>
             <span className="text-sm">
-              Page {page} of {data.meta.pages}
+              Page {urlFilters.page} of {data.meta.pages}
             </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.min(data.meta.pages, p + 1))}
-              disabled={page >= data.meta.pages}
+              onClick={() => setUrlFilters({ page: Math.min(data.meta.pages, urlFilters.page + 1) })}
+              disabled={urlFilters.page >= data.meta.pages}
             >
               Next
               <ChevronRight className="h-4 w-4" />
@@ -445,6 +327,6 @@ export default function IncidentsPage() {
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
       />
-    </div>
+    </motion.div>
   );
 }

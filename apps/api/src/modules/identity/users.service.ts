@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, UserRole as UserRoleEnum } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { DEFAULT_PAGINATION_LIMIT } from '../../common/constants/defaults';
 import { CreateUserDto, UpdateUserDto, UserResponseDto, UpdateProfileDto } from './dto/user.dto';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
@@ -82,7 +83,7 @@ export class UsersService {
     return this.toResponseDto(user!);
   }
 
-  async findAll(page = 1, limit = 20): Promise<{ data: UserResponseDto[]; total: number }> {
+  async findAll(page = 1, limit = DEFAULT_PAGINATION_LIMIT): Promise<{ data: UserResponseDto[]; total: number }> {
     const skip = (page - 1) * limit;
 
     const [users, total] = await Promise.all([

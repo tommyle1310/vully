@@ -318,11 +318,11 @@ function findPolygonLabel(
   cx: number,
   cy: number,
   scaleFactor: number,
-  processedTextIndices: Set<number>
+  _processedTextIndices: Set<number>
 ): string | undefined {
   let label: string | undefined;
 
-  texts.forEach((text, textIndex) => {
+  texts.forEach((text, _textIndex) => {
     const textX = (Number(text.getAttribute('x')) || 0) * scaleFactor;
     const textY = (Number(text.getAttribute('y')) || 0) * scaleFactor;
     const fontWeight = text.getAttribute('font-weight');

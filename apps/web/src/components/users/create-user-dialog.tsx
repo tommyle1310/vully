@@ -42,7 +42,7 @@ export function CreateUserDialog({
 }: CreateUserDialogProps) {
   const { toast } = useToast();
   const [selectedRoles, setSelectedRoles] = useState<UserRole[]>([UserRole.resident]);
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateUserForm>();
+  const { register, handleSubmit, reset } = useForm<CreateUserForm>();
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateUserForm) => {

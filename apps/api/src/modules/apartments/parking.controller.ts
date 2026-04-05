@@ -17,6 +17,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { ParkingService } from './parking.service';
+import { ParkingZonesService } from './parking-zones.service';
 import {
   CreateParkingZoneDto,
   UpdateParkingZoneDto,
@@ -41,6 +42,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 export class ParkingController {
   constructor(
     private readonly parkingService: ParkingService,
+    private readonly parkingZonesService: ParkingZonesService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -70,7 +72,7 @@ export class ParkingController {
   async findAllZones(
     @Param('buildingId', ParseUUIDPipe) buildingId: string,
   ): Promise<{ data: ParkingZoneResponseDto[] }> {
-    const zones = await this.parkingService.findAllZones(buildingId);
+    const zones = await this.parkingZonesService.findAllZones(buildingId);
     return { data: zones };
   }
 
@@ -83,7 +85,7 @@ export class ParkingController {
     @Param('buildingId', ParseUUIDPipe) buildingId: string,
     @Param('zoneId', ParseUUIDPipe) zoneId: string,
   ): Promise<{ data: ParkingZoneResponseDto }> {
-    const zone = await this.parkingService.findOneZone(buildingId, zoneId);
+    const zone = await this.parkingZonesService.findOneZone(buildingId, zoneId);
     return { data: zone };
   }
 
@@ -96,7 +98,7 @@ export class ParkingController {
     @Param('buildingId', ParseUUIDPipe) buildingId: string,
     @Body() dto: CreateParkingZoneDto,
   ): Promise<{ data: ParkingZoneResponseDto }> {
-    const zone = await this.parkingService.createZone(buildingId, dto);
+    const zone = await this.parkingZonesService.createZone(buildingId, dto);
     return { data: zone };
   }
 
@@ -111,7 +113,7 @@ export class ParkingController {
     @Param('zoneId', ParseUUIDPipe) zoneId: string,
     @Body() dto: UpdateParkingZoneDto,
   ): Promise<{ data: ParkingZoneResponseDto }> {
-    const zone = await this.parkingService.updateZone(buildingId, zoneId, dto);
+    const zone = await this.parkingZonesService.updateZone(buildingId, zoneId, dto);
     return { data: zone };
   }
 

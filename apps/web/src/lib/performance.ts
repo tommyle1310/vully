@@ -102,7 +102,9 @@ export function useRenderCount(componentName: string) {
   if (typeof window === 'undefined') return 0;
 
   const key = `render-count-${componentName}`;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const count = (window as any)[key] || 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any)[key] = count + 1;
 
   if (process.env.NODE_ENV === 'development' && count % 10 === 0 && count > 0) {

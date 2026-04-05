@@ -30,12 +30,7 @@ import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-
-interface AuthUser {
-  id: string;
-  email: string;
-  role: string;
-}
+import { AuthUser } from '../../common/interfaces/auth-user.interface';
 
 @ApiTags('Meter Readings')
 @Controller('meter-readings')

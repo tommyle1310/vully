@@ -29,7 +29,6 @@ import { useToast } from '@/hooks/use-toast';
 import {
   useIssueAccessCard,
   AccessCardType,
-  getCardTypeLabel,
 } from '@/hooks/use-access-cards';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';

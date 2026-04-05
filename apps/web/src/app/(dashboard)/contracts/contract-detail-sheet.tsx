@@ -11,12 +11,9 @@ import {
   FileText,
   Pencil,
   XCircle,
-  Loader2,
   ExternalLink,
-  TrendingUp,
 } from 'lucide-react';
 import { Contract, useTerminateContract } from '@/hooks/use-contracts';
-import { useContractFinancialSummary } from '@/hooks/use-payments';
 import { useAuthStore } from '@/stores/authStore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,20 +26,10 @@ import {
 } from '@/components/ui/sheet';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+
+import { PaymentSummarySection } from './payment-summary-section';
+import { ContractTerminateDialog } from './contract-terminate-dialog';
 
 interface ContractDetailSheetProps {
   contract: Contract | null;
@@ -75,91 +62,6 @@ function InfoRow({
         <p className="text-sm font-medium">{value}</p>
       </div>
     </div>
-  );
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function PaymentSummarySection({ contractId }: { contractId: string }) {
-  const { data, isLoading, error } = useContractFinancialSummary(contractId);
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="pt-4 space-y-3">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-3 w-full" />
-          <div className="grid grid-cols-2 gap-3">
-            <Skeleton className="h-12" />
-            <Skeleton className="h-12" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error || !data?.data) {
-    return null; // Don't show anything if no payment data
-  }
-
-  const summary = data.data;
-
-  return (
-    <Card>
-      <CardContent className="pt-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Payment Progress
-          </h3>
-          <Link href={`/contracts/${contractId}`}>
-            <Button variant="ghost" size="sm" className="h-7 text-xs">
-              View Details
-              <ExternalLink className="ml-1 h-3 w-3" />
-            </Button>
-          </Link>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex justify-between text-xs">
-            <span>{summary.paidPercent.toFixed(1)}% complete</span>
-            <span className="text-muted-foreground">
-              {formatCurrency(summary.totalPaid)} / {formatCurrency(summary.totalContractValue)}
-            </span>
-          </div>
-          <Progress value={summary.paidPercent} className="h-2" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 text-center">
-          <div className="rounded-md bg-muted/50 p-2">
-            <p className="text-xs text-muted-foreground">Outstanding</p>
-            <p className="text-sm font-semibold text-red-600">
-              {formatCurrency(summary.outstanding)}
-            </p>
-          </div>
-          <div className="rounded-md bg-muted/50 p-2">
-            <p className="text-xs text-muted-foreground">Remaining</p>
-            <p className="text-sm font-semibold text-amber-600">
-              {formatCurrency(summary.remainingBalance)}
-            </p>
-          </div>
-        </div>
-
-        {summary.nextDue && (
-          <div className="text-xs text-muted-foreground border-t pt-2">
-            Next due: <span className="font-medium text-foreground">{summary.nextDue.periodLabel}</span>
-            {' · '}
-            {formatCurrency(summary.nextDue.expectedAmount)}
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -251,7 +153,6 @@ export function ContractDetailSheet({
                     Edit
                   </Button>
                 )}
-              
               </div>
             </div>
 
@@ -261,25 +162,9 @@ export function ContractDetailSheet({
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                   Apartment
                 </h3>
-                <InfoRow
-                  icon={Building}
-                  label="Building"
-                  value={contract.apartment?.building?.name || '-'}
-                />
-                <InfoRow
-                  icon={Building}
-                  label="Unit"
-                  value={contract.apartment?.unit_number || '-'}
-                />
-                <InfoRow
-                  icon={Building}
-                  label="Floor"
-                  value={
-                    contract.apartment?.floorIndex !== undefined
-                      ? `Floor ${contract.apartment.floorIndex}`
-                      : '-'
-                  }
-                />
+                <InfoRow icon={Building} label="Building" value={contract.apartment?.building?.name || '-'} />
+                <InfoRow icon={Building} label="Unit" value={contract.apartment?.unit_number || '-'} />
+                <InfoRow icon={Building} label="Floor" value={contract.apartment?.floorIndex !== undefined ? `Floor ${contract.apartment.floorIndex}` : '-'} />
               </CardContent>
             </Card>
 
@@ -289,70 +174,30 @@ export function ContractDetailSheet({
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                   Tenant
                 </h3>
-                <InfoRow
-                  icon={User}
-                  label="Name"
-                  value={
-                    contract.tenant
-                      ? `${contract.tenant.firstName} ${contract.tenant.lastName}`
-                      : '-'
-                  }
-                />
-                <InfoRow
-                  icon={User}
-                  label="Email"
-                  value={contract.tenant?.email || '-'}
-                />
+                <InfoRow icon={User} label="Name" value={contract.tenant ? `${contract.tenant.firstName} ${contract.tenant.lastName}` : '-'} />
+                <InfoRow icon={User} label="Email" value={contract.tenant?.email || '-'} />
               </CardContent>
             </Card>
 
             <Separator />
 
-            {/* Contract Dates */}
+            {/* Duration */}
             <Card>
               <CardContent className="pt-4 space-y-3">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Duration
-                </h3>
-                <InfoRow
-                  icon={Calendar}
-                  label="Start Date"
-                  value={new Date(contract.start_date).toLocaleDateString()}
-                />
-                <InfoRow
-                  icon={Calendar}
-                  label="End Date"
-                  value={
-                    contract.endDate
-                      ? new Date(contract.endDate).toLocaleDateString()
-                      : 'Open-ended'
-                  }
-                />
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Duration</h3>
+                <InfoRow icon={Calendar} label="Start Date" value={new Date(contract.start_date).toLocaleDateString()} />
+                <InfoRow icon={Calendar} label="End Date" value={contract.endDate ? new Date(contract.endDate).toLocaleDateString() : 'Open-ended'} />
               </CardContent>
             </Card>
 
             {/* Financial */}
             <Card>
               <CardContent className="pt-4 space-y-3">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Financial
-                </h3>
-                <InfoRow
-                  icon={DollarSign}
-                  label="Monthly Rent"
-                  value={`${new Intl.NumberFormat('vi-VN').format(contract.rentAmount)} VND`}
-                />
-                <InfoRow
-                  icon={DollarSign}
-                  label="Deposit Months"
-                  value={`${contract.depositMonths} month(s)`}
-                />
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Financial</h3>
+                <InfoRow icon={DollarSign} label="Monthly Rent" value={`${new Intl.NumberFormat('vi-VN').format(contract.rentAmount)} VND`} />
+                <InfoRow icon={DollarSign} label="Deposit Months" value={`${contract.depositMonths} month(s)`} />
                 {contract.depositAmount && (
-                  <InfoRow
-                    icon={DollarSign}
-                    label="Deposit Amount"
-                    value={`${new Intl.NumberFormat('vi-VN').format(contract.depositAmount)} VND`}
-                  />
+                  <InfoRow icon={DollarSign} label="Deposit Amount" value={`${new Intl.NumberFormat('vi-VN').format(contract.depositAmount)} VND`} />
                 )}
               </CardContent>
             </Card>
@@ -367,9 +212,7 @@ export function ContractDetailSheet({
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                     Terms & Notes
                   </h3>
-                  <p className="text-sm whitespace-pre-wrap">
-                    {contract.termsNotes}
-                  </p>
+                  <p className="text-sm whitespace-pre-wrap">{contract.termsNotes}</p>
                 </CardContent>
               </Card>
             )}
@@ -379,73 +222,37 @@ export function ContractDetailSheet({
               <p>Created: {new Date(contract.created_at).toLocaleString()}</p>
               <p>Updated: {new Date(contract.updatedAt).toLocaleString()}</p>
             </div>
-              {contract.status === 'active' && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className='w-full'
-                    disabled={!isAdmin}
-                    onClick={() => {
-                      setTerminateDate(new Date().toISOString().split('T')[0]);
-                      setTerminateReason('');
-                      setTerminateOpen(true);
-                    }}
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Terminate
-                  </Button>
-                )}
+
+            {contract.status === 'active' && (
+              <Button
+                variant="destructive"
+                size="sm"
+                className="w-full"
+                disabled={!isAdmin}
+                onClick={() => {
+                  setTerminateDate(new Date().toISOString().split('T')[0]);
+                  setTerminateReason('');
+                  setTerminateOpen(true);
+                }}
+              >
+                <XCircle className="h-4 w-4 mr-1" />
+                Terminate
+              </Button>
+            )}
           </motion.div>
         </SheetContent>
       </Sheet>
 
-      {/* Terminate Confirmation Dialog */}
-      <Dialog open={terminateOpen} onOpenChange={setTerminateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Terminate Contract</DialogTitle>
-            <DialogDescription>
-              This will terminate the contract and set the apartment back to
-              vacant. This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="terminate-date">Termination Date</Label>
-              <Input
-                id="terminate-date"
-                type="date"
-                value={terminateDate}
-                onChange={(e) => setTerminateDate(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="terminate-reason">Reason (optional)</Label>
-              <Textarea
-                id="terminate-reason"
-                placeholder="Reason for early termination..."
-                value={terminateReason}
-                onChange={(e) => setTerminateReason(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTerminateOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleTerminate}
-              disabled={!terminateDate || terminateContract.isPending}
-            >
-              {terminateContract.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Confirm Termination
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ContractTerminateDialog
+        open={terminateOpen}
+        onOpenChange={setTerminateOpen}
+        terminateDate={terminateDate}
+        onTerminateDateChange={setTerminateDate}
+        terminateReason={terminateReason}
+        onTerminateReasonChange={setTerminateReason}
+        onConfirm={handleTerminate}
+        isPending={terminateContract.isPending}
+      />
     </>
   );
 }

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { formatCurrency } from '@/lib/format';
 import { z } from 'zod';
 import {
   Dialog,
@@ -43,14 +43,6 @@ interface RecordPaymentDialogProps {
   onOpenChange: (open: boolean) => void;
   schedule: PaymentSchedule | null;
   onSuccess?: () => void;
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(amount);
 }
 
 const paymentMethodLabels: Record<PaymentMethod, string> = {

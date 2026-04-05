@@ -17,6 +17,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { ApartmentsService } from './apartments.service';
+import { ApartmentsConfigService } from './apartments-config.service';
 import {
   CreateApartmentDto,
   UpdateApartmentDto,
@@ -28,19 +29,17 @@ import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-
-interface AuthUser {
-  id: string;
-  email: string;
-  role: string;
-}
+import { AuthUser } from '../../common/interfaces/auth-user.interface';
 
 @ApiTags('Apartments')
 @Controller('apartments')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class ApartmentsController {
-  constructor(private readonly apartmentsService: ApartmentsService) {}
+  constructor(
+    private readonly apartmentsService: ApartmentsService,
+    private readonly configService: ApartmentsConfigService,
+  ) {}
 
   @Post()
   @Roles('admin')
@@ -176,7 +175,7 @@ export class ApartmentsController {
   async getEffectiveConfig(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<{ data: ApartmentEffectiveConfigDto }> {
-    const config = await this.apartmentsService.getEffectiveConfig(id);
+    const config = await this.configService.getEffectiveConfig(id);
     return { data: config as ApartmentEffectiveConfigDto };
   }
 
@@ -197,7 +196,7 @@ export class ApartmentsController {
       zone: { id: string; name: string; code: string };
     }>;
   }> {
-    const slots = await this.apartmentsService.getParkingSlots(id);
+    const slots = await this.configService.getParkingSlots(id);
     return { data: slots };
   }
 

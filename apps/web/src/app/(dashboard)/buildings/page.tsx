@@ -225,7 +225,11 @@ export default function BuildingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Buildings</h1>
         <p className="text-muted-foreground">
@@ -375,6 +379,6 @@ export default function BuildingsPage() {
         building={editingBuilding}
         mode={formMode}
       />
-    </div>
+    </motion.div>
   );
 }

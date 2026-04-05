@@ -63,7 +63,7 @@ export interface BadgeProps
     VariantProps<typeof badgeVariants> {}
 
 export interface DotBadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends Omit<React.HTMLAttributes<HTMLDivElement>, 'color'>,
     VariantProps<typeof dotBadgeVariants> {}
 
 function Badge({ className, variant, ...props }: BadgeProps) {

@@ -6,12 +6,8 @@ import {
   Home,
   FileText,
   AlertTriangle,
-  CreditCard,
-  Calendar,
   Plus,
   ChevronRight,
-  Loader2,
-  Building,
   FileSignature,
 } from 'lucide-react';
 
@@ -19,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
+
 
 import { useMyContracts, useMyApartment } from '@/hooks/use-contracts';
 import { useIncidents } from '@/hooks/use-incidents';

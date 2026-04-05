@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { X, Home, Users, DollarSign, Calendar, AlertCircle } from 'lucide-react';
+import { Home, Users, DollarSign, AlertCircle } from 'lucide-react';
 import {
   Sheet,
   SheetContent,

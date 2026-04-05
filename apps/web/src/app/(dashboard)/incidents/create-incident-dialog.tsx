@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, AlertTriangle, Building, Home } from 'lucide-react';
+import { Loader2, AlertTriangle, Home } from 'lucide-react';
 import { useCreateIncident, CreateIncidentData } from '@/hooks/use-incidents';
 import { useMyApartment } from '@/hooks/use-contracts';
 import { useAuthStore } from '@/stores/authStore';
@@ -93,7 +93,7 @@ export function CreateIncidentDialog({
   onOpenChange,
 }: CreateIncidentDialogProps) {
   const { toast } = useToast();
-  const { user, hasRole, hasAnyRole } = useAuthStore();
+  const { hasRole, hasAnyRole } = useAuthStore();
   const createIncident = useCreateIncident();
   
   // For residents, get their assigned apartment

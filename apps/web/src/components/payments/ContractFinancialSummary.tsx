@@ -3,29 +3,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { formatCurrency, formatDate } from '@/lib/format';
 import { Progress } from '@/components/ui/progress';
-import { useContractFinancialSummary, ContractFinancialSummary, PaymentSchedule } from '@/hooks/use-payments';
-import { AlertCircle, Calendar, TrendingUp, DollarSign } from 'lucide-react';
+import { useContractFinancialSummary } from '@/hooks/use-payments';
+import { AlertCircle, Calendar, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ContractFinancialSummaryCardProps {
   contractId: string;
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('vi-VN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 function getStatusBadge(status: string) {

@@ -15,6 +15,7 @@ import {
   UtilityType,
 } from '@/hooks/use-billing';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -76,6 +77,8 @@ function getUtilityIcon(code: string) {
 
 export default function UtilityTypesPage() {
   const { toast } = useToast();
+  const { hasAnyRole } = useAuthStore();
+  const isAdmin = hasAnyRole(['admin']);
   const { data: utilityTypesData, isLoading } = useUtilityTypes();
   const createUtilityType = useCreateUtilityType();
   const updateUtilityType = useUpdateUtilityType();
@@ -174,8 +177,8 @@ export default function UtilityTypesPage() {
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
       {/* Header */}
@@ -188,7 +191,7 @@ export default function UtilityTypesPage() {
         </div>
 
         <div className="flex gap-2">
-          {utilityTypes.length === 0 && (
+          {isAdmin && utilityTypes.length === 0 && (
             <Button
               variant="outline"
               onClick={handleSeedDefaults}
@@ -200,10 +203,12 @@ export default function UtilityTypesPage() {
               Seed Defaults
             </Button>
           )}
-          <Button onClick={openCreateDialog}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Utility Type
-          </Button>
+          {isAdmin && (
+            <Button onClick={openCreateDialog}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Utility Type
+            </Button>
+          )}
         </div>
       </div>
 
@@ -229,15 +234,17 @@ export default function UtilityTypesPage() {
               <p className="text-muted-foreground mb-4">
                 Create utility types to start tracking meter readings.
               </p>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleSeedDefaults}>
-                  Seed Defaults
-                </Button>
-                <Button onClick={openCreateDialog}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Utility Type
-                </Button>
-              </div>
+              {isAdmin && (
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={handleSeedDefaults}>
+                    Seed Defaults
+                  </Button>
+                  <Button onClick={openCreateDialog}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Utility Type
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <Table>
@@ -271,19 +278,21 @@ export default function UtilityTypesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditDialog(type)}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {isAdmin && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEditDialog(type)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </TableCell>
                     </TableRow>
                   );

@@ -225,7 +225,6 @@ export function useWebSocketEvent<T = unknown>(
       console.log('[WebSocket] Cleaning up event listener:', event);
       socket.off(event, handler);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected, socket, event, ...deps]);
 }
 

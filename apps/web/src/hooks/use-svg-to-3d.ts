@@ -43,7 +43,7 @@ export function useSVGto3D(svgContent: string | undefined) {
       const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml');
       const metadataEl = svgDoc.querySelector('metadata building-data');
       
-      let metadata = {
+      const metadata = {
         apartments: [] as Array<{
           id: string;
           type: string;

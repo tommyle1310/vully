@@ -10,6 +10,7 @@ import { reportWebVitals } from '@/lib/web-vitals';
  */
 export function WebVitalsTracker() {
   useReportWebVitals((metric) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reportWebVitals(metric as any);
   });
 

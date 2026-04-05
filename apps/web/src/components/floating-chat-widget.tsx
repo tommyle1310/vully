@@ -54,6 +54,7 @@ export function FloatingChatWidget() {
           };
           setMessages((prev) => [...prev, assistantMessage]);
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onError: (error: any) => {
           const errorMessage: ChatMessage = {
             role: 'assistant',

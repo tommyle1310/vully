@@ -17,6 +17,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { PaymentScheduleService } from './payment-schedule.service';
+import { PaymentGeneratorService } from './payment-generator.service';
 import { ContractsService } from './contracts.service';
 import {
   CreatePaymentScheduleDto,
@@ -32,12 +33,7 @@ import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-
-interface AuthUser {
-  id: string;
-  email: string;
-  role: string;
-}
+import { AuthUser } from '../../common/interfaces/auth-user.interface';
 
 @ApiTags('Payment Schedules')
 @Controller()
@@ -46,6 +42,7 @@ interface AuthUser {
 export class PaymentScheduleController {
   constructor(
     private readonly paymentScheduleService: PaymentScheduleService,
+    private readonly paymentGeneratorService: PaymentGeneratorService,
     private readonly contractsService: ContractsService,
   ) {}
 
@@ -216,7 +213,7 @@ export class PaymentScheduleController {
       }
     }
     
-    const schedules = await this.paymentScheduleService.generateRentSchedules(contractId, dto);
+    const schedules = await this.paymentGeneratorService.generateRentSchedules(contractId, dto);
     return {
       data: schedules,
       message: `Generated ${schedules.length} payment schedule(s)`,
@@ -243,7 +240,7 @@ export class PaymentScheduleController {
       }
     }
     
-    const schedules = await this.paymentScheduleService.generatePurchaseMilestones(contractId, dto);
+    const schedules = await this.paymentGeneratorService.generatePurchaseMilestones(contractId, dto);
     return {
       data: schedules,
       message: `Generated ${schedules.length} payment milestone(s)`,

@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+﻿import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { Prisma, UnitType } from '@prisma/client';
+import { Prisma, buildings } from '@prisma/client';
 import {
   CreateBuildingDto,
   UpdateBuildingDto,
@@ -9,12 +9,17 @@ import {
   BuildingMetersResponseDto,
   MeterInfoDto,
 } from './dto/building.dto';
+import { DEFAULT_PAGINATION_LIMIT } from '../../common/constants/defaults';
+import { BuildingsSvgService } from './buildings-svg.service';
 
 @Injectable()
 export class BuildingsService {
   private readonly logger = new Logger(BuildingsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly buildingsSvgService: BuildingsSvgService,
+  ) {}
 
   async create(dto: CreateBuildingDto): Promise<BuildingResponseDto> {
     const building = await this.prisma.buildings.create({
@@ -36,9 +41,8 @@ export class BuildingsService {
       name: building.name,
     });
 
-    // Auto-create apartments from SVG floor plan
     if (dto.svgMapData) {
-      await this.syncApartmentsFromSvg(
+      await this.buildingsSvgService.syncApartmentsFromSvg(
         building.id,
         dto.svgMapData,
         dto.floorCount,
@@ -50,7 +54,7 @@ export class BuildingsService {
 
   async findAll(
     page = 1,
-    limit = 20,
+    limit = DEFAULT_PAGINATION_LIMIT,
     includeInactive = false,
   ): Promise<{ data: BuildingResponseDto[]; total: number }> {
     const skip = (page - 1) * limit;
@@ -72,7 +76,7 @@ export class BuildingsService {
     ]);
 
     return {
-      data: buildings.map((b: any) => ({
+      data: buildings.map((b) => ({
         ...this.toResponseDto(b),
         apartmentCount: b._count.apartments,
       })),
@@ -141,8 +145,7 @@ export class BuildingsService {
       data: { svg_map_data: svgMapData },
     });
 
-    // Auto-sync apartments from SVG floor plan
-    await this.syncApartmentsFromSvg(id, svgMapData, building.floor_count);
+    await this.buildingsSvgService.syncApartmentsFromSvg(id, svgMapData, building.floor_count);
 
     this.logger.log({
       event: 'building_svg_updated',
@@ -161,7 +164,6 @@ export class BuildingsService {
       throw new NotFoundException('Building not found');
     }
 
-    // Group apartments by status
     const counts = await this.prisma.apartments.groupBy({
       by: ['status'],
       where: { building_id: id },
@@ -219,7 +221,6 @@ export class BuildingsService {
       gasMeterId: apt.gas_meter_id,
     }));
 
-    // Find duplicate meter IDs
     const allMeterIds = apartments.flatMap((apt) => [
       apt.electric_meter_id,
       apt.water_meter_id,
@@ -238,173 +239,7 @@ export class BuildingsService {
     return { meters, duplicates };
   }
 
-  /**
-   * Parse apartment definitions from SVG metadata and upsert apartment records
-   * for each floor. The SVG floor plan is treated as a single-floor template
-   * that is replicated across all floors of the building.
-   */
-  private async syncApartmentsFromSvg(
-    buildingId: string,
-    svgMapData: string,
-    floorCount: number,
-  ): Promise<void> {
-    // Parse apartment data from SVG metadata block
-    const apartmentRegex =
-      /<apartment\s+id="([^"]*)"\s+type="([^"]*)"\s+name="([^"]*)"\s+label="([^"]*)"\s+area-sqm="([^"]*)"\s*\/>/g;
-
-    const templates: Array<{
-      id: string;
-      type: string;
-      name: string;
-      label: string;
-      areaSqm: number;
-    }> = [];
-
-    let match: RegExpExecArray | null;
-    while ((match = apartmentRegex.exec(svgMapData)) !== null) {
-      templates.push({
-        id: match[1],
-        type: match[2],
-        name: match[3],
-        label: match[4],
-        areaSqm: parseFloat(match[5]) || 0,
-      });
-    }
-
-    if (templates.length === 0) {
-      this.logger.debug({
-        event: 'svg_sync_no_apartments',
-        buildingId,
-      });
-      return;
-    }
-
-    this.logger.log({
-      event: 'svg_sync_apartments',
-      buildingId,
-      templateCount: templates.length,
-      floorCount,
-    });
-
-    // Upsert apartments for each floor
-    for (let floor = 1; floor <= floorCount; floor++) {
-      for (let i = 0; i < templates.length; i++) {
-        const template = templates[i];
-        const unitIndex = String(i + 1).padStart(2, '0');
-        const unit_number = `${floor}${unitIndex}`; // e.g., "101", "102", "201", "202"
-
-        const unitType = this.getUnitType(template.type);
-        const bedroomCount = this.getBedroomCount(template.type);
-        const bathroomCount = this.getBathroomCount(template.type);
-        const grossArea = template.areaSqm > 0 ? template.areaSqm : null;
-        // Net area is typically 85-90% of gross area (thông thủy vs tim tường)
-        const netArea = grossArea ? Math.round(grossArea * 0.85 * 100) / 100 : null;
-        const apartmentCode = `${String(floor).padStart(2, '0')}-${unitIndex}`; // e.g., "01-01", "12-05"
-        const floorLabel = String(floor); // Can be customized (e.g., "12A", "B1")
-
-        await this.prisma.apartments.upsert({
-          where: {
-            building_id_unit_number: {
-              building_id: buildingId,
-              unit_number: unit_number,
-            },
-          },
-          create: {
-            building_id: buildingId,
-            unit_number: unit_number,
-            floor_index: floor,
-            apartment_code: apartmentCode,
-            floor_label: floorLabel,
-            unit_type: unitType,
-            gross_area: grossArea,
-            net_area: netArea,
-            bedroom_count: bedroomCount,
-            bathroom_count: bathroomCount,
-            svg_element_id: template.id || null,
-            features: {
-              apartmentType: template.type,
-              apartmentName: template.name,
-              templateLabel: template.label,
-            } as Prisma.InputJsonValue,
-            status: 'vacant',
-            updated_at: new Date(),
-          },
-          update: {
-            // Only update layout/metadata — do NOT overwrite manually-set fields
-            // (bedroom_count, bathroom_count, gross_area, net_area, status, etc.)
-            floor_index: floor,
-            svg_element_id: template.id || null,
-            // Update unit_type only if it was null (not manually set)
-            ...(unitType && { unit_type: unitType }),
-            features: {
-              apartmentType: template.type,
-              apartmentName: template.name,
-              templateLabel: template.label,
-            } as Prisma.InputJsonValue,
-            updated_at: new Date(),
-          },
-        });
-      }
-    }
-
-    this.logger.log({
-      event: 'svg_sync_complete',
-      buildingId,
-      totalApartments: templates.length * floorCount,
-    });
-  }
-
-  /**
-   * Map template type string to valid UnitType enum value.
-   * Enum: studio, one_bedroom, two_bedroom, three_bedroom, duplex, penthouse, shophouse
-   */
-  private getUnitType(type: string): UnitType {
-    const t = type.toLowerCase();
-    if (t.includes('studio')) return UnitType.studio;
-    if (t.includes('shophouse') || t.includes('shop')) return UnitType.shophouse;
-    if (t.includes('penthouse') || t.includes('pent')) return UnitType.penthouse;
-    if (t.includes('duplex')) return UnitType.duplex;
-    if (t.includes('3') || t.includes('three')) return UnitType.three_bedroom;
-    if (t.includes('2') || t.includes('two')) return UnitType.two_bedroom;
-    if (t.includes('1') || t.includes('one')) return UnitType.one_bedroom;
-    // Default to one_bedroom for unrecognized types
-    return UnitType.one_bedroom;
-  }
-
-  private getBedroomCount(type: string): number {
-    const t = type.toLowerCase();
-    if (t.includes('studio')) return 0;
-    if (t.includes('shophouse') || t.includes('shop')) return 0;
-    if (t.includes('penthouse') || t.includes('pent')) return 3;
-    if (t.includes('duplex')) return 2;
-    if (t.includes('3') || t.includes('three')) return 3;
-    if (t.includes('2') || t.includes('two')) return 2;
-    if (t.includes('1') || t.includes('one')) return 1;
-    return 1;
-  }
-
-  private getBathroomCount(type: string): number {
-    const t = type.toLowerCase();
-    if (t.includes('penthouse') || t.includes('pent')) return 3;
-    if (t.includes('duplex')) return 2;
-    if (t.includes('3') || t.includes('three')) return 2;
-    if (t.includes('2') || t.includes('two')) return 2;
-    return 1;
-  }
-
-  private toResponseDto(building: {
-    id: string;
-    name: string;
-    address: string;
-    city: string;
-    floor_count: number;
-    floor_heights: unknown;
-    svg_map_data: string | null;
-    amenities: unknown;
-    is_active: boolean;
-    created_at: Date;
-    updated_at: Date;
-  }): BuildingResponseDto {
+  private toResponseDto(building: buildings): BuildingResponseDto {
     return {
       id: building.id,
       name: building.name,

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Car, Bike, Building, MapPin, Loader2, Check, X, ChevronRight } from 'lucide-react';
+import { Car, Bike, Building, MapPin, X, ChevronRight } from 'lucide-react';
 import { useApartmentParkingSlots } from '@/hooks/use-apartments';
 import { useParkingZones, useParkingSlots } from '@/hooks/use-parking';
 import { useToast } from '@/hooks/use-toast';
@@ -15,8 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';

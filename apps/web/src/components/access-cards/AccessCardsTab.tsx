@@ -52,7 +52,6 @@ import {
   Edit,
   User,
   Building2,
-  AlertCircle,
 } from 'lucide-react';
 
 interface AccessCardsTabProps {

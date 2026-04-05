@@ -20,7 +20,7 @@ interface FloorProps {
   apartmentStatuses?: ApartmentStatusInfo[];
 }
 
-export function Floor({ shapes, paths, floorIndex, height, baseHeight = 3.0, totalFloors, apartmentStatuses }: FloorProps) {
+export function Floor({ paths, floorIndex, height, totalFloors, apartmentStatuses }: FloorProps) {
   // Y position is cumulative height (already calculated by parent)
   const yPosition = 0; // Parent group handles positioning
 
@@ -88,7 +88,7 @@ export function Floor({ shapes, paths, floorIndex, height, baseHeight = 3.0, tot
     <group position={[0, yPosition, 0]}>
       {geometries.map((item, index) => {
         // Determine material properties based on type
-        let baseColor = new THREE.Color(item.color);
+        const baseColor = new THREE.Color(item.color);
         // Apply floor-based brightness variation
         baseColor.multiplyScalar(floorColorMultiplier);
         let opacity = 1.0;

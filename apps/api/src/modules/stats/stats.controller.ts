@@ -2,14 +2,19 @@ import { Controller, Get, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { StatsService, DashboardStats, AdminStats } from './stats.service';
+import { StatsService } from './stats.service';
+import { StatsAnalyticsService } from './stats-analytics.service';
+import { DashboardStats, AdminStats } from '../../common/types/service-types';
 
 @ApiTags('Statistics')
 @Controller('stats')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class StatsController {
-  constructor(private readonly statsService: StatsService) {}
+  constructor(
+    private readonly statsService: StatsService,
+    private readonly statsAnalyticsService: StatsAnalyticsService,
+  ) {}
 
   @Get('dashboard')
   @ApiOperation({ summary: 'Get dashboard statistics' })
@@ -48,7 +53,7 @@ export class StatsController {
   async getOccupancyTrend(
     @Query('months') months?: number,
   ): Promise<{ data: any }> {
-    const trend = await this.statsService.getOccupancyTrend(months ? parseInt(String(months)) : 12);
+    const trend = await this.statsAnalyticsService.getOccupancyTrend(months ? parseInt(String(months)) : 12);
     return { data: trend };
   }
 
@@ -62,7 +67,7 @@ export class StatsController {
   async getRevenueBreakdown(
     @Query('months') months?: number,
   ): Promise<{ data: any }> {
-    const breakdown = await this.statsService.getRevenueBreakdown(months ? parseInt(String(months)) : 6);
+    const breakdown = await this.statsAnalyticsService.getRevenueBreakdown(months ? parseInt(String(months)) : 6);
     return { data: breakdown };
   }
 
@@ -73,7 +78,7 @@ export class StatsController {
     description: 'Incident analytics with response time metrics',
   })
   async getIncidentAnalytics(): Promise<{ data: any }> {
-    const analytics = await this.statsService.getIncidentAnalytics();
+    const analytics = await this.statsAnalyticsService.getIncidentAnalytics();
     return { data: analytics };
   }
 
@@ -87,7 +92,7 @@ export class StatsController {
   async getRecentActivity(
     @Query('limit') limit?: number,
   ): Promise<{ data: any }> {
-    const activity = await this.statsService.getRecentActivity(limit ? parseInt(String(limit)) : 10);
+    const activity = await this.statsAnalyticsService.getRecentActivity(limit ? parseInt(String(limit)) : 10);
     return { data: activity };
   }
 }

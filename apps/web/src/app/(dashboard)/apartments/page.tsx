@@ -1,14 +1,12 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   useReactTable,
   getCoreRowModel,
-  getFilteredRowModel,
   getSortedRowModel,
   flexRender,
-  createColumnHelper,
   SortingState,
   ColumnFiltersState,
 } from '@tanstack/react-table';
@@ -20,8 +18,6 @@ import { useApartments, useApartment, Apartment } from '@/hooks/use-apartments';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -33,82 +29,7 @@ import {
 import { ApartmentDetailSheet } from './apartment-detail-sheet';
 import { ApartmentFormDialog } from './apartment-form-dialog';
 import { ApartmentFilters, ApartmentFilterValues } from './apartment-filters';
-
-const columnHelper = createColumnHelper<Apartment>();
-
-const statusVariants: Record<string, 'default' | 'success' | 'warning' | 'destructive'> = {
-  vacant: 'success',
-  occupied: 'default',
-  maintenance: 'warning',
-  reserved: 'default',
-};
-
-const columns = [
-  columnHelper.accessor('unit_number', {
-    header: 'Unit',
-    cell: (info) => (
-      <span className="font-medium">{info.getValue()}</span>
-    ),
-  }),
-  columnHelper.accessor('building.name', {
-    header: 'Building',
-    cell: (info) => info.getValue() || '-',
-  }),
-  columnHelper.accessor('floorIndex', {
-    header: 'Floor',
-    cell: (info) => `Floor ${info.getValue()}`,
-  }),
-  columnHelper.accessor('grossArea', {
-    header: 'Area',
-    cell: (info) => info.getValue() ? `${info.getValue()} m²` : '-',
-  }),
-  columnHelper.accessor('bedroomCount', {
-    header: 'Beds',
-  }),
-  columnHelper.accessor('bathroomCount', {
-    header: 'Baths',
-  }),
-  columnHelper.accessor('status', {
-    header: 'Status',
-    cell: (info) => {
-      const status = info.getValue();
-      return (
-        <Badge variant={statusVariants[status] || 'default'}>
-          {status.charAt(0) + status.slice(1).toLowerCase()}
-        </Badge>
-      );
-    },
-  }),
-];
-
-function TableSkeleton() {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-10 w-32" />
-      </div>
-      <div className="rounded-md border">
-        <div className="border-b p-4">
-          <div className="flex gap-4">
-            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-              <Skeleton key={i} className="h-4 w-20" />
-            ))}
-          </div>
-        </div>
-        {[1, 2, 3, 4, 5].map((row) => (
-          <div key={row} className="border-b p-4">
-            <div className="flex gap-4">
-              {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-                <Skeleton key={i} className="h-4 w-20" />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+import { columns, ApartmentTableSkeleton } from './apartment-columns';
 
 export default function ApartmentsPage() {
   const { hasAnyRole } = useAuthStore();
@@ -255,7 +176,7 @@ export default function ApartmentsPage() {
             Manage all apartments across your buildings.
           </p>
         </div>
-        <TableSkeleton />
+        <ApartmentTableSkeleton />
       </div>
     );
   }
@@ -273,7 +194,11 @@ export default function ApartmentsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
       <div>
         <h1 className="text-3xl font-bold tracking-tight">
           {isAdmin ? 'Apartments' : 'My Apartment'}
@@ -435,6 +360,6 @@ export default function ApartmentsPage() {
         apartment={editingApartment}
         mode={formMode}
       />
-    </div>
+    </motion.div>
   );
 }

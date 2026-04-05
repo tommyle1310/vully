@@ -44,6 +44,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { formatDate } from '@/lib/format';
 
 // Incident detail sheet component
 interface IncidentDetailSheetProps {
@@ -83,15 +84,13 @@ const categoryLabels: Record<string, string> = {
   other: 'Other',
 };
 
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+const incidentDateOptions: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+};
 
 function getFullName(user?: { firstName: string; lastName: string }): string {
   if (!user) return 'Unknown';
@@ -243,7 +242,7 @@ export function IncidentDetailSheet({
                 <Calendar className="h-4 w-4" />
                 <span>
                   {currentIncident?.created_at
-                    ? formatDate(currentIncident.created_at)
+                    ? formatDate(currentIncident.created_at, incidentDateOptions)
                     : '-'}
                 </span>
               </div>
@@ -354,7 +353,7 @@ export function IncidentDetailSheet({
                           )}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {formatDate(comment.created_at)}
+                          {formatDate(comment.created_at, incidentDateOptions)}
                         </span>
                       </div>
                       <p className="text-sm whitespace-pre-wrap">{comment.content}</p>

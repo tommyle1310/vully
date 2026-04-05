@@ -9,7 +9,6 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   flexRender,
-  createColumnHelper,
   SortingState,
   ColumnFiltersState,
 } from '@tanstack/react-table';
@@ -20,17 +19,15 @@ import {
   ChevronRight,
   Check,
   AlertCircle,
-  Clock,
   Building2,
   Loader2,
 } from 'lucide-react';
+import { parseAsString, parseAsInteger, useQueryStates } from 'nuqs';
 import { useInvoices, Invoice } from '@/hooks/use-invoices';
 import { useApartments } from '@/hooks/use-apartments';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -62,128 +59,7 @@ import {
 import { cn } from '@/lib/utils';
 import { InvoiceDetailSheet } from './invoice-detail-sheet';
 import { BulkGenerateInvoicesDialog } from './bulk-generate-dialog';
-
-const columnHelper = createColumnHelper<Invoice>();
-
-const statusConfig: Record<
-  Invoice['status'],
-  { label: string; variant: 'default' | 'success' | 'warning' | 'destructive'; icon: typeof Clock }
-> = {
-  draft: { label: 'Draft', variant: 'default', icon: FileText },
-  pending: { label: 'Pending', variant: 'warning', icon: Clock },
-  paid: { label: 'Paid', variant: 'success', icon: Check },
-  overdue: { label: 'Overdue', variant: 'destructive', icon: AlertCircle },
-  cancelled: { label: 'Cancelled', variant: 'default', icon: FileText },
-};
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('vi-VN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-const columns = [
-  columnHelper.accessor('invoice_number', {
-    header: 'Invoice #',
-    cell: (info) => (
-      <span className="font-mono text-sm font-medium">{info.getValue()}</span>
-    ),
-  }),
-  columnHelper.accessor('contract.apartments.unit_number', {
-    header: 'Unit',
-    cell: (info) => {
-      const invoice = info.row.original;
-      return (
-        <div>
-          <span className="font-medium">
-            {invoice.contract?.apartments.unit_number || '-'}
-          </span>
-          <span className="block text-xs text-muted-foreground">
-            {invoice.contract?.apartments.buildings.name || ''}
-          </span>
-        </div>
-      );
-    },
-  }),
-  columnHelper.accessor('contract.tenant.firstName', {
-    header: 'Tenant',
-    cell: (info) => {
-      const tenant = info.row.original.contract?.tenant;
-      if (!tenant) return '-';
-      return `${tenant.firstName} ${tenant.lastName}`;
-    },
-  }),
-  columnHelper.accessor('billingPeriod', {
-    header: 'Period',
-    cell: (info) => info.getValue(),
-  }),
-  columnHelper.accessor('totalAmount', {
-    header: 'Amount',
-    cell: (info) => (
-      <span className="font-medium">{formatCurrency(info.getValue())}</span>
-    ),
-  }),
-  columnHelper.accessor('dueDate', {
-    header: 'Due Date',
-    cell: (info) => formatDate(info.getValue()),
-  }),
-  columnHelper.accessor('status', {
-    header: 'Status',
-    cell: (info) => {
-      const status = info.getValue();
-      const config = statusConfig[status];
-      const Icon = config.icon;
-      return (
-        <Badge variant={config.variant} className="gap-1">
-          <Icon className="h-3 w-3" />
-          {config.label}
-        </Badge>
-      );
-    },
-  }),
-];
-
-function TableSkeleton() {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-10 w-64" />
-        <div className="flex gap-2">
-          <Skeleton className="h-10 w-32" />
-          <Skeleton className="h-10 w-32" />
-        </div>
-      </div>
-      <div className="rounded-md border">
-        <div className="border-b p-4">
-          <div className="flex gap-4">
-            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-              <Skeleton key={i} className="h-4 w-20" />
-            ))}
-          </div>
-        </div>
-        {[1, 2, 3, 4, 5].map((row) => (
-          <div key={row} className="border-b p-4">
-            <div className="flex gap-4">
-              {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-                <Skeleton key={i} className="h-4 w-20" />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+import { columns, InvoiceTableSkeleton } from './invoice-columns';
 
 export default function InvoicesPage() {
   const { hasAnyRole } = useAuthStore();
@@ -192,14 +68,18 @@ export default function InvoicesPage() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<Invoice['status'] | 'all'>('all');
+
+  // URL state with nuqs
+  const [urlFilters, setUrlFilters] = useQueryStates({
+    status: parseAsString.withDefault('all'),
+    apartmentId: parseAsString.withDefault(''),
+    page: parseAsInteger.withDefault(1),
+  });
   
   // Apartment filter state with debounce
   const [apartmentOpen, setApartmentOpen] = useState(false);
   const [apartmentSearch, setApartmentSearch] = useState('');
   const [debouncedApartmentSearch, setDebouncedApartmentSearch] = useState('');
-  const [selectedApartmentId, setSelectedApartmentId] = useState<string>('');
 
   // Debounce apartment search (300ms for responsive UX)
   useEffect(() => {
@@ -217,15 +97,15 @@ export default function InvoicesPage() {
 
   // Find selected apartment for display
   const selectedApartment = useMemo(
-    () => apartments.find((apt) => apt.id === selectedApartmentId),
-    [apartments, selectedApartmentId],
+    () => apartments.find((apt) => apt.id === urlFilters.apartmentId),
+    [apartments, urlFilters.apartmentId],
   );
 
   const { data, isLoading, error } = useInvoices({
-    page,
+    page: urlFilters.page,
     limit: 20,
-    status: statusFilter === 'all' ? undefined : statusFilter,
-    apartmentId: selectedApartmentId || undefined,
+    status: urlFilters.status === 'all' ? undefined : urlFilters.status as Invoice['status'],
+    apartmentId: urlFilters.apartmentId || undefined,
   });
 
   const invoices = data?.data || [];
@@ -261,7 +141,7 @@ export default function InvoicesPage() {
               : 'View your billing history and invoices.'}
           </p>
         </div>
-        <TableSkeleton />
+        <InvoiceTableSkeleton />
       </div>
     );
   }
@@ -279,7 +159,11 @@ export default function InvoicesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
@@ -317,7 +201,7 @@ export default function InvoicesPage() {
                 className="w-[220px] justify-between"
               >
                 <Building2 className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                {selectedApartmentId
+                {urlFilters.apartmentId
                   ? selectedApartment
                     ? `${selectedApartment.unit_number} - ${selectedApartment.building?.name || ''}`
                     : 'Loading...'
@@ -344,15 +228,14 @@ export default function InvoicesPage() {
                         <CommandItem
                           value="all"
                           onSelect={() => {
-                            setSelectedApartmentId('');
+                            setUrlFilters({ apartmentId: '', page: 1 });
                             setApartmentOpen(false);
-                            setPage(1);
                           }}
                         >
                           <Check
                             className={cn(
                               'mr-2 h-4 w-4',
-                              !selectedApartmentId ? 'opacity-100' : 'opacity-0',
+                              !urlFilters.apartmentId ? 'opacity-100' : 'opacity-0',
                             )}
                           />
                           All Apartments
@@ -362,15 +245,14 @@ export default function InvoicesPage() {
                             key={apt.id}
                             value={apt.id}
                             onSelect={() => {
-                              setSelectedApartmentId(apt.id);
+                              setUrlFilters({ apartmentId: apt.id, page: 1 });
                               setApartmentOpen(false);
-                              setPage(1);
                             }}
                           >
                             <Check
                               className={cn(
                                 'mr-2 h-4 w-4',
-                                selectedApartmentId === apt.id ? 'opacity-100' : 'opacity-0',
+                                urlFilters.apartmentId === apt.id ? 'opacity-100' : 'opacity-0',
                               )}
                             />
                             <span className="font-medium">{apt.unit_number}</span>
@@ -389,10 +271,9 @@ export default function InvoicesPage() {
         )}
         
         <Select
-          value={statusFilter}
+          value={urlFilters.status}
           onValueChange={(value) => {
-            setStatusFilter(value as Invoice['status'] | 'all');
-            setPage(1);
+            setUrlFilters({ status: value, page: 1 });
           }}
         >
           <SelectTrigger className="w-[150px]">
@@ -472,15 +353,15 @@ export default function InvoicesPage() {
       {meta && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Showing {(page - 1) * meta.limit + 1} to{' '}
-            {Math.min(page * meta.limit, meta.total)} of {meta.total} invoices
+            Showing {(urlFilters.page - 1) * meta.limit + 1} to{' '}
+            {Math.min(urlFilters.page * meta.limit, meta.total)} of {meta.total} invoices
           </p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
+              onClick={() => setUrlFilters({ page: Math.max(1, urlFilters.page - 1) })}
+              disabled={urlFilters.page === 1}
             >
               <ChevronLeft className="h-4 w-4" />
               Previous
@@ -488,8 +369,8 @@ export default function InvoicesPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page * meta.limit >= meta.total}
+              onClick={() => setUrlFilters({ page: urlFilters.page + 1 })}
+              disabled={urlFilters.page * meta.limit >= meta.total}
             >
               Next
               <ChevronRight className="h-4 w-4" />
@@ -501,8 +382,9 @@ export default function InvoicesPage() {
       {/* Detail Sheet */}
       <InvoiceDetailSheet
         invoice={selectedInvoice}
-        onClose={() => setSelectedInvoice(null)}
+        open={!!selectedInvoice}
+        onOpenChange={(open) => !open && setSelectedInvoice(null)}
       />
-    </div>
+    </motion.div>
   );
 }

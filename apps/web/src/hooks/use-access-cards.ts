@@ -130,7 +130,7 @@ export function useAccessCards(
 ) {
   return useQuery({
     queryKey: accessCardKeys.list(apartmentId, params),
-    queryFn: async () => {
+    queryFn: () => {
       const searchParams = new URLSearchParams();
       if (params?.status) searchParams.append('status', params.status);
       if (params?.cardType) searchParams.append('cardType', params.cardType);

@@ -17,6 +17,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { AccessCardsService } from './access-cards.service';
+import { AccessCardsLifecycleService } from './access-cards-lifecycle.service';
 import {
   CreateAccessCardDto,
   UpdateAccessCardDto,
@@ -36,7 +37,10 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class AccessCardsController {
-  constructor(private readonly accessCardsService: AccessCardsService) {}
+  constructor(
+    private readonly accessCardsService: AccessCardsService,
+    private readonly lifecycleService: AccessCardsLifecycleService,
+  ) {}
 
   // =====================
   // Apartment-scoped endpoints
@@ -146,7 +150,7 @@ export class AccessCardsController {
     @Body() dto: DeactivateAccessCardDto,
     @CurrentUser('id') userId: string,
   ): Promise<{ data: AccessCardResponseDto }> {
-    const card = await this.accessCardsService.deactivate(id, dto, userId);
+    const card = await this.lifecycleService.deactivate(id, dto, userId);
     return { data: card };
   }
 
@@ -167,7 +171,7 @@ export class AccessCardsController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,
   ): Promise<{ data: AccessCardResponseDto }> {
-    const card = await this.accessCardsService.reactivate(id, userId);
+    const card = await this.lifecycleService.reactivate(id, userId);
     return { data: card };
   }
 }

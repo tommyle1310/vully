@@ -120,6 +120,7 @@ export function SvgUploadDialog({
     if (file) {
       const syntheticEvent = {
         target: { files: [file] },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any;
       handleFileSelect(syntheticEvent);
     }

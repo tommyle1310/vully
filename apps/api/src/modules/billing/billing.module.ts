@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { InvoicesController } from './invoices.controller';
 import { InvoicesService } from './invoices.service';
+import { InvoiceCalculatorService } from './invoice-calculator.service';
 import { MeterReadingsController } from './meter-readings.controller';
 import { MeterReadingsService } from './meter-readings.service';
 import { UtilityTypesController } from './utility-types.controller';
@@ -31,6 +32,7 @@ import { BillingJobsController } from './billing-jobs.controller';
   ],
   providers: [
     InvoicesService,
+    InvoiceCalculatorService,
     MeterReadingsService,
     UtilityTypesService,
     BillingProcessor,
@@ -38,6 +40,7 @@ import { BillingJobsController } from './billing-jobs.controller';
   ],
   exports: [
     InvoicesService,
+    InvoiceCalculatorService,
     MeterReadingsService,
     UtilityTypesService,
     BillingQueueService,

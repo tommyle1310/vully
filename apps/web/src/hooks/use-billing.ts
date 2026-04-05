@@ -35,9 +35,8 @@ export interface UpdateUtilityTypeDto {
 export function useUtilityTypes() {
   return useQuery({
     queryKey: ['utility-types'],
-    queryFn: async (): Promise<UtilityTypesResponse> => {
-      return apiClient.get<UtilityTypesResponse>('/utility-types');
-    },
+    queryFn: (): Promise<UtilityTypesResponse> =>
+      apiClient.get<UtilityTypesResponse>('/utility-types'),
     staleTime: 30 * 60 * 1000, // 30 minutes (rarely changes)
   });
 }
@@ -46,10 +45,10 @@ export function useUtilityTypes() {
 export function useUtilityType(id: string) {
   return useQuery({
     queryKey: ['utility-types', id],
-    queryFn: async (): Promise<UtilityTypeResponse> => {
-      return apiClient.get<UtilityTypeResponse>(`/utility-types/${id}`);
-    },
+    queryFn: (): Promise<UtilityTypeResponse> =>
+      apiClient.get<UtilityTypeResponse>(`/utility-types/${id}`),
     enabled: !!id,
+    staleTime: 30 * 60 * 1000, // 30 minutes (static data)
   });
 }
 
@@ -58,9 +57,8 @@ export function useCreateUtilityType() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (dto: CreateUtilityTypeDto): Promise<UtilityTypeResponse> => {
-      return apiClient.post<UtilityTypeResponse>('/utility-types', dto);
-    },
+    mutationFn: (dto: CreateUtilityTypeDto): Promise<UtilityTypeResponse> =>
+      apiClient.post<UtilityTypeResponse>('/utility-types', dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['utility-types'] });
     },
@@ -72,15 +70,14 @@ export function useUpdateUtilityType() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       id,
       data,
     }: {
       id: string;
       data: UpdateUtilityTypeDto;
-    }): Promise<UtilityTypeResponse> => {
-      return apiClient.patch<UtilityTypeResponse>(`/utility-types/${id}`, data);
-    },
+    }): Promise<UtilityTypeResponse> =>
+      apiClient.patch<UtilityTypeResponse>(`/utility-types/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['utility-types'] });
     },
@@ -92,9 +89,8 @@ export function useSeedUtilityTypes() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (): Promise<UtilityTypesResponse> => {
-      return apiClient.post<UtilityTypesResponse>('/utility-types/seed', {});
-    },
+    mutationFn: (): Promise<UtilityTypesResponse> =>
+      apiClient.post<UtilityTypesResponse>('/utility-types/seed', {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['utility-types'] });
     },
@@ -142,11 +138,10 @@ interface QueueStats {
 export function useBillingJobs(page = 1, limit = 20) {
   return useQuery({
     queryKey: ['billing-jobs', page, limit],
-    queryFn: async (): Promise<BillingJobsResponse> => {
-      return apiClient.get<BillingJobsResponse>(
+    queryFn: (): Promise<BillingJobsResponse> =>
+      apiClient.get<BillingJobsResponse>(
         `/billing-jobs?page=${page}&limit=${limit}`,
-      );
-    },
+      ),
     staleTime: 30 * 1000, // 30 seconds
   });
 }
@@ -155,9 +150,8 @@ export function useBillingJobs(page = 1, limit = 20) {
 export function useBillingJob(id: string, options?: { refetchInterval?: number }) {
   return useQuery({
     queryKey: ['billing-jobs', id],
-    queryFn: async (): Promise<BillingJobResponse> => {
-      return apiClient.get<BillingJobResponse>(`/billing-jobs/${id}`);
-    },
+    queryFn: (): Promise<BillingJobResponse> =>
+      apiClient.get<BillingJobResponse>(`/billing-jobs/${id}`),
     enabled: !!id,
     refetchInterval: options?.refetchInterval,
   });
@@ -167,9 +161,8 @@ export function useBillingJob(id: string, options?: { refetchInterval?: number }
 export function useQueueStats() {
   return useQuery({
     queryKey: ['billing-jobs', 'stats'],
-    queryFn: async (): Promise<{ data: QueueStats }> => {
-      return apiClient.get<{ data: QueueStats }>('/billing-jobs/stats');
-    },
+    queryFn: (): Promise<{ data: QueueStats }> =>
+      apiClient.get<{ data: QueueStats }>('/billing-jobs/stats'),
     staleTime: 10 * 1000, // 10 seconds
   });
 }
@@ -179,7 +172,7 @@ export function useGenerateInvoices() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       billingPeriod,
       buildingId,
       categories,
@@ -193,13 +186,12 @@ export function useGenerateInvoices() {
         message: string;
         totalContracts: number;
       };
-    }> => {
-      return apiClient.post('/billing-jobs/generate', {
+    }> =>
+      apiClient.post('/billing-jobs/generate', {
         billingPeriod,
         buildingId,
         categories,
-      });
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['billing-jobs'] });
     },

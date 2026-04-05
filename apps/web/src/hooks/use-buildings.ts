@@ -85,9 +85,8 @@ export function useCreateBuilding() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: CreateBuildingInput) => {
-      return apiClient.post<BuildingResponse>('/buildings', data);
-    },
+    mutationFn: (data: CreateBuildingInput) =>
+      apiClient.post<BuildingResponse>('/buildings', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['buildings'] });
       // Apartments are auto-created from SVG on the backend, invalidate cache
@@ -100,9 +99,8 @@ export function useUpdateBuilding() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: UpdateBuildingInput }) => {
-      return apiClient.patch<BuildingResponse>(`/buildings/${id}`, data);
-    },
+    mutationFn: ({ id, data }: { id: string; data: UpdateBuildingInput }) =>
+      apiClient.patch<BuildingResponse>(`/buildings/${id}`, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['buildings'] });
       queryClient.invalidateQueries({ queryKey: ['buildings', variables.id] });
@@ -114,9 +112,8 @@ export function useUpdateBuildingSvgMap() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, svgMapData }: { id: string; svgMapData: string }) => {
-      return apiClient.patch<BuildingResponse>(`/buildings/${id}/svg-map`, { svgMapData });
-    },
+    mutationFn: ({ id, svgMapData }: { id: string; svgMapData: string }) =>
+      apiClient.patch<BuildingResponse>(`/buildings/${id}/svg-map`, { svgMapData }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['buildings'] });
       queryClient.invalidateQueries({ queryKey: ['buildings', variables.id] });

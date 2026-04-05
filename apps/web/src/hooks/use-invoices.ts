@@ -101,7 +101,7 @@ export function useInvoices(filters: InvoiceFilters = {}) {
 
   return useQuery({
     queryKey: ['invoices', filters],
-    queryFn: async (): Promise<InvoicesResponse> => {
+    queryFn: (): Promise<InvoicesResponse> => {
       const url = `/invoices?${queryParams.toString()}`;
       return apiClient.get<InvoicesResponse>(url);
     },
@@ -113,9 +113,8 @@ export function useInvoices(filters: InvoiceFilters = {}) {
 export function useInvoice(id: string) {
   return useQuery({
     queryKey: ['invoices', id],
-    queryFn: async (): Promise<InvoiceResponse> => {
-      return apiClient.get<InvoiceResponse>(`/invoices/${id}`);
-    },
+    queryFn: (): Promise<InvoiceResponse> =>
+      apiClient.get<InvoiceResponse>(`/invoices/${id}`),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
   });
@@ -126,9 +125,8 @@ export function useCreateInvoice() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (dto: CreateInvoiceDto): Promise<InvoiceResponse> => {
-      return apiClient.post<InvoiceResponse>('/invoices', dto);
-    },
+    mutationFn: (dto: CreateInvoiceDto): Promise<InvoiceResponse> =>
+      apiClient.post<InvoiceResponse>('/invoices', dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
     },
@@ -140,15 +138,14 @@ export function useUpdateInvoice() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       id,
       data,
     }: {
       id: string;
       data: UpdateInvoiceDto;
-    }): Promise<InvoiceResponse> => {
-      return apiClient.patch<InvoiceResponse>(`/invoices/${id}`, data);
-    },
+    }): Promise<InvoiceResponse> =>
+      apiClient.patch<InvoiceResponse>(`/invoices/${id}`, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoices', variables.id] });
@@ -161,9 +158,8 @@ export function useMarkInvoicePaid() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string): Promise<InvoiceResponse> => {
-      return apiClient.patch<InvoiceResponse>(`/invoices/${id}/pay`, {});
-    },
+    mutationFn: (id: string): Promise<InvoiceResponse> =>
+      apiClient.post<InvoiceResponse>(`/invoices/${id}/mark-paid`, {}),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoices', id] });
@@ -175,9 +171,8 @@ export function useMarkInvoicePaid() {
 export function useOverdueInvoices() {
   return useQuery({
     queryKey: ['invoices', 'overdue'],
-    queryFn: async (): Promise<{ data: Invoice[] }> => {
-      return apiClient.get<{ data: Invoice[] }>('/invoices/overdue');
-    },
+    queryFn: (): Promise<{ data: Invoice[] }> =>
+      apiClient.get<{ data: Invoice[] }>('/invoices/overdue'),
     staleTime: 5 * 60 * 1000,
   });
 }

@@ -4,14 +4,16 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, ApartmentStatus, UnitType } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { DEFAULT_PAGINATION_LIMIT } from '../../common/constants/defaults';
 import {
   CreateApartmentDto,
   UpdateApartmentDto,
   ApartmentResponseDto,
   ApartmentFiltersDto,
 } from './dto/apartment.dto';
+import { toApartmentResponseDto, ApartmentWithRelations } from './apartments.mapper';
 
 @Injectable()
 export class ApartmentsService {
@@ -81,34 +83,34 @@ export class ApartmentsService {
       },
     });
 
-    return this.toResponseDto(apartment);
+    return toApartmentResponseDto(apartment);
   }
 
   async findAll(
     filters: ApartmentFiltersDto,
     page = 1,
-    limit = 20,
+    limit = DEFAULT_PAGINATION_LIMIT,
   ): Promise<{ data: ApartmentResponseDto[]; total: number }> {
     const skip = (page - 1) * limit;
 
-    const where: Record<string, unknown> = {};
+    const where: Prisma.apartmentsWhereInput = {};
     
-    // Building filter
     if (filters.buildingId) where.building_id = filters.buildingId;
     
-    // Status filter - supports single value or array
     if (filters.status) {
       const statusArray = Array.isArray(filters.status) ? filters.status : [filters.status];
-      where.status = statusArray.length === 1 ? statusArray[0] : { in: statusArray };
+      where.status = statusArray.length === 1
+        ? statusArray[0] as ApartmentStatus
+        : { in: statusArray as ApartmentStatus[] };
     }
     
-    // Unit type filter - supports single value or array
     if (filters.unitType) {
       const unitTypeArray = Array.isArray(filters.unitType) ? filters.unitType : [filters.unitType];
-      where.unit_type = unitTypeArray.length === 1 ? unitTypeArray[0] : { in: unitTypeArray };
+      where.unit_type = unitTypeArray.length === 1
+        ? unitTypeArray[0] as UnitType
+        : { in: unitTypeArray as UnitType[] };
     }
     
-    // Bedroom range filter
     if (filters.minBedrooms !== undefined || filters.maxBedrooms !== undefined) {
       const bedroomFilter: Record<string, number> = {};
       if (filters.minBedrooms !== undefined) bedroomFilter.gte = filters.minBedrooms;
@@ -116,18 +118,15 @@ export class ApartmentsService {
       where.bedroom_count = bedroomFilter;
     }
     
-    // Floor range filter (using floor_index)
     if (filters.minFloor !== undefined || filters.maxFloor !== undefined) {
       const floorFilter: Record<string, number> = {};
       if (filters.minFloor !== undefined) floorFilter.gte = filters.minFloor;
       if (filters.maxFloor !== undefined) floorFilter.lte = filters.maxFloor;
       where.floor_index = floorFilter;
     } else if (filters.floor !== undefined) {
-      // Legacy single floor filter
       where.floor_index = filters.floor;
     }
     
-    // Area range filter (using gross_area)
     if (filters.minArea !== undefined || filters.maxArea !== undefined) {
       const areaFilter: Record<string, number> = {};
       if (filters.minArea !== undefined) areaFilter.gte = filters.minArea;
@@ -135,13 +134,9 @@ export class ApartmentsService {
       where.gross_area = areaFilter;
     }
     
-    // Orientation filter
     if (filters.orientation) where.orientation = filters.orientation;
-    
-    // Owner filter
     if (filters.ownerId) where.owner_id = filters.ownerId;
     
-    // Search filter - search across unit_number, apartment_code, and building name
     if (filters.search) {
       where.OR = [
         { unit_number: { contains: filters.search, mode: 'insensitive' } },
@@ -179,7 +174,7 @@ export class ApartmentsService {
     ]);
 
     return {
-      data: apartments.map((a: any) => this.toResponseDto(a)),
+      data: apartments.map((a) => toApartmentResponseDto(a)),
       total,
     };
   }
@@ -211,7 +206,7 @@ export class ApartmentsService {
       throw new NotFoundException('Apartment not found');
     }
 
-    return this.toResponseDto(apartment);
+    return toApartmentResponseDto(apartment);
   }
 
   async findByResident(
@@ -237,7 +232,7 @@ export class ApartmentsService {
       return null;
     }
 
-    return this.toResponseDto(contract.apartments);
+    return toApartmentResponseDto(contract.apartments);
   }
 
   async findOneForResident(
@@ -246,7 +241,6 @@ export class ApartmentsService {
   ): Promise<ApartmentResponseDto> {
     const apartment = await this.findOne(id);
 
-    // Check if resident has active contract for this apartment
     const contract = await this.prisma.contracts.findFirst({
       where: {
         apartment_id: id,
@@ -373,7 +367,7 @@ export class ApartmentsService {
       status: dto.status,
     });
 
-    return this.toResponseDto(updated);
+    return toApartmentResponseDto(updated);
   }
 
   async updateStatus(
@@ -384,287 +378,9 @@ export class ApartmentsService {
   }
 
   /**
-   * Get effective apartment configuration with policy inheritance.
-   * Returns computed values showing the source (apartment override, building policy, or default).
+   * Compatibility wrapper - delegates to mapper for external callers
    */
-  async getEffectiveConfig(apartmentId: string): Promise<{
-    apartmentId: string;
-    buildingId: string;
-    policyId: string | null;
-    maxResidents: { value: number; source: 'apartment' | 'building' | 'default' };
-    accessCardLimit: { value: number; source: 'apartment' | 'building' | 'default' };
-    petAllowed: { value: boolean; source: 'apartment' | 'building' | 'default' };
-    petLimit: { value: number; source: 'apartment' | 'building' | 'default' };
-    billingCycle: { value: string; source: 'apartment' | 'building' | 'default' };
-    lateFeeRatePercent: number | null;
-    lateFeeGraceDays: number | null;
-    trashCollectionDays: string[] | null;
-    trashCollectionTime: string | null;
-    trashFeePerMonth: number | null;
-  }> {
-    const apartment = await this.prisma.apartments.findUnique({
-      where: { id: apartmentId },
-    });
-
-    if (!apartment) {
-      throw new NotFoundException('Apartment not found');
-    }
-
-    // Get current building policy
-    const policy = await this.prisma.building_policies.findFirst({
-      where: {
-        building_id: apartment.building_id,
-        effective_to: null,
-      },
-    });
-
-    // Default values
-    const DEFAULTS = {
-      maxResidents: 6,
-      accessCardLimit: 4,
-      petAllowed: false,
-      petLimit: 0,
-      billingCycle: 'monthly',
-    };
-
-    // Helper to compute effective value with source
-    const getEffective = <T>(
-      aptOverride: T | null | undefined,
-      policyValue: T | null | undefined,
-      defaultValue: T,
-    ): { value: T; source: 'apartment' | 'building' | 'default' } => {
-      if (aptOverride !== null && aptOverride !== undefined) {
-        return { value: aptOverride, source: 'apartment' };
-      }
-      if (policyValue !== null && policyValue !== undefined) {
-        return { value: policyValue, source: 'building' };
-      }
-      return { value: defaultValue, source: 'default' };
-    };
-
-    return {
-      apartmentId,
-      buildingId: apartment.building_id,
-      policyId: policy?.id ?? null,
-      maxResidents: getEffective(
-        apartment.max_residents_override,
-        policy?.default_max_residents,
-        DEFAULTS.maxResidents,
-      ),
-      accessCardLimit: getEffective(
-        apartment.access_card_limit_override,
-        policy?.access_card_limit_default,
-        DEFAULTS.accessCardLimit,
-      ),
-      petAllowed: getEffective(
-        apartment.pet_allowed_override,
-        policy?.pet_allowed,
-        DEFAULTS.petAllowed,
-      ),
-      petLimit: getEffective(
-        apartment.pet_limit_override,
-        policy?.pet_limit_default,
-        DEFAULTS.petLimit,
-      ),
-      billingCycle: getEffective(
-        apartment.billing_cycle_override,
-        policy?.default_billing_cycle,
-        DEFAULTS.billingCycle,
-      ),
-      // Pass-through policy values (no apartment override)
-      lateFeeRatePercent: policy?.late_fee_rate_percent?.toNumber() ?? null,
-      lateFeeGraceDays: policy?.late_fee_grace_days ?? null,
-      trashCollectionDays: policy?.trash_collection_days ?? null,
-      trashCollectionTime: policy?.trash_collection_time ?? null,
-      trashFeePerMonth: policy?.trash_fee_per_month?.toNumber() ?? null,
-    };
-  }
-
-  /**
-   * Convert Prisma apartment record to response DTO.
-   * Strips admin-only fields (pinkBookId, notesAdmin) — caller must handle role-based exclusion.
-   */
-  toResponseDto(apartments: Record<string, unknown>, options?: { includeAdminFields?: boolean }): ApartmentResponseDto {
-    const building = apartments.buildings as { id: string; name: string; address: string } | undefined;
-    const ownerData = apartments.users as { id: string; first_name: string; last_name: string; email: string } | null | undefined;
-    const contractsData = apartments.contracts as Array<{
-      id: string;
-      rent_amount: number | { toNumber: () => number };
-      start_date: Date;
-      end_date: Date | null;
-      status: string;
-      users_contracts_tenant_idTousers: { id: string; first_name: string; last_name: string; email: string };
-    }> | undefined;
-
-    const toNum = (v: unknown) => (v != null ? Number(v) : null);
-    const toStr = (v: unknown) => (v != null ? String(v) : null);
-    const toDate = (v: unknown) => (v instanceof Date ? v.toISOString().split('T')[0] : v != null ? String(v) : null);
-
-    // Build owner object if available
-    const owner = ownerData ? {
-      id: ownerData.id,
-      firstName: ownerData.first_name,
-      lastName: ownerData.last_name,
-      email: ownerData.email,
-    } : null;
-
-    // Build activeContract object if available
-    let activeContract = null;
-    if (contractsData && contractsData.length > 0) {
-      const contract = contractsData[0];
-      const tenant = contract.users_contracts_tenant_idTousers;
-      activeContract = {
-        id: contract.id,
-        tenant: {
-          id: tenant.id,
-          firstName: tenant.first_name,
-          lastName: tenant.last_name,
-          email: tenant.email,
-        },
-        monthlyRent: typeof contract.rent_amount === 'object' && 'toNumber' in contract.rent_amount 
-          ? contract.rent_amount.toNumber() 
-          : Number(contract.rent_amount),
-        startDate: contract.start_date instanceof Date ? contract.start_date.toISOString().split('T')[0] : String(contract.start_date),
-        endDate: contract.end_date ? (contract.end_date instanceof Date ? contract.end_date.toISOString().split('T')[0] : String(contract.end_date)) : null,
-        status: contract.status,
-      };
-    }
-
-    const result: ApartmentResponseDto = {
-      id: apartments.id as string,
-      buildingId: apartments.building_id as string,
-      unit_number: apartments.unit_number as string,
-      floorIndex: apartments.floor_index as number,
-      status: apartments.status as string,
-      apartmentCode: toStr(apartments.apartment_code),
-      floorLabel: toStr(apartments.floor_label),
-      unitType: toStr(apartments.unit_type),
-      netArea: toNum(apartments.net_area),
-      grossArea: toNum(apartments.gross_area),
-      ceilingHeight: toNum(apartments.ceiling_height),
-      bedroomCount: apartments.bedroom_count as number,
-      bathroomCount: apartments.bathroom_count as number,
-      features: (apartments.features as Record<string, unknown>) || {},
-      svgElementId: toStr(apartments.svg_element_id),
-      svgPathData: toStr(apartments.svg_path_data),
-      centroidX: toNum(apartments.centroid_x),
-      centroidY: toNum(apartments.centroid_y),
-      orientation: toStr(apartments.orientation),
-      balconyDirection: toStr(apartments.balcony_direction),
-      isCornerUnit: apartments.is_corner_unit as boolean,
-      // Ownership
-      ownerId: toStr(apartments.owner_id),
-      ownershipType: toStr(apartments.ownership_type),
-      handoverDate: toDate(apartments.handover_date),
-      warrantyExpiryDate: toDate(apartments.warranty_expiry_date),
-      isRented: apartments.is_rented as boolean,
-      vatRate: toNum(apartments.vat_rate),
-      // Occupancy
-      maxResidents: apartments.max_residents as number | null,
-      currentResidentCount: apartments.current_resident_count as number,
-      petAllowed: apartments.pet_allowed as boolean | null,
-      petLimit: apartments.pet_limit as number | null,
-      accessCardLimit: apartments.access_card_limit as number | null,
-      intercomCode: toStr(apartments.intercom_code),
-      // Utility & Technical
-      electricMeterId: toStr(apartments.electric_meter_id),
-      waterMeterId: toStr(apartments.water_meter_id),
-      gasMeterId: toStr(apartments.gas_meter_id),
-      powerCapacity: apartments.power_capacity as number | null,
-      acUnitCount: apartments.ac_unit_count as number | null,
-      fireDetectorId: toStr(apartments.fire_detector_id),
-      sprinklerCount: apartments.sprinkler_count as number | null,
-      internetTerminalLoc: toStr(apartments.internet_terminal_loc),
-      // Parking & Assets
-      assignedCarSlot: toStr(apartments.assigned_car_slot),
-      assignedMotoSlot: toStr(apartments.assigned_moto_slot),
-      mailboxNumber: toStr(apartments.mailbox_number),
-      storageUnitId: toStr(apartments.storage_unit_id),
-      // Billing Config
-      mgmtFeeConfigId: toStr(apartments.mgmt_fee_config_id),
-      billingStartDate: toDate(apartments.billing_start_date),
-      billingCycle: (apartments.billing_cycle as string) || 'monthly',
-      bankAccountVirtual: toStr(apartments.bank_account_virtual),
-      lateFeeWaived: apartments.late_fee_waived as boolean,
-      // System Logic
-      parentUnitId: toStr(apartments.parent_unit_id),
-      isMerged: apartments.is_merged as boolean,
-      syncStatus: (apartments.sync_status as string) || 'disconnected',
-      portalAccessEnabled: apartments.portal_access_enabled as boolean,
-      technicalDrawingUrl: toStr(apartments.technical_drawing_url),
-      // Meta
-      created_at: apartments.created_at as Date,
-      updatedAt: apartments.updated_at as Date,
-      building,
-      // Relations
-      owner,
-      activeContract,
-    };
-
-    // Admin-only fields: pinkBookId and notesAdmin excluded by default
-    // Only include when explicitly requested (admin role check done in controller)
-
-    return result;
-  }
-
-  /**
-   * Get parking slots assigned to an apartment.
-   */
-  async getParkingSlots(apartmentId: string): Promise<
-    Array<{
-      id: string;
-      zoneId: string;
-      slotNumber: string;
-      fullCode: string;
-      type: string;
-      monthlyFee: number;
-      zone: {
-        id: string;
-        name: string;
-        code: string;
-      };
-    }>
-  > {
-    const apartment = await this.prisma.apartments.findUnique({
-      where: { id: apartmentId },
-    });
-
-    if (!apartment) {
-      throw new NotFoundException('Apartment not found');
-    }
-
-    const slots = await this.prisma.parking_slots.findMany({
-      where: {
-        assigned_apt_id: apartmentId,
-      },
-      include: {
-        parking_zones: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            slot_type: true,
-            fee_per_month: true,
-          },
-        },
-      },
-      orderBy: {
-        slot_number: 'asc',
-      },
-    });
-
-    return slots.map((slot) => ({
-      id: slot.id,
-      zoneId: slot.zone_id,
-      slotNumber: slot.slot_number,
-      fullCode: slot.full_code,
-      type: slot.parking_zones.slot_type,
-      monthlyFee: slot.fee_override?.toNumber() ?? slot.parking_zones.fee_per_month?.toNumber() ?? 0,
-      zone: {
-        id: slot.parking_zones.id,
-        name: slot.parking_zones.name,
-        code: slot.parking_zones.code,
-      },
-    }));
+  toResponseDto(apartment: ApartmentWithRelations): ApartmentResponseDto {
+    return toApartmentResponseDto(apartment);
   }
 }

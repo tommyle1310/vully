@@ -18,6 +18,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { ContractsService } from './contracts.service';
+import { ContractsTenantService } from './contracts-tenant.service';
 import {
   CreateContractDto,
   UpdateContractDto,
@@ -35,7 +36,10 @@ import { AuthUser } from '../identity/interfaces/auth.interface';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class ContractsController {
-  constructor(private readonly contractsService: ContractsService) {}
+  constructor(
+    private readonly contractsService: ContractsService,
+    private readonly contractsTenantService: ContractsTenantService,
+  ) {}
 
   @Post()
   @Roles('admin')
@@ -66,7 +70,7 @@ export class ContractsController {
       contractId: string;
     } | null;
   }> {
-    const result = await this.contractsService.getMyApartment(user.id);
+    const result = await this.contractsTenantService.getMyApartment(user.id);
     return { data: result };
   }
 
@@ -82,7 +86,7 @@ export class ContractsController {
     data: ContractResponseDto[];
     meta: { total: number };
   }> {
-    const result = await this.contractsService.findMyContracts(user.id, { status });
+    const result = await this.contractsTenantService.findMyContracts(user.id, { status });
     return {
       data: result.data,
       meta: { total: result.total },

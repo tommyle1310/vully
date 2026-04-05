@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { formatCurrency, formatDate } from '@/lib/format';
 import {
   FileText,
   Building,
@@ -33,7 +34,8 @@ import { useToast } from '@/hooks/use-toast';
 
 interface InvoiceDetailSheetProps {
   invoice: Invoice | null;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 const statusConfig: Record<
@@ -47,23 +49,13 @@ const statusConfig: Record<
   cancelled: { label: 'Cancelled', variant: 'default' },
 };
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
+const invoiceDateOptions: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+};
 
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('vi-VN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
-
-export function InvoiceDetailSheet({ invoice, onClose }: InvoiceDetailSheetProps) {
+export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetailSheetProps) {
   const { toast } = useToast();
   const { mutate: markAsPaid, isPending } = useMarkInvoicePaid();
 
@@ -76,7 +68,7 @@ export function InvoiceDetailSheet({ invoice, onClose }: InvoiceDetailSheetProps
           title: 'Invoice marked as paid',
           description: `Invoice ${invoice.invoice_number} has been marked as paid.`,
         });
-        onClose();
+        onOpenChange(false);
       },
       onError: (error) => {
         toast({
@@ -91,7 +83,7 @@ export function InvoiceDetailSheet({ invoice, onClose }: InvoiceDetailSheetProps
   const config = invoice ? statusConfig[invoice.status] : null;
 
   return (
-    <Sheet open={!!invoice} onOpenChange={(open) => !open && onClose()}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
         {invoice && (
           <motion.div
@@ -170,12 +162,12 @@ export function InvoiceDetailSheet({ invoice, onClose }: InvoiceDetailSheetProps
                 <div className="flex items-center gap-2 text-sm">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">Issue Date:</span>
-                  <span className="font-medium">{formatDate(invoice.issueDate)}</span>
+                  <span className="font-medium">{formatDate(invoice.issueDate, invoiceDateOptions)}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">Due Date:</span>
-                  <span className="font-medium">{formatDate(invoice.dueDate)}</span>
+                  <span className="font-medium">{formatDate(invoice.dueDate, invoiceDateOptions)}</span>
                 </div>
               </div>
 

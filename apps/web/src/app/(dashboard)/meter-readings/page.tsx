@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Plus, Gauge, Building2, Loader2, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { parseAsString, parseAsInteger, useQueryStates } from 'nuqs';
 
 import { useMeterReadings } from '@/hooks/use-meter-readings';
 import { useApartments } from '@/hooks/use-apartments';
@@ -59,11 +60,15 @@ export default function MeterReadingsPage() {
   const activeContract = myContractsData?.data?.find((c: { status: string }) => c.status === 'active');
   const apartmentId = myApartment?.apartmentId || activeContract?.apartment?.id;
   
-  const [page, setPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectedApartmentId, setSelectedApartmentId] = useState<string>('');
-  const [selectedUtilityTypeId, setSelectedUtilityTypeId] = useState<string>('');
-  const [selectedBillingPeriod, setSelectedBillingPeriod] = useState<string>('');
+
+  // URL state with nuqs
+  const [urlFilters, setUrlFilters] = useQueryStates({
+    apartmentId: parseAsString.withDefault(''),
+    utilityTypeId: parseAsString.withDefault(''),
+    billingPeriod: parseAsString.withDefault(''),
+    page: parseAsInteger.withDefault(1),
+  });
 
   // Apartment search state with debounce
   const [apartmentOpen, setApartmentOpen] = useState(false);
@@ -78,11 +83,11 @@ export default function MeterReadingsPage() {
 
   // Queries
   const { data: meterReadingsData, isLoading: isLoadingReadings } = useMeterReadings({
-    page,
+    page: urlFilters.page,
     limit: 20,
-    apartmentId: !isAdmin && apartmentId ? apartmentId : (selectedApartmentId || undefined),
-    utilityTypeId: selectedUtilityTypeId || undefined,
-    billingPeriod: selectedBillingPeriod || undefined,
+    apartmentId: !isAdmin && apartmentId ? apartmentId : (urlFilters.apartmentId || undefined),
+    utilityTypeId: urlFilters.utilityTypeId || undefined,
+    billingPeriod: urlFilters.billingPeriod || undefined,
   });
   const { data: apartmentsData, isLoading: apartmentsLoading } = useApartments({
     limit: 100,
@@ -99,14 +104,14 @@ export default function MeterReadingsPage() {
 
   // Find selected apartment for display
   const selectedApartment = useMemo(
-    () => apartments.find((apt) => apt.id === selectedApartmentId),
-    [apartments, selectedApartmentId],
+    () => apartments.find((apt) => apt.id === urlFilters.apartmentId),
+    [apartments, urlFilters.apartmentId],
   );
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
       {/* Header */}
@@ -151,7 +156,7 @@ export default function MeterReadingsPage() {
                     className="w-[220px] justify-between"
                   >
                     <Building2 className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                    {selectedApartmentId
+                    {urlFilters.apartmentId
                       ? selectedApartment
                         ? `${selectedApartment.unit_number} - ${selectedApartment.building?.name || ''}`
                         : 'Loading...'
@@ -178,15 +183,14 @@ export default function MeterReadingsPage() {
                             <CommandItem
                               value="all"
                               onSelect={() => {
-                                setSelectedApartmentId('');
+                                setUrlFilters({ apartmentId: '', page: 1 });
                                 setApartmentOpen(false);
-                                setPage(1);
                               }}
                             >
                               <Check
                                 className={cn(
                                   'mr-2 h-4 w-4',
-                                  !selectedApartmentId ? 'opacity-100' : 'opacity-0',
+                                  !urlFilters.apartmentId ? 'opacity-100' : 'opacity-0',
                                 )}
                               />
                               All Apartments
@@ -196,15 +200,14 @@ export default function MeterReadingsPage() {
                                 key={apt.id}
                                 value={apt.id}
                                 onSelect={() => {
-                                  setSelectedApartmentId(apt.id);
+                                  setUrlFilters({ apartmentId: apt.id, page: 1 });
                                   setApartmentOpen(false);
-                                  setPage(1);
                                 }}
                               >
                                 <Check
                                   className={cn(
                                     'mr-2 h-4 w-4',
-                                    selectedApartmentId === apt.id ? 'opacity-100' : 'opacity-0',
+                                    urlFilters.apartmentId === apt.id ? 'opacity-100' : 'opacity-0',
                                   )}
                                 />
                                 <span className="font-medium">{apt.unit_number}</span>
@@ -223,8 +226,8 @@ export default function MeterReadingsPage() {
 
               <div className="w-[180px]">
                 <Select
-                  value={selectedUtilityTypeId || 'all'}
-                  onValueChange={(value) => setSelectedUtilityTypeId(value === 'all' ? '' : value)}
+                  value={urlFilters.utilityTypeId || 'all'}
+                  onValueChange={(value) => setUrlFilters({ utilityTypeId: value === 'all' ? '' : value, page: 1 })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All Utilities" />
@@ -243,18 +246,16 @@ export default function MeterReadingsPage() {
               <div className="w-[140px]">
                 <Input
                   placeholder="YYYY-MM"
-                  value={selectedBillingPeriod}
-                  onChange={(e) => setSelectedBillingPeriod(e.target.value)}
+                  value={urlFilters.billingPeriod}
+                  onChange={(e) => setUrlFilters({ billingPeriod: e.target.value, page: 1 })}
                 />
               </div>
 
-              {(selectedApartmentId || selectedUtilityTypeId || selectedBillingPeriod) && (
+              {(urlFilters.apartmentId || urlFilters.utilityTypeId || urlFilters.billingPeriod) && (
                 <Button
                   variant="ghost"
                   onClick={() => {
-                    setSelectedApartmentId('');
-                    setSelectedUtilityTypeId('');
-                    setSelectedBillingPeriod('');
+                    setUrlFilters({ apartmentId: '', utilityTypeId: '', billingPeriod: '', page: 1 });
                   }}
                 >
                   Clear Filters
@@ -367,22 +368,22 @@ export default function MeterReadingsPage() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-6 py-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Page {page} of {totalPages} • {totalReadings} total readings
+                    Page {urlFilters.page} of {totalPages} • {totalReadings} total readings
                   </div>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page === 1}
+                      onClick={() => setUrlFilters({ page: Math.max(1, urlFilters.page - 1) })}
+                      disabled={urlFilters.page === 1}
                     >
                       Previous
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={page === totalPages}
+                      onClick={() => setUrlFilters({ page: Math.min(totalPages, urlFilters.page + 1) })}
+                      disabled={urlFilters.page === totalPages}
                     >
                       Next
                     </Button>

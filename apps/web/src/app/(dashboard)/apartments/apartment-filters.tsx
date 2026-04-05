@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, Filter, Building, Home, Bed, Layers, Ruler } from 'lucide-react';
+import { X, Building, Home, Bed, Layers, Ruler } from 'lucide-react';
 import {
   Popover,
   PopoverContent,

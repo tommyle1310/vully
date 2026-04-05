@@ -54,9 +54,8 @@ export function useDashboardStats(options: UseDashboardStatsOptions = {}) {
   const { enabled = true } = options;
   return useQuery({
     queryKey: ['stats', 'dashboard'],
-    queryFn: async (): Promise<DashboardStatsResponse> => {
-      return apiClient.get<DashboardStatsResponse>('/stats/dashboard');
-    },
+    queryFn: (): Promise<DashboardStatsResponse> =>
+      apiClient.get<DashboardStatsResponse>('/stats/dashboard'),
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
     enabled,
@@ -66,9 +65,8 @@ export function useDashboardStats(options: UseDashboardStatsOptions = {}) {
 export function useAdminStats() {
   return useQuery({
     queryKey: ['stats', 'admin'],
-    queryFn: async (): Promise<AdminStatsResponse> => {
-      return apiClient.get<AdminStatsResponse>('/stats/admin');
-    },
+    queryFn: (): Promise<AdminStatsResponse> =>
+      apiClient.get<AdminStatsResponse>('/stats/admin'),
     staleTime: 2 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
   });
@@ -102,11 +100,10 @@ export interface IncidentAnalytics {
 export function useOccupancyTrend(months = 12) {
   return useQuery({
     queryKey: ['analytics', 'occupancy', months],
-    queryFn: async (): Promise<{ data: OccupancyTrendData[] }> => {
-      return apiClient.get<{ data: OccupancyTrendData[] }>(
+    queryFn: (): Promise<{ data: OccupancyTrendData[] }> =>
+      apiClient.get<{ data: OccupancyTrendData[] }>(
         `/stats/analytics/occupancy?months=${months}`
-      );
-    },
+      ),
     staleTime: 5 * 60 * 1000, // 5 minutes (matches backend cache)
   });
 }
@@ -114,11 +111,10 @@ export function useOccupancyTrend(months = 12) {
 export function useRevenueBreakdown(months = 6) {
   return useQuery({
     queryKey: ['analytics', 'revenue', months],
-    queryFn: async (): Promise<{ data: RevenueBreakdownData[] }> => {
-      return apiClient.get<{ data: RevenueBreakdownData[] }>(
+    queryFn: (): Promise<{ data: RevenueBreakdownData[] }> =>
+      apiClient.get<{ data: RevenueBreakdownData[] }>(
         `/stats/analytics/revenue?months=${months}`
-      );
-    },
+      ),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -126,11 +122,10 @@ export function useRevenueBreakdown(months = 6) {
 export function useIncidentAnalytics() {
   return useQuery({
     queryKey: ['analytics', 'incidents'],
-    queryFn: async (): Promise<{ data: IncidentAnalytics }> => {
-      return apiClient.get<{ data: IncidentAnalytics }>(
+    queryFn: (): Promise<{ data: IncidentAnalytics }> =>
+      apiClient.get<{ data: IncidentAnalytics }>(
         '/stats/analytics/incidents'
-      );
-    },
+      ),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -148,11 +143,10 @@ export interface RecentActivity {
 export function useRecentActivity(limit = 10) {
   return useQuery({
     queryKey: ['stats', 'recent-activity', limit],
-    queryFn: async (): Promise<{ data: RecentActivity[] }> => {
-      return apiClient.get<{ data: RecentActivity[] }>(
+    queryFn: (): Promise<{ data: RecentActivity[] }> =>
+      apiClient.get<{ data: RecentActivity[] }>(
         `/stats/recent-activity?limit=${limit}`
-      );
-    },
+      ),
     staleTime: 60 * 1000, // 1 minute (matches backend cache)
     refetchInterval: 2 * 60 * 1000, // Refresh every 2 minutes for fresh activity
   });

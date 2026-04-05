@@ -17,7 +17,7 @@ import { ApartmentDetailPanel } from '@/components/maps/apartment-detail-panel';
 import { MapControls } from '@/components/maps/map-controls';
 import { SvgUploadDialog } from '@/components/maps/svg-upload-dialog';
 import { SvgBuilderDialog } from '@/components/maps/svg-builder-dialog';
-import { Building3D, Building3DSkeleton, Building3DLegend } from '@/components/3d';
+import { Building3D, Building3DLegend } from '@/components/3d';
 import { BuildingPoliciesTab, BuildingParkingTab } from '@/components/buildings';
 import {
   DropdownMenu,

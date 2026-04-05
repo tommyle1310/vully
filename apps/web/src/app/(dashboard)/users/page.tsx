@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Plus, Search, Edit, Shield } from 'lucide-react';
+import { parseAsString, parseAsInteger, useQueryStates } from 'nuqs';
 import { apiClient } from '@/lib/api-client';
 import {
   ColumnDef,
@@ -63,17 +64,21 @@ interface UsersResponse {
 export default function UsersPage() {
   const queryClient = useQueryClient();
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState('');
-  const [page, setPage] = useState(1);
-  const [limit] = useState(20);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [managingRolesUser, setManagingRolesUser] = useState<User | null>(null);
 
+  // URL state with nuqs
+  const [urlFilters, setUrlFilters] = useQueryStates({
+    search: parseAsString.withDefault(''),
+    page: parseAsInteger.withDefault(1),
+  });
+  const limit = 20;
+
   // Fetch users
   const { data, isLoading } = useQuery<UsersResponse>({
-    queryKey: ['users', page, limit],
-    queryFn: () => apiClient.get<UsersResponse>(`/users?page=${page}&limit=${limit}`),
+    queryKey: ['users', urlFilters.page, limit],
+    queryFn: () => apiClient.get<UsersResponse>(`/users?page=${urlFilters.page}&limit=${limit}`),
   });
 
   const columns = useMemo<ColumnDef<User>[]>(
@@ -149,8 +154,6 @@ export default function UsersPage() {
         },
       },
     ],
-    // State setters are stable — no deps needed beyond initial render
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
@@ -164,10 +167,10 @@ export default function UsersPage() {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
+    onGlobalFilterChange: (value) => setUrlFilters({ search: value as string, page: 1 }),
     state: {
       sorting,
-      globalFilter,
+      globalFilter: urlFilters.search,
     },
   });
 
@@ -208,8 +211,8 @@ export default function UsersPage() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search users..."
-                value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
+                value={urlFilters.search}
+                onChange={(e) => setUrlFilters({ search: e.target.value, page: 1 })}
                 className="pl-10"
               />
             </div>
@@ -274,15 +277,15 @@ export default function UsersPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
+                onClick={() => setUrlFilters({ page: Math.max(1, urlFilters.page - 1) })}
+                disabled={urlFilters.page === 1}
               >
                 Previous
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => setUrlFilters({ page: urlFilters.page + 1 })}
                 disabled={!data || data.data.length < limit}
               >
                 Next

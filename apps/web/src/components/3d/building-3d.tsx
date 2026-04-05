@@ -9,7 +9,7 @@ import { useSVGto3D } from '@/hooks/use-svg-to-3d';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ZoomIn, ZoomOut, RotateCcw, Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 
 // Apartment status types
 export type ApartmentStatus = 'vacant' | 'occupied' | 'maintenance' | 'reserved';
@@ -50,6 +50,7 @@ function Building3DScene({
 }) {
   const floorData = useSVGto3D(svgContent);
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const controlsRef = useRef<any>(null);
 
   // Calculate cumulative heights for each floor
@@ -198,17 +199,6 @@ function Building3DScene({
         })}
       </group>
     </>
-  );
-}
-
-function LoadingFallback() {
-  return (
-    <div className="w-full h-full flex items-center justify-center bg-muted/20">
-      <div className="text-center space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-        <p className="text-sm text-muted-foreground">Loading 3D model...</p>
-      </div>
-    </div>
   );
 }
 

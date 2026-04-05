@@ -8,39 +8,14 @@ import {
   getFilteredRowModel,
   getSortedRowModel,
   flexRender,
-  createColumnHelper,
   SortingState,
 } from '@tanstack/react-table';
 import { FileSignature, Search, Plus, ChevronLeft, ChevronRight, Home } from 'lucide-react';
+import { parseAsString, parseAsInteger, useQueryStates } from 'nuqs';
 import { useContracts, useMyContracts, Contract } from '@/hooks/use-contracts';
 import { useAuthStore } from '@/stores/authStore';
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Extract the contract type tag written by buildTermsNotes() */
-function parseContractType(
-  termsNotes?: string,
-): 'Rental' | 'Purchase' | 'Lease to Own' | null {
-  if (!termsNotes) return null;
-  const match = termsNotes.match(/\[Contract Type:\s*([^\]]+)\]/);
-  if (!match) return null;
-  const label = match[1].trim();
-  if (label === 'Rental') return 'Rental';
-  if (label === 'Purchase') return 'Purchase';
-  if (label === 'Lease to Own') return 'Lease to Own';
-  return null;
-}
-
-/** Pull purchase price out of the termsNotes free-text block */
-function parsePurchasePrice(termsNotes?: string): number | null {
-  if (!termsNotes) return null;
-  const match = termsNotes.match(/Purchase Price:\s*([\d,]+)\s*VND/);
-  return match ? parseInt(match[1].replace(/,/g, ''), 10) : null;
-}
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -58,145 +33,23 @@ import {
 } from '@/components/ui/table';
 import { ContractDetailSheet } from './contract-detail-sheet';
 import { ContractFormDialog } from './contract-form-dialog';
-
-const columnHelper = createColumnHelper<Contract>();
-
-const statusVariants: Record<string, 'default' | 'success' | 'warning' | 'destructive'> = {
-  draft: 'default',
-  active: 'success',
-  expired: 'warning',
-  terminated: 'destructive',
-};
-
-const typeVariants: Record<
-  string,
-  'default' | 'secondary' | 'outline'
-> = {
-  Rental: 'default',
-  Purchase: 'secondary',
-  'Lease to Own': 'outline',
-};
-
-const columns = [
-  columnHelper.display({
-    id: 'type',
-    header: 'Type',
-    cell: ({ row }) => {
-      const type = parseContractType(row.original.termsNotes);
-      return (
-        <Badge variant={type ? typeVariants[type] : 'outline'}>
-          {type ?? 'Rental'}
-        </Badge>
-      );
-    },
-  }),
-  columnHelper.accessor(
-    (row) => row.apartment?.unit_number ?? '-',
-    {
-      id: 'apartment',
-      header: 'Apartment',
-      cell: (info) => <span className="font-medium">{info.getValue()}</span>,
-    },
-  ),
-  columnHelper.accessor(
-    (row) =>
-      row.tenant
-        ? `${row.tenant.firstName} ${row.tenant.lastName}`
-        : '-',
-    {
-      id: 'party',
-      header: 'Tenant / Buyer',
-    },
-  ),
-  columnHelper.accessor('status', {
-    header: 'Status',
-    cell: (info) => {
-      const status = info.getValue();
-      return (
-        <Badge variant={statusVariants[status] || 'default'}>
-          {status.charAt(0).toUpperCase() + status.slice(1)}
-        </Badge>
-      );
-    },
-  }),
-  columnHelper.display({
-    id: 'amount',
-    header: 'Amount',
-    cell: ({ row }) => {
-      const type = parseContractType(row.original.termsNotes);
-      if (type === 'Purchase') {
-        const price = parsePurchasePrice(row.original.termsNotes);
-        if (price) {
-          return (
-            <span className="text-sm">
-              {new Intl.NumberFormat('vi-VN').format(price)}{' '}
-              <span className="text-muted-foreground text-xs">VND</span>
-            </span>
-          );
-        }
-        return <span className="text-muted-foreground text-sm">— (see notes)</span>;
-      }
-      return (
-        <span className="text-sm">
-          {new Intl.NumberFormat('vi-VN').format(row.original.rentAmount)}{' '}
-          <span className="text-muted-foreground text-xs">VND/mo</span>
-        </span>
-      );
-    },
-  }),
-  columnHelper.accessor('start_date', {
-    header: 'Start Date',
-    cell: (info) => new Date(info.getValue()).toLocaleDateString(),
-  }),
-  columnHelper.accessor('endDate', {
-    header: 'End Date',
-    cell: (info) => {
-      const v = info.getValue();
-      return v ? new Date(v).toLocaleDateString() : 'Open-ended';
-    },
-  }),
-];
-
-function TableSkeleton() {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-10 w-32" />
-      </div>
-      <div className="rounded-md border">
-        <div className="border-b p-4">
-          <div className="flex gap-4">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Skeleton key={i} className="h-4 w-24" />
-            ))}
-          </div>
-        </div>
-        {[1, 2, 3, 4, 5].map((row) => (
-          <div key={row} className="border-b p-4">
-            <div className="flex gap-4">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <Skeleton key={i} className="h-4 w-24" />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+import { columns, ContractTableSkeleton } from './contract-columns';
 
 export default function ContractsPage() {
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [contractTypeFilter, setContractTypeFilter] = useState<string>('all');
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
+
+  // URL state with nuqs
+  const [urlFilters, setUrlFilters] = useQueryStates({
+    search: parseAsString.withDefault(''),
+    status: parseAsString.withDefault('all'),
+    contractType: parseAsString.withDefault('all'),
+    page: parseAsInteger.withDefault(1),
+    limit: parseAsInteger.withDefault(20),
+  });
 
   // Role-based access control
   const { hasRole, hasAnyRole } = useAuthStore();
@@ -205,14 +58,14 @@ export default function ContractsPage() {
 
   // Use different hooks based on role
   const adminQuery = useContracts({
-    page,
-    limit,
-    status: statusFilter !== 'all' ? statusFilter : undefined,
-    contractType: contractTypeFilter !== 'all' ? contractTypeFilter as 'rental' | 'purchase' | 'lease_to_own' : undefined,
+    page: urlFilters.page,
+    limit: urlFilters.limit,
+    status: urlFilters.status !== 'all' ? urlFilters.status : undefined,
+    contractType: urlFilters.contractType !== 'all' ? urlFilters.contractType as 'rental' | 'purchase' | 'lease_to_own' : undefined,
   });
   
   const myContractsQuery = useMyContracts({
-    status: statusFilter !== 'all' ? statusFilter : undefined,
+    status: urlFilters.status !== 'all' ? urlFilters.status : undefined,
   });
 
   // Select the appropriate data based on role
@@ -242,10 +95,10 @@ export default function ContractsPage() {
     columns,
     state: {
       sorting,
-      globalFilter,
+      globalFilter: urlFilters.search,
     },
     onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
+    onGlobalFilterChange: (value) => setUrlFilters({ search: value as string, page: 1 }),
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -266,7 +119,7 @@ export default function ContractsPage() {
             }
           </p>
         </div>
-        <TableSkeleton />
+        <ContractTableSkeleton />
       </div>
     );
   }
@@ -286,7 +139,11 @@ export default function ContractsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
       <div>
         <h1 className="text-3xl font-bold tracking-tight">
           {isResidentOnly ? 'My Contracts' : 'Contracts'}
@@ -326,17 +183,16 @@ export default function ContractsPage() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search contracts..."
-                value={globalFilter ?? ''}
-                onChange={(e) => setGlobalFilter(e.target.value)}
+                value={urlFilters.search ?? ''}
+                onChange={(e) => setUrlFilters({ search: e.target.value, page: 1 })}
                 className="pl-9"
               />
             </div>
           )}
           <Select
-            value={statusFilter}
+            value={urlFilters.status}
             onValueChange={(v) => {
-              setStatusFilter(v);
-              setPage(1);
+              setUrlFilters({ status: v, page: 1 });
             }}
           >
             <SelectTrigger className="w-[150px]">
@@ -354,10 +210,9 @@ export default function ContractsPage() {
           {/* Contract Type Filter */}
           {!isResidentOnly && (
             <Select
-              value={contractTypeFilter}
+              value={urlFilters.contractType}
               onValueChange={(v) => {
-                setContractTypeFilter(v);
-                setPage(1);
+                setUrlFilters({ contractType: v, page: 1 });
               }}
             >
               <SelectTrigger className="w-[150px]">
@@ -454,12 +309,11 @@ export default function ContractsPage() {
                 type="number"
                 min={1}
                 max={100}
-                value={limit}
+                value={urlFilters.limit}
                 onChange={(e) => {
                   const v = parseInt(e.target.value, 10);
                   if (v > 0 && v <= 100) {
-                    setLimit(v);
-                    setPage(1);
+                    setUrlFilters({ limit: v, page: 1 });
                   }
                 }}
                 className="w-20 h-8 text-sm"
@@ -470,20 +324,20 @@ export default function ContractsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
+              onClick={() => setUrlFilters({ page: Math.max(1, urlFilters.page - 1) })}
+              disabled={urlFilters.page <= 1}
             >
               <ChevronLeft className="h-4 w-4" />
               Previous
             </Button>
             <span className="text-sm">
-              Page {page} of {totalPages}
+              Page {urlFilters.page} of {totalPages}
             </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
+              onClick={() => setUrlFilters({ page: Math.min(totalPages, urlFilters.page + 1) })}
+              disabled={urlFilters.page >= totalPages}
             >
               Next
               <ChevronRight className="h-4 w-4" />
@@ -509,6 +363,6 @@ export default function ContractsPage() {
           mode={formMode}
         />
       )}
-    </div>
+    </motion.div>
   );
 }

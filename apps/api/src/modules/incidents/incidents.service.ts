@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, IncidentStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { DEFAULT_PAGINATION_LIMIT } from '../../common/constants/defaults';
 import { IncidentsGateway } from './incidents.gateway';
 import {
   CreateIncidentDto,
@@ -121,7 +122,7 @@ export class IncidentsService {
   async findAll(
     filters: IncidentFiltersDto,
     page = 1,
-    limit = 20,
+    limit = DEFAULT_PAGINATION_LIMIT,
     userId?: string,
     userRole?: UserRole,
   ): Promise<{ data: IncidentResponseDto[]; total: number; pages: number }> {
@@ -573,7 +574,7 @@ export class IncidentsService {
     userRole: UserRole,
     filters: IncidentFiltersDto,
     page = 1,
-    limit = 20,
+    limit = DEFAULT_PAGINATION_LIMIT,
   ): Promise<{ data: IncidentResponseDto[]; total: number; pages: number }> {
     const where: Prisma.incidentsWhereInput = {};
 

@@ -3,19 +3,17 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { format } from 'date-fns';
-import { CalendarIcon, Loader2, Zap, Droplets, Flame, Check, ChevronsUpDown } from 'lucide-react';
+import { CalendarIcon, Loader2, Zap, Check, ChevronsUpDown } from 'lucide-react';
 import Link from 'next/link';
 
 import {
   useCreateMeterReading,
   type CreateMeterReadingDto,
 } from '@/hooks/use-meter-readings';
-import { useApartments, type Apartment } from '@/hooks/use-apartments';
-import { useUtilityTypes, type UtilityType } from '@/hooks/use-billing';
+import { useApartments } from '@/hooks/use-apartments';
+import { useUtilityTypes } from '@/hooks/use-billing';
 import { useToast } from '@/hooks/use-toast';
-import { useDebounce } from '@/hooks/use-debounce';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,31 +52,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-
-// Get current billing period (YYYY-MM format)
-function getCurrentBillingPeriod(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-}
-
-// Form schema
-const meterReadingSchema = z.object({
-  apartmentId: z.string().min(1, 'Select an apartment'),
-  utilityTypeId: z.string().min(1, 'Select a utility type'),
-  currentValue: z.number().min(0, 'Current value must be positive'),
-  previousValue: z.number().min(0, 'Previous value must be positive').optional(),
-  billingPeriod: z.string().regex(/^\d{4}-\d{2}$/, 'Invalid billing period format'),
-  readingDate: z.date({ required_error: 'Reading date is required' }),
-});
-
-type MeterReadingFormValues = z.infer<typeof meterReadingSchema>;
-
-// Icon mapping for utility types
-const UTILITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  electric: Zap,
-  water: Droplets,
-  gas: Flame,
-};
+import {
+  meterReadingSchema,
+  type MeterReadingFormValues,
+  getCurrentBillingPeriod,
+  UTILITY_ICONS,
+} from './meter-reading-schema';
 
 interface MeterReadingFormSheetProps {
   open: boolean;

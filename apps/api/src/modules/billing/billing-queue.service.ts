@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { DEFAULT_PAGINATION_LIMIT } from '../../common/constants/defaults';
 import type { GenerateMonthlyInvoicesPayload } from './billing.processor';
 
 export interface BulkGenerateResult {
@@ -123,7 +124,7 @@ export class BillingQueueService {
     };
   }
 
-  async listBillingJobs(page = 1, limit = 20) {
+  async listBillingJobs(page = 1, limit = DEFAULT_PAGINATION_LIMIT) {
     const skip = (page - 1) * limit;
 
     const [jobs, total] = await Promise.all([

@@ -67,9 +67,8 @@ export function useLogin() {
   const { setAuth } = useAuthStore();
 
   return useMutation({
-    mutationFn: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-      return apiClient.post<AuthResponse>('/auth/login', credentials);
-    },
+    mutationFn: (credentials: LoginCredentials): Promise<AuthResponse> =>
+      apiClient.post<AuthResponse>('/auth/login', credentials),
     onSuccess: (data) => {
       const { user, accessToken, refreshToken } = data;
       
@@ -101,9 +100,8 @@ export function useRegister() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: async (credentials: RegisterCredentials): Promise<RegisterResponse> => {
-      return apiClient.post<RegisterResponse>('/auth/register', credentials);
-    },
+    mutationFn: (credentials: RegisterCredentials): Promise<RegisterResponse> =>
+      apiClient.post<RegisterResponse>('/auth/register', credentials),
     onSuccess: () => {
       // Redirect to login after successful registration
       router.push('/login?registered=true' as string);
@@ -138,9 +136,8 @@ export function useRefreshToken() {
   const { setTokens, refreshToken } = useAuthStore();
 
   return useMutation({
-    mutationFn: async (): Promise<RefreshResponse> => {
-      return apiClient.post<RefreshResponse>('/auth/refresh', { refreshToken });
-    },
+    mutationFn: (): Promise<RefreshResponse> =>
+      apiClient.post<RefreshResponse>('/auth/refresh', { refreshToken }),
     onSuccess: (data) => {
       apiClient.setAccessToken(data.accessToken);
       apiClient.setRefreshToken(data.refreshToken);
@@ -154,9 +151,8 @@ export function useCurrentUser() {
 
   return useQuery({
     queryKey: ['currentUser'],
-    queryFn: async (): Promise<MeResponse> => {
-      return apiClient.get<MeResponse>('/auth/me');
-    },
+    queryFn: (): Promise<MeResponse> =>
+      apiClient.get<MeResponse>('/auth/me'),
     enabled: isAuthenticated && !!accessToken,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: false,
@@ -205,9 +201,8 @@ interface ResetPasswordCredentials {
 
 export function useForgotPassword() {
   return useMutation({
-    mutationFn: async (email: string): Promise<ForgotPasswordResponse> => {
-      return apiClient.post<ForgotPasswordResponse>('/auth/forgot-password', { email });
-    },
+    mutationFn: (email: string): Promise<ForgotPasswordResponse> =>
+      apiClient.post<ForgotPasswordResponse>('/auth/forgot-password', { email }),
   });
 }
 
@@ -215,9 +210,8 @@ export function useResetPassword() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: async (credentials: ResetPasswordCredentials): Promise<ForgotPasswordResponse> => {
-      return apiClient.post<ForgotPasswordResponse>('/auth/reset-password', credentials);
-    },
+    mutationFn: (credentials: ResetPasswordCredentials): Promise<ForgotPasswordResponse> =>
+      apiClient.post<ForgotPasswordResponse>('/auth/reset-password', credentials),
     onSuccess: () => {
       // Redirect to login after successful password reset
       router.push('/login?reset=true' as string);

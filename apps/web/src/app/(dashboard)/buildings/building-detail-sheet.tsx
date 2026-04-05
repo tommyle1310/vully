@@ -24,6 +24,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { formatDate } from '@/lib/format';
 
 interface BuildingDetailSheetProps {
   building: Building | null;
@@ -32,13 +33,11 @@ interface BuildingDetailSheetProps {
   onEdit: (building: Building) => void;
 }
 
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
+const longDateOptions: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+};
 
 export function BuildingDetailSheet({
   building,
@@ -153,11 +152,11 @@ export function BuildingDetailSheet({
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Calendar className="h-3 w-3" />
-                  <span>Created: {formatDate(building.created_at)}</span>
+                  <span>Created: {formatDate(building.created_at, longDateOptions)}</span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Calendar className="h-3 w-3" />
-                  <span>Updated: {formatDate(building.updatedAt)}</span>
+                  <span>Updated: {formatDate(building.updatedAt, longDateOptions)}</span>
                 </div>
               </div>
             </div>
