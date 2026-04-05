@@ -52,6 +52,7 @@ export interface ContractFilters {
   apartmentId?: string;
   tenantId?: string;
   status?: string;
+  contractType?: 'rental' | 'purchase' | 'lease_to_own';
 }
 
 interface ContractsResponse {
@@ -113,6 +114,7 @@ export function useContracts(filters: ContractFilters = {}) {
   if (filters.apartmentId) queryString.set('apartmentId', filters.apartmentId);
   if (filters.tenantId) queryString.set('tenantId', filters.tenantId);
   if (filters.status) queryString.set('status', filters.status);
+  if (filters.contractType) queryString.set('contractType', filters.contractType);
 
   const endpoint = `/contracts${queryString.toString() ? `?${queryString}` : ''}`;
 

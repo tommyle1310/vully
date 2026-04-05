@@ -140,9 +140,14 @@ export default function ApartmentsPage() {
     maxBedrooms: parseAsInteger,
     minFloor: parseAsInteger,
     maxFloor: parseAsInteger,
+    minArea: parseAsInteger,
+    maxArea: parseAsInteger,
     page: parseAsInteger.withDefault(1),
     limit: parseAsInteger.withDefault(20),
   });
+
+  const debouncedMinArea = useDebounce(urlFilters.minArea, 300);
+  const debouncedMaxArea = useDebounce(urlFilters.maxArea, 300);
 
   // Update URL search when debounced value changes
   useEffect(() => {
@@ -157,6 +162,8 @@ export default function ApartmentsPage() {
     maxBedrooms: urlFilters.maxBedrooms,
     minFloor: urlFilters.minFloor,
     maxFloor: urlFilters.maxFloor,
+    minArea: urlFilters.minArea,
+    maxArea: urlFilters.maxArea,
   };
 
   const handleFiltersChange = (newFilters: ApartmentFilterValues) => {
@@ -168,6 +175,8 @@ export default function ApartmentsPage() {
       maxBedrooms: newFilters.maxBedrooms,
       minFloor: newFilters.minFloor,
       maxFloor: newFilters.maxFloor,
+      minArea: newFilters.minArea,
+      maxArea: newFilters.maxArea,
       page: 1, // Reset to first page on filter change
     });
   };
@@ -196,6 +205,8 @@ export default function ApartmentsPage() {
     maxBedrooms: isAdmin ? (urlFilters.maxBedrooms || undefined) : undefined,
     minFloor: isAdmin ? (urlFilters.minFloor || undefined) : undefined,
     maxFloor: isAdmin ? (urlFilters.maxFloor || undefined) : undefined,
+    minArea: isAdmin ? (debouncedMinArea || undefined) : undefined,
+    maxArea: isAdmin ? (debouncedMaxArea || undefined) : undefined,
     page: isAdmin ? urlFilters.page : 1,
     limit: isAdmin ? urlFilters.limit : 1,
   });

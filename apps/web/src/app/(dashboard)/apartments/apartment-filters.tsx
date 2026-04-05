@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, Filter, Building, Home, Bed, Layers } from 'lucide-react';
+import { X, Filter, Building, Home, Bed, Layers, Ruler } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 export interface ApartmentFilterValues {
@@ -28,6 +29,8 @@ export interface ApartmentFilterValues {
   maxBedrooms: number | null;
   minFloor: number | null;
   maxFloor: number | null;
+  minArea: number | null;
+  maxArea: number | null;
 }
 
 interface ApartmentFiltersProps {
@@ -69,6 +72,7 @@ export function ApartmentFilters({ filters, onFiltersChange }: ApartmentFiltersP
     filters.unitType.length > 0,
     filters.minBedrooms !== null || filters.maxBedrooms !== null,
     filters.minFloor !== null || filters.maxFloor !== null,
+    filters.minArea !== null || filters.maxArea !== null,
   ].filter(Boolean).length;
 
   const handleStatusToggle = (status: string) => {
@@ -94,6 +98,8 @@ export function ApartmentFilters({ filters, onFiltersChange }: ApartmentFiltersP
       maxBedrooms: null,
       minFloor: null,
       maxFloor: null,
+      minArea: null,
+      maxArea: null,
     });
   };
 
@@ -246,6 +252,61 @@ export function ApartmentFilters({ filters, onFiltersChange }: ApartmentFiltersP
                 ))}
               </div>
             </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* Area Filter */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="h-10">
+            <Ruler className="h-4 w-4 mr-2 text-muted-foreground" />
+            Area (m²)
+            {(filters.minArea !== null || filters.maxArea !== null) && (
+              <Badge variant="secondary" className="ml-2">
+                {filters.minArea ?? '0'}-{filters.maxArea ?? '∞'}
+              </Badge>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64" align="start">
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Min Area (m²)</Label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={filters.minArea ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value ? parseFloat(e.target.value) : null;
+                  onFiltersChange({ ...filters, minArea: val });
+                }}
+                className="mt-1 h-8"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Max Area (m²)</Label>
+              <Input
+                type="number"
+                placeholder="No limit"
+                value={filters.maxArea ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value ? parseFloat(e.target.value) : null;
+                  onFiltersChange({ ...filters, maxArea: val });
+                }}
+                className="mt-1 h-8"
+              />
+            </div>
+            {(filters.minArea !== null || filters.maxArea !== null) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => onFiltersChange({ ...filters, minArea: null, maxArea: null })}
+              >
+                Clear Area Filter
+              </Button>
+            )}
           </div>
         </PopoverContent>
       </Popover>

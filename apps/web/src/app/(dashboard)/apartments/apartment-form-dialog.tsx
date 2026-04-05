@@ -61,6 +61,7 @@ import {
 } from '@/components/ui/tooltip';
 import { ParkingAssignmentDialog } from '@/components/apartments';
 import { DatePicker } from '@/components/date-picker';
+import { useAuthStore } from '@/stores/authStore';
 
 const UNIT_TYPES = ['studio', 'one_bedroom', 'two_bedroom', 'three_bedroom', 'duplex', 'penthouse', 'shophouse'] as const;
 const ORIENTATIONS = ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest'] as const;
@@ -172,6 +173,8 @@ export function ApartmentFormDialog({
   mode,
 }: ApartmentFormDialogProps) {
   const { toast } = useToast();
+  const { hasRole, hasAnyRole } = useAuthStore();
+  const isResident = hasRole('resident') && !hasAnyRole(['admin', 'technician']);
   const { data: buildingsData, isLoading: buildingsLoading } = useBuildings();
   const { data: utilityTypesData, isLoading: utilityTypesLoading } = useUtilityTypes();
   const createApartment = useCreateApartment();
@@ -501,7 +504,9 @@ export function ApartmentFormDialog({
               {isEditing ? 'Edit Apartment' : 'Create New Apartment'}
             </DialogTitle>
             <DialogDescription>
-              {isEditing
+              {isResident
+                ? 'View apartment details. Contact admin to make changes.'
+                : isEditing
                 ? 'Update apartment details. Building assignment fields are read-only.'
                 : 'Fill in the details to create a new apartment.'}
             </DialogDescription>
@@ -517,7 +522,7 @@ export function ApartmentFormDialog({
                   <TabsTrigger value="billing" className="text-xs">Billing</TabsTrigger>
                 </TabsList>
 
-                <div className="flex-1 min-h-0 overflow-y-auto pr-4">
+                <div className={`flex-1 min-h-0 overflow-y-auto pr-4 ${isResident ? '[&_input]:pointer-events-none [&_input]:opacity-60 [&_textarea]:pointer-events-none [&_textarea]:opacity-60 [&_[role=combobox]]:pointer-events-none [&_[role=combobox]]:opacity-60 [&_[role=switch]]:pointer-events-none [&_[role=switch]]:opacity-60' : ''}`}>
                   {/* ===== SPATIAL TAB ===== */}
                   <TabsContent value="spatial" className="space-y-4 mt-0">
                     {/* Building Selection - disabled in edit mode */}
@@ -1174,12 +1179,14 @@ export function ApartmentFormDialog({
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="text-sm font-semibold">Available Utility Types</h4>
-                        <Link href="/utility-types">
-                          <Button variant="ghost" size="sm" className="h-7 text-xs">
-                            Manage
-                            <ExternalLink className="ml-1 h-3 w-3" />
-                          </Button>
-                        </Link>
+                        {!isResident && (
+                          <Link href="/utility-types">
+                            <Button variant="ghost" size="sm" className="h-7 text-xs">
+                              Manage
+                              <ExternalLink className="ml-1 h-3 w-3" />
+                            </Button>
+                          </Link>
+                        )}
                       </div>
                       
                       {utilityTypesLoading ? (
@@ -1660,12 +1667,14 @@ export function ApartmentFormDialog({
                   onClick={() => onOpenChange(false)}
                   disabled={isLoading}
                 >
-                  Cancel
+                  {isResident ? 'Close' : 'Cancel'}
                 </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {isEditing ? 'Save Changes' : 'Create Apartment'}
-                </Button>
+                {!isResident && (
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isEditing ? 'Save Changes' : 'Create Apartment'}
+                  </Button>
+                )}
               </DialogFooter>
             </form>
           </Form>

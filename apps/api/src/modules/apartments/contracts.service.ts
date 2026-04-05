@@ -120,7 +120,12 @@ export class ContractsService {
   async findAll(
     page = 1,
     limit = 20,
-    filters?: { apartmentId?: string; tenantId?: string; status?: string },
+    filters?: { 
+      apartmentId?: string; 
+      tenantId?: string; 
+      status?: string;
+      contractType?: string;
+    },
   ): Promise<{ data: ContractResponseDto[]; total: number }> {
     const skip = (page - 1) * limit;
 
@@ -128,6 +133,7 @@ export class ContractsService {
     if (filters?.apartmentId) where.apartment_id = filters.apartmentId;
     if (filters?.tenantId) where.tenant_id = filters.tenantId;
     if (filters?.status) where.status = filters.status;
+    if (filters?.contractType) where.contract_type = filters.contractType;
 
     const [contracts, total] = await Promise.all([
       this.prisma.contracts.findMany({
@@ -142,6 +148,7 @@ export class ContractsService {
               unit_number: true,
               floor_index: true,
               building_id: true,
+              gross_area: true,
               buildings: { select: { id: true, name: true } },
             },
           },

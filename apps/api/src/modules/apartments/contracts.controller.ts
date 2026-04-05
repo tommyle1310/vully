@@ -97,6 +97,7 @@ export class ContractsController {
   @ApiQuery({ name: 'apartmentId', required: false, type: String })
   @ApiQuery({ name: 'tenantId', required: false, type: String })
   @ApiQuery({ name: 'status', required: false, enum: ['draft', 'active', 'expired', 'terminated'] })
+  @ApiQuery({ name: 'contractType', required: false, enum: ['rental', 'purchase', 'lease_to_own'] })
   @ApiResponse({ status: 200, description: 'Contracts list' })
   async findAll(
     @Query('page') page?: string,
@@ -104,6 +105,7 @@ export class ContractsController {
     @Query('apartmentId') apartmentId?: string,
     @Query('tenantId') tenantId?: string,
     @Query('status') status?: string,
+    @Query('contractType') contractType?: string,
   ): Promise<{
     data: ContractResponseDto[];
     meta: { total: number; page: number; limit: number };
@@ -115,6 +117,7 @@ export class ContractsController {
       apartmentId,
       tenantId,
       status,
+      contractType,
     });
 
     return {

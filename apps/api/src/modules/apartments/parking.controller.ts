@@ -7,6 +7,7 @@ import {
   Param,
   ParseUUIDPipe,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -29,13 +30,19 @@ import {
 import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthUser } from '../identity/interfaces/auth.interface';
+import { PrismaService } from '../../common/prisma/prisma.service';
 
 @ApiTags('Parking')
 @Controller('buildings/:buildingId/parking')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class ParkingController {
-  constructor(private readonly parkingService: ParkingService) {}
+  constructor(
+    private readonly parkingService: ParkingService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   // =====================
   // Stats
@@ -158,18 +165,25 @@ export class ParkingController {
   }
 
   @Post('zones/:zoneId/slots/:slotId/assign')
-  @Roles('admin')
-  @ApiOperation({ summary: 'Assign a parking slot to an apartment (admin only)' })
+  @Roles('admin', 'resident')
+  @ApiOperation({ summary: 'Assign a parking slot to an apartment' })
   @ApiParam({ name: 'buildingId', type: String })
   @ApiParam({ name: 'zoneId', type: String })
   @ApiParam({ name: 'slotId', type: String })
   @ApiResponse({ status: 200, description: 'Slot assigned', type: ParkingSlotResponseDto })
+  @ApiResponse({ status: 403, description: 'Residents can only assign to their own apartment' })
   async assignSlot(
     @Param('buildingId', ParseUUIDPipe) buildingId: string,
     @Param('zoneId', ParseUUIDPipe) zoneId: string,
     @Param('slotId', ParseUUIDPipe) slotId: string,
     @Body() dto: AssignSlotDto,
+    @CurrentUser() user: AuthUser,
   ): Promise<{ data: ParkingSlotResponseDto }> {
+    // Residents can only assign slots to their own apartment
+    if (!user.roles.includes('admin')) {
+      await this.verifyApartmentOwnership(user.id, dto.apartmentId);
+    }
+
     const slot = await this.parkingService.assignSlot(
       buildingId,
       zoneId,
@@ -180,18 +194,49 @@ export class ParkingController {
   }
 
   @Post('zones/:zoneId/slots/:slotId/unassign')
-  @Roles('admin')
-  @ApiOperation({ summary: 'Unassign a parking slot (admin only)' })
+  @Roles('admin', 'resident')
+  @ApiOperation({ summary: 'Unassign a parking slot' })
   @ApiParam({ name: 'buildingId', type: String })
   @ApiParam({ name: 'zoneId', type: String })
   @ApiParam({ name: 'slotId', type: String })
   @ApiResponse({ status: 200, description: 'Slot unassigned', type: ParkingSlotResponseDto })
+  @ApiResponse({ status: 403, description: 'Residents can only unassign from their own apartment' })
   async unassignSlot(
     @Param('buildingId', ParseUUIDPipe) buildingId: string,
     @Param('zoneId', ParseUUIDPipe) zoneId: string,
     @Param('slotId', ParseUUIDPipe) slotId: string,
+    @CurrentUser() user: AuthUser,
   ): Promise<{ data: ParkingSlotResponseDto }> {
-    const slot = await this.parkingService.unassignSlot(buildingId, zoneId, slotId);
-    return { data: slot };
+    // Residents can only unassign slots from their own apartment
+    if (!user.roles.includes('admin')) {
+      const slot = await this.prisma.parking_slots.findFirst({
+        where: { id: slotId, zone_id: zoneId },
+        select: { assigned_apt_id: true },
+      });
+      if (slot?.assigned_apt_id) {
+        await this.verifyApartmentOwnership(user.id, slot.assigned_apt_id);
+      }
+    }
+
+    const slotResult = await this.parkingService.unassignSlot(buildingId, zoneId, slotId);
+    return { data: slotResult };
+  }
+
+  /**
+   * Verify that the user has an active contract for the given apartment.
+   */
+  private async verifyApartmentOwnership(userId: string, apartmentId: string): Promise<void> {
+    const activeContract = await this.prisma.contracts.findFirst({
+      where: {
+        tenant_id: userId,
+        apartment_id: apartmentId,
+        status: 'active',
+      },
+      select: { id: true },
+    });
+
+    if (!activeContract) {
+      throw new ForbiddenException('You can only manage parking for your own apartment');
+    }
   }
 }

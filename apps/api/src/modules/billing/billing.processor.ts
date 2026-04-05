@@ -52,9 +52,10 @@ export class BillingProcessor extends WorkerHost {
     });
 
     try {
-      // Get all active contracts
+      // Get all active rental and lease_to_own contracts (skip purchase contracts - they use payment schedules)
       const whereClause: Record<string, unknown> = {
         status: 'active',
+        contract_type: { in: ['rental', 'lease_to_own'] }, // Only contracts with monthly billing
       };
 
       if (buildingId) {

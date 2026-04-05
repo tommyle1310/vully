@@ -58,6 +58,13 @@ export class InvoicesService {
       throw new BadRequestException('Contract is not active');
     }
 
+    // Purchase contracts don't use invoices - they use payment schedules
+    if (contract.contract_type === 'purchase') {
+      throw new BadRequestException(
+        'Purchase contracts use payment schedules, not invoices. Use the payment tracking feature instead.',
+      );
+    }
+
     // Check for duplicate invoice
     const existing = await this.prisma.invoices.findFirst({
       where: {
@@ -81,6 +88,14 @@ export class InvoicesService {
       Number(contract.rent_amount),
       dto.categories,
     );
+
+    // Don't create empty invoices (no line items or 0 total)
+    if (calculation.lineItems.length === 0 || calculation.totalAmount <= 0) {
+      throw new BadRequestException(
+        `No billable items for contract ${dto.contractId} in period ${dto.billingPeriod}. ` +
+        `Ensure rent amount is set or there are meter readings for the selected categories.`,
+      );
+    }
 
     // Generate invoice number
     const invoice_number = await this.generateInvoiceNumber(dto.billingPeriod);
@@ -363,8 +378,8 @@ export class InvoicesService {
     const normalizedCategories = categories?.map((c) => c.toLowerCase());
     const includeAll = !normalizedCategories || normalizedCategories.length === 0;
 
-    // Add base rent (category: 'rent')
-    if (includeAll || normalizedCategories?.includes('rent')) {
+    // Add base rent (category: 'rent') - only if rentAmount > 0
+    if ((includeAll || normalizedCategories?.includes('rent')) && rentAmount > 0) {
       lineItems.push({
         description: `Rent for ${billingPeriod}`,
         quantity: 1,

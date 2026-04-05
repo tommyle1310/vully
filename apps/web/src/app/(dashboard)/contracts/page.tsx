@@ -190,6 +190,7 @@ export default function ContractsPage() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [contractTypeFilter, setContractTypeFilter] = useState<string>('all');
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -207,6 +208,7 @@ export default function ContractsPage() {
     page,
     limit,
     status: statusFilter !== 'all' ? statusFilter : undefined,
+    contractType: contractTypeFilter !== 'all' ? contractTypeFilter as 'rental' | 'purchase' | 'lease_to_own' : undefined,
   });
   
   const myContractsQuery = useMyContracts({
@@ -348,6 +350,29 @@ export default function ContractsPage() {
               <SelectItem value="terminated">Terminated</SelectItem>
             </SelectContent>
           </Select>
+          
+          {/* Contract Type Filter */}
+          {!isResidentOnly && (
+            <Select
+              value={contractTypeFilter}
+              onValueChange={(v) => {
+                setContractTypeFilter(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="rental">Rental</SelectItem>
+                <SelectItem value="purchase">Purchase</SelectItem>
+                <SelectItem value="lease_to_own">Lease to Own</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          
+
         </div>
         {isAdmin && (
           <Button onClick={handleCreate}>
