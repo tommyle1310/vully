@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { format, parseISO } from 'date-fns';
 import { motion } from 'framer-motion';
 import { Loader2, Zap, Droplets, Flame, ExternalLink, Car, Info, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
@@ -59,6 +60,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { ParkingAssignmentDialog } from '@/components/apartments';
+import { DatePicker } from '@/components/date-picker';
 
 const UNIT_TYPES = ['studio', 'one_bedroom', 'two_bedroom', 'three_bedroom', 'duplex', 'penthouse', 'shophouse'] as const;
 const ORIENTATIONS = ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest'] as const;
@@ -865,7 +867,11 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Handover Date</FormLabel>
                             <FormControl>
-                              <Input type="date" {...field} />
+                              <DatePicker
+                                value={field.value ? parseISO(field.value) : undefined}
+                                onChange={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                                placeholder="Select date"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -878,7 +884,11 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Warranty Expiry</FormLabel>
                             <FormControl>
-                              <Input type="date" {...field} />
+                              <DatePicker
+                                value={field.value ? parseISO(field.value) : undefined}
+                                onChange={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                                placeholder="Select date"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1521,7 +1531,11 @@ export function ApartmentFormDialog({
                           <FormItem>
                             <FormLabel>Billing Start Date</FormLabel>
                             <FormControl>
-                              <Input type="date" {...field} />
+                              <DatePicker
+                                value={field.value ? parseISO(field.value) : undefined}
+                                onChange={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                                placeholder="Select date"
+                              />
                             </FormControl>
                             <FormDescription>Date from which invoices will be generated</FormDescription>
                             <FormMessage />

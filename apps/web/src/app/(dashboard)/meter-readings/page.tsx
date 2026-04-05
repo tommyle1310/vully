@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
-import { Plus, Gauge } from 'lucide-react';
+import { Plus, Gauge, Building2, Loader2, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 import { useMeterReadings } from '@/hooks/use-meter-readings';
@@ -22,6 +22,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
   Table,
   TableBody,
   TableCell,
@@ -31,6 +44,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 import { MeterReadingFormSheet } from './meter-reading-form-sheet';
 
@@ -51,6 +65,17 @@ export default function MeterReadingsPage() {
   const [selectedUtilityTypeId, setSelectedUtilityTypeId] = useState<string>('');
   const [selectedBillingPeriod, setSelectedBillingPeriod] = useState<string>('');
 
+  // Apartment search state with debounce
+  const [apartmentOpen, setApartmentOpen] = useState(false);
+  const [apartmentSearch, setApartmentSearch] = useState('');
+  const [debouncedApartmentSearch, setDebouncedApartmentSearch] = useState('');
+
+  // Debounce apartment search (300ms for responsive UX)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedApartmentSearch(apartmentSearch), 300);
+    return () => clearTimeout(timer);
+  }, [apartmentSearch]);
+
   // Queries
   const { data: meterReadingsData, isLoading: isLoadingReadings } = useMeterReadings({
     page,
@@ -59,7 +84,10 @@ export default function MeterReadingsPage() {
     utilityTypeId: selectedUtilityTypeId || undefined,
     billingPeriod: selectedBillingPeriod || undefined,
   });
-  const { data: apartmentsData } = useApartments({ limit: 100 });
+  const { data: apartmentsData, isLoading: apartmentsLoading } = useApartments({
+    limit: 100,
+    search: debouncedApartmentSearch || undefined,
+  });
   const { data: utilityTypesData } = useUtilityTypes();
 
   const meterReadings = meterReadingsData?.data ?? [];
@@ -67,6 +95,13 @@ export default function MeterReadingsPage() {
   const utilityTypes = utilityTypesData?.data ?? [];
   const totalReadings = meterReadingsData?.meta?.total ?? 0;
   const totalPages = Math.ceil(totalReadings / 20);
+  const isSearching = apartmentSearch !== debouncedApartmentSearch;
+
+  // Find selected apartment for display
+  const selectedApartment = useMemo(
+    () => apartments.find((apt) => apt.id === selectedApartmentId),
+    [apartments, selectedApartmentId],
+  );
 
   return (
     <motion.div
@@ -106,24 +141,85 @@ export default function MeterReadingsPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-4">
-              <div className="w-[200px]">
-                <Select
-                  value={selectedApartmentId || 'all'}
-                  onValueChange={(value) => setSelectedApartmentId(value === 'all' ? '' : value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Apartments" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Apartments</SelectItem>
-                    {apartments.map((apt) => (
-                      <SelectItem key={apt.id} value={apt.id}>
-                        {apt.building?.name} - Unit {apt.unit_number}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Apartment Filter with Search */}
+              <Popover open={apartmentOpen} onOpenChange={setApartmentOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={apartmentOpen}
+                    className="w-[220px] justify-between"
+                  >
+                    <Building2 className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                    {selectedApartmentId
+                      ? selectedApartment
+                        ? `${selectedApartment.unit_number} - ${selectedApartment.building?.name || ''}`
+                        : 'Loading...'
+                      : 'All Apartments'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[280px] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Search apartment..."
+                      value={apartmentSearch}
+                      onValueChange={setApartmentSearch}
+                    />
+                    <CommandList>
+                      {apartmentsLoading || isSearching ? (
+                        <div className="flex items-center justify-center py-6">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="ml-2 text-sm text-muted-foreground">Searching...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <CommandEmpty>No apartment found.</CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem
+                              value="all"
+                              onSelect={() => {
+                                setSelectedApartmentId('');
+                                setApartmentOpen(false);
+                                setPage(1);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  'mr-2 h-4 w-4',
+                                  !selectedApartmentId ? 'opacity-100' : 'opacity-0',
+                                )}
+                              />
+                              All Apartments
+                            </CommandItem>
+                            {apartments.map((apt) => (
+                              <CommandItem
+                                key={apt.id}
+                                value={apt.id}
+                                onSelect={() => {
+                                  setSelectedApartmentId(apt.id);
+                                  setApartmentOpen(false);
+                                  setPage(1);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    'mr-2 h-4 w-4',
+                                    selectedApartmentId === apt.id ? 'opacity-100' : 'opacity-0',
+                                  )}
+                                />
+                                <span className="font-medium">{apt.unit_number}</span>
+                                <span className="ml-2 text-muted-foreground text-sm">
+                                  {apt.building?.name}
+                                </span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
 
               <div className="w-[180px]">
                 <Select

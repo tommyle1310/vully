@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { format, parseISO } from 'date-fns';
 import {
   Loader2,
   Check,
@@ -70,6 +71,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/date-picker';
 
 // ============================================================================
 // Types
@@ -905,7 +907,12 @@ export function ContractFormDialog({
                         {contractType === 'purchase' ? 'Contract Date' : 'Start Date'}
                       </FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} disabled={mode === 'edit'} />
+                        <DatePicker
+                          value={field.value ? parseISO(field.value) : undefined}
+                          onChange={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                          disabled={mode === 'edit'}
+                          placeholder="Select date"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -920,7 +927,11 @@ export function ContractFormDialog({
                         {contractType === 'purchase' ? 'Completion Date' : 'End Date'}
                       </FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <DatePicker
+                          value={field.value ? parseISO(field.value) : undefined}
+                          onChange={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                          placeholder="Select date"
+                        />
                       </FormControl>
                       <FormDescription>
                         {contractType === 'rental' && 'Leave empty for open-ended lease.'}
@@ -1048,7 +1059,11 @@ export function ContractFormDialog({
                       <FormItem>
                         <FormLabel>Ownership Transfer Date</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <DatePicker
+                            value={field.value ? parseISO(field.value) : undefined}
+                            onChange={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                            placeholder="Select date"
+                          />
                         </FormControl>
                         <FormDescription>
                           Scheduled date for deed transfer.

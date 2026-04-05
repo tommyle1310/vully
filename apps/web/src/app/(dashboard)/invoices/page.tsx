@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   useReactTable,
@@ -21,8 +21,11 @@ import {
   Check,
   AlertCircle,
   Clock,
+  Building2,
+  Loader2,
 } from 'lucide-react';
 import { useInvoices, Invoice } from '@/hooks/use-invoices';
+import { useApartments } from '@/hooks/use-apartments';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +46,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 import { InvoiceDetailSheet } from './invoice-detail-sheet';
 import { BulkGenerateInvoicesDialog } from './bulk-generate-dialog';
 
@@ -177,11 +194,38 @@ export default function InvoicesPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<Invoice['status'] | 'all'>('all');
+  
+  // Apartment filter state with debounce
+  const [apartmentOpen, setApartmentOpen] = useState(false);
+  const [apartmentSearch, setApartmentSearch] = useState('');
+  const [debouncedApartmentSearch, setDebouncedApartmentSearch] = useState('');
+  const [selectedApartmentId, setSelectedApartmentId] = useState<string>('');
+
+  // Debounce apartment search (300ms for responsive UX)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedApartmentSearch(apartmentSearch), 300);
+    return () => clearTimeout(timer);
+  }, [apartmentSearch]);
+
+  // Fetch apartments for filter dropdown
+  const { data: apartmentsData, isLoading: apartmentsLoading } = useApartments({
+    limit: 100,
+    search: debouncedApartmentSearch || undefined,
+  });
+  const apartments = apartmentsData?.data ?? [];
+  const isSearching = apartmentSearch !== debouncedApartmentSearch;
+
+  // Find selected apartment for display
+  const selectedApartment = useMemo(
+    () => apartments.find((apt) => apt.id === selectedApartmentId),
+    [apartments, selectedApartmentId],
+  );
 
   const { data, isLoading, error } = useInvoices({
     page,
     limit: 20,
     status: statusFilter === 'all' ? undefined : statusFilter,
+    apartmentId: selectedApartmentId || undefined,
   });
 
   const invoices = data?.data || [];
@@ -251,7 +295,7 @@ export default function InvoicesPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -261,9 +305,95 @@ export default function InvoicesPage() {
             className="pl-9"
           />
         </div>
+        
+        {/* Apartment Filter with Search */}
+        {isAdmin && (
+          <Popover open={apartmentOpen} onOpenChange={setApartmentOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={apartmentOpen}
+                className="w-[220px] justify-between"
+              >
+                <Building2 className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                {selectedApartmentId
+                  ? selectedApartment
+                    ? `${selectedApartment.unit_number} - ${selectedApartment.building?.name || ''}`
+                    : 'Loading...'
+                  : 'All Apartments'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[280px] p-0" align="start">
+              <Command shouldFilter={false}>
+                <CommandInput
+                  placeholder="Search apartment..."
+                  value={apartmentSearch}
+                  onValueChange={setApartmentSearch}
+                />
+                <CommandList>
+                  {apartmentsLoading || isSearching ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="ml-2 text-sm text-muted-foreground">Searching...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <CommandEmpty>No apartment found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="all"
+                          onSelect={() => {
+                            setSelectedApartmentId('');
+                            setApartmentOpen(false);
+                            setPage(1);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              'mr-2 h-4 w-4',
+                              !selectedApartmentId ? 'opacity-100' : 'opacity-0',
+                            )}
+                          />
+                          All Apartments
+                        </CommandItem>
+                        {apartments.map((apt) => (
+                          <CommandItem
+                            key={apt.id}
+                            value={apt.id}
+                            onSelect={() => {
+                              setSelectedApartmentId(apt.id);
+                              setApartmentOpen(false);
+                              setPage(1);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                selectedApartmentId === apt.id ? 'opacity-100' : 'opacity-0',
+                              )}
+                            />
+                            <span className="font-medium">{apt.unit_number}</span>
+                            <span className="ml-2 text-muted-foreground text-sm">
+                              {apt.building?.name}
+                            </span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </>
+                  )}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        )}
+        
         <Select
           value={statusFilter}
-          onValueChange={(value) => setStatusFilter(value as Invoice['status'] | 'all')}
+          onValueChange={(value) => {
+            setStatusFilter(value as Invoice['status'] | 'all');
+            setPage(1);
+          }}
         >
           <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="Status" />

@@ -38,7 +38,7 @@ import {
 import { Apartment, useUpdateApartmentStatus } from '@/hooks/use-apartments';
 import { useContracts } from '@/hooks/use-contracts';
 import { useAuthStore } from '@/stores/authStore';
-import { Badge } from '@/components/ui/badge';
+import { Badge, DotBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -262,6 +262,9 @@ export function ApartmentDetailSheet({
           <SheetTitle className="flex items-center gap-2">
             <Building className="h-5 w-5" />
             {apartment.apartmentCode || `Unit ${apartment.unit_number}`}
+             <DotBadge color={apartment.status === 'vacant' ? 'green' : apartment.status === 'occupied' ? 'blue' : apartment.status === 'maintenance' ? 'amber' : 'gray'} className="text-sm">
+                {apartment.status.charAt(0).toUpperCase() + apartment.status.slice(1).toLowerCase()}
+              </DotBadge>
           </SheetTitle>
           <SheetDescription>
             {apartment.building?.name || 'Building'} · Floor {apartment.floorLabel || apartment.floorIndex}
@@ -285,11 +288,9 @@ export function ApartmentDetailSheet({
                   View Details
                 </Link>
               </Button>
-              <Badge variant={statusVariants[apartment.status] || 'default'} className="text-sm">
-                {apartment.status.charAt(0).toUpperCase() + apartment.status.slice(1).toLowerCase()}
-              </Badge>
+             
               {apartment.isRented && activeContract && (
-                <Badge variant="outline" className="text-sm">
+                <Badge variant="secondary" className="text-sm">
                   {(() => {
                     const contractType = getContractType(activeContract.termsNotes);
                     if (contractType === 'purchase') return 'Under Purchase';

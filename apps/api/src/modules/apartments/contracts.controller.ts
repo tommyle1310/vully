@@ -28,12 +28,7 @@ import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-
-interface AuthUser {
-  id: string;
-  email: string;
-  role: string;
-}
+import { AuthUser } from '../identity/interfaces/auth.interface';
 
 @ApiTags('Contracts')
 @Controller('contracts')
@@ -145,7 +140,7 @@ export class ContractsController {
     const contract = await this.contractsService.findOne(id);
     
     // Check authorization: residents can only view their own contracts
-    const isAdmin = user.role === 'admin' || user.role === 'technician';
+    const isAdmin = user.roles?.includes('admin') || user.roles?.includes('technician');
     if (!isAdmin && contract.tenantId !== user.id) {
       throw new ForbiddenException('You can only view your own contracts');
     }
