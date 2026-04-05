@@ -64,7 +64,11 @@ export function ParkingAssignmentDialog({
   const [unassignSlotCode, setUnassignSlotCode] = useState<string>('');
 
   // Fetch assigned slots for this apartment
-  const { data: assignedSlotsData, isLoading: assignedLoading, refetch: refetchAssignedSlots } = useApartmentParkingSlots(apartmentId);
+  const {
+    data: assignedSlotsData,
+    isLoading: assignedLoading,
+    refetch: refetchAssignedSlots,
+  } = useApartmentParkingSlots(apartmentId);
   const assignedSlots = assignedSlotsData?.data || [];
 
   // Fetch parking zones for the building
@@ -72,10 +76,11 @@ export function ParkingAssignmentDialog({
   const zones = zonesData?.data || [];
 
   // Fetch slots for selected zone
-  const { data: slotsData, isLoading: slotsLoading, refetch: refetchSlots } = useParkingSlots(
-    buildingId,
-    selectedZoneId || '',
-  );
+  const {
+    data: slotsData,
+    isLoading: slotsLoading,
+    refetch: refetchSlots,
+  } = useParkingSlots(buildingId, selectedZoneId || '');
   const slots = slotsData?.data || [];
   const availableSlots = slots.filter((s) => s.status === 'available');
 
@@ -87,14 +92,14 @@ export function ParkingAssignmentDialog({
     try {
       await apiClient.post(
         `/buildings/${buildingId}/parking/zones/${selectedZoneId}/slots/${slotId}/assign`,
-        { apartmentId }
+        { apartmentId },
       );
 
       toast({
         title: 'Slot Assigned',
         description: `Parking slot has been assigned to unit ${apartmentCode}`,
       });
-      
+
       // Refetch both assigned slots and available slots
       refetchSlots();
       refetchAssignedSlots();
@@ -112,21 +117,21 @@ export function ParkingAssignmentDialog({
 
   const handleUnassign = async () => {
     if (!unassignSlotId) return;
-    
+
     const slot = assignedSlots.find((s) => s.id === unassignSlotId);
     if (!slot) return;
 
     try {
       await apiClient.post(
         `/buildings/${buildingId}/parking/zones/${slot.zoneId}/slots/${unassignSlotId}/unassign`,
-        {}
+        {},
       );
 
       toast({
         title: 'Slot Unassigned',
         description: `Slot ${unassignSlotCode} has been unassigned`,
       });
-      
+
       // Refetch assigned slots
       refetchAssignedSlots();
     } catch (error: unknown) {
@@ -154,9 +159,7 @@ export function ParkingAssignmentDialog({
               <Car className="h-5 w-5" />
               Parking Assignments - {apartmentCode}
             </DialogTitle>
-            <DialogDescription>
-              Manage parking slots assigned to this apartment
-            </DialogDescription>
+            <DialogDescription>Manage parking slots assigned to this apartment</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-6 py-4">
@@ -202,7 +205,8 @@ export function ParkingAssignmentDialog({
                               {new Intl.NumberFormat('vi-VN', {
                                 style: 'currency',
                                 currency: 'VND',
-                              }).format(slot.monthlyFee)}/mo
+                              }).format(slot.monthlyFee)}
+                              /mo
                             </span>
                             <Button
                               variant="ghost"
@@ -278,7 +282,8 @@ export function ParkingAssignmentDialog({
                             />
                           </div>
                           <CardDescription className="text-xs">
-                            {TYPE_LABELS[zone.slotType] || zone.slotType} • {zone.availableSlots} available of {zone.totalSlots}
+                            {TYPE_LABELS[zone.slotType] || zone.slotType} • {zone.availableSlots}{' '}
+                            available of {zone.totalSlots}
                           </CardDescription>
                         </CardHeader>
                       </Card>
@@ -297,8 +302,7 @@ export function ParkingAssignmentDialog({
                   exit={{ opacity: 0, height: 0 }}
                 >
                   <h4 className="text-sm font-semibold mb-3">
-                    Available Slots in{' '}
-                    {zones.find((z) => z.id === selectedZoneId)?.name}
+                    Available Slots in {zones.find((z) => z.id === selectedZoneId)?.name}
                   </h4>
                   {slotsLoading ? (
                     <div className="grid grid-cols-4 gap-2">
@@ -324,11 +328,13 @@ export function ParkingAssignmentDialog({
                           >
                             <span className="font-medium text-xs">{slot.slotNumber}</span>
                             <span className="text-[10px] text-muted-foreground">
-                              {slot.effectiveFee ? new Intl.NumberFormat('vi-VN', {
-                                style: 'currency',
-                                currency: 'VND',
-                                notation: 'compact',
-                              }).format(slot.effectiveFee) : '-'}
+                              {slot.effectiveFee
+                                ? new Intl.NumberFormat('vi-VN', {
+                                    style: 'currency',
+                                    currency: 'VND',
+                                    notation: 'compact',
+                                  }).format(slot.effectiveFee)
+                                : '-'}
                             </span>
                           </Button>
                         ))}
