@@ -394,3 +394,56 @@ export const PaymentMethod = {
   card: 'card' as const,
   other: 'other' as const,
 } as const;
+
+// ============================================================================
+// Access Card Management
+// ============================================================================
+
+/**
+ * Access card type classification
+ * - building: Lobby, elevator, amenities access
+ * - parking: Parking lot gates only
+ */
+export const AccessCardTypeSchema = z.enum(['building', 'parking']);
+export type AccessCardType = z.infer<typeof AccessCardTypeSchema>;
+
+export const AccessCardType = {
+  building: 'building' as const,
+  parking: 'parking' as const,
+} as const;
+
+/**
+ * Access card lifecycle status
+ */
+export const AccessCardStatusSchema = z.enum([
+  'active',
+  'lost',
+  'deactivated',
+  'expired',
+]);
+export type AccessCardStatus = z.infer<typeof AccessCardStatusSchema>;
+
+export const AccessCardStatus = {
+  active: 'active' as const,
+  lost: 'lost' as const,
+  deactivated: 'deactivated' as const,
+  expired: 'expired' as const,
+} as const;
+
+/**
+ * Deactivation reason for audit tracking
+ */
+export const DeactivationReasonSchema = z.enum([
+  'lost',
+  'stolen',
+  'resident_left',
+  'admin_action',
+]);
+export type DeactivationReason = z.infer<typeof DeactivationReasonSchema>;
+
+export const DeactivationReason = {
+  lost: 'lost' as const,
+  stolen: 'stolen' as const,
+  resident_left: 'resident_left' as const,
+  admin_action: 'admin_action' as const,
+} as const;

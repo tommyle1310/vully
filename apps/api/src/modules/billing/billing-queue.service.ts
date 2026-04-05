@@ -24,6 +24,7 @@ export class BillingQueueService {
     billingPeriod: string,
     triggeredById: string,
     buildingId?: string,
+    categories?: string[],
   ): Promise<BulkGenerateResult> {
     // Count contracts to process
     const whereClause: Record<string, unknown> = {
@@ -56,6 +57,7 @@ export class BillingQueueService {
         buildingId,
         triggeredById,
         billingJobId: billingJob.id,
+        categories,
       } satisfies GenerateMonthlyInvoicesPayload,
       {
         attempts: 3,
@@ -73,12 +75,14 @@ export class BillingQueueService {
       },
     );
 
+    const categoryStr = categories?.length ? ` (${categories.join(', ')})` : '';
     this.logger.log({
       event: 'bulk_invoice_generation_queued',
       jobId: job.id,
       billingJobId: billingJob.id,
       billingPeriod,
       buildingId,
+      categories,
       totalContracts,
       triggeredById,
     });
@@ -86,7 +90,7 @@ export class BillingQueueService {
     return {
       jobId: job.id || '',
       billingJobId: billingJob.id,
-      message: `Invoice generation queued for ${totalContracts} contracts`,
+      message: `Invoice generation queued for ${totalContracts} contracts${categoryStr}`,
       totalContracts,
     };
   }

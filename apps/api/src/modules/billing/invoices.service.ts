@@ -72,13 +72,14 @@ export class InvoicesService {
       );
     }
 
-    // Calculate invoice
+    // Calculate invoice with optional category filtering
     const calculation = await this.calculateInvoice(
       dto.contractId,
       contract.apartments.id,
       contract.apartments.building_id,
       dto.billingPeriod,
       Number(contract.rent_amount),
+      dto.categories,
     );
 
     // Generate invoice number
@@ -354,16 +355,23 @@ export class InvoicesService {
     buildingId: string,
     billingPeriod: string,
     rentAmount: number,
+    categories?: string[],
   ): Promise<InvoiceCalculation> {
     const lineItems: InvoiceCalculation['lineItems'] = [];
+    
+    // Normalize categories for comparison (lowercase)
+    const normalizedCategories = categories?.map((c) => c.toLowerCase());
+    const includeAll = !normalizedCategories || normalizedCategories.length === 0;
 
-    // Add base rent
-    lineItems.push({
-      description: `Rent for ${billingPeriod}`,
-      quantity: 1,
-      unitPrice: rentAmount,
-      amount: rentAmount,
-    });
+    // Add base rent (category: 'rent')
+    if (includeAll || normalizedCategories?.includes('rent')) {
+      lineItems.push({
+        description: `Rent for ${billingPeriod}`,
+        quantity: 1,
+        unitPrice: rentAmount,
+        amount: rentAmount,
+      });
+    }
 
     // Get meter readings for the period
     const readings = await this.prisma.meter_readings.findMany({
@@ -379,6 +387,12 @@ export class InvoicesService {
     // Calculate utility charges with tiered pricing
     for (const reading of readings) {
       if (reading.previous_value === null) continue;
+
+      // Check if this utility type should be included
+      const utilityCode = reading.utility_types.code.toLowerCase();
+      if (!includeAll && !normalizedCategories?.includes(utilityCode)) {
+        continue;
+      }
 
       const usage = Number(reading.current_value) - Number(reading.previous_value);
       if (usage <= 0) continue;

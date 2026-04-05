@@ -26,6 +26,15 @@ export class CreateInvoiceDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({
+    description: 'Invoice categories to include (e.g., ["rent", "water", "electric"]). Empty/null = all.',
+    example: ['rent', 'water'],
+    type: [String],
+  })
+  @IsOptional()
+  @IsString({ each: true })
+  categories?: string[];
 }
 
 export class UpdateInvoiceDto {
@@ -184,6 +193,15 @@ export class BulkGenerateInvoicesDto {
   @IsOptional()
   @IsUUID()
   buildingId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Invoice categories to include (e.g., ["rent", "water", "electric"]). Empty/null = all.',
+    example: ['rent', 'water', 'electric'],
+    type: [String],
+  })
+  @IsOptional()
+  @IsString({ each: true })
+  categories?: string[];
 }
 
 export class BulkGenerateResponseDto {

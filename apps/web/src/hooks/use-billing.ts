@@ -182,9 +182,11 @@ export function useGenerateInvoices() {
     mutationFn: async ({
       billingPeriod,
       buildingId,
+      categories,
     }: {
       billingPeriod: string;
       buildingId?: string;
+      categories?: string[];
     }): Promise<{
       data: {
         jobId: string;
@@ -195,6 +197,7 @@ export function useGenerateInvoices() {
       return apiClient.post('/billing-jobs/generate', {
         billingPeriod,
         buildingId,
+        categories,
       });
     },
     onSuccess: () => {

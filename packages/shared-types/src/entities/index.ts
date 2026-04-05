@@ -434,3 +434,94 @@ export const ContractFinancialSummarySchema = z.object({
   nextDue: PaymentScheduleSchema.optional(),
 });
 export type ContractFinancialSummary = z.infer<typeof ContractFinancialSummarySchema>;
+
+// =============================================================================
+// Access Card Entity
+// =============================================================================
+
+import {
+  AccessCardTypeSchema,
+  AccessCardStatusSchema,
+  DeactivationReasonSchema,
+} from '../enums';
+
+export const AccessCardHolderSchema = z.object({
+  id: UUIDSchema,
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string().email().optional(),
+});
+export type AccessCardHolder = z.infer<typeof AccessCardHolderSchema>;
+
+export const AccessCardApartmentSchema = z.object({
+  id: UUIDSchema,
+  unitNumber: z.string(),
+  buildingName: z.string().optional(),
+});
+export type AccessCardApartment = z.infer<typeof AccessCardApartmentSchema>;
+
+export const AccessCardSchema = z.object({
+  id: UUIDSchema,
+  cardNumber: z.string().max(50),
+  apartmentId: UUIDSchema,
+  apartment: AccessCardApartmentSchema.optional(),
+  holderId: UUIDSchema.nullable().optional(),
+  holder: AccessCardHolderSchema.nullable().optional(),
+  cardType: AccessCardTypeSchema,
+  status: AccessCardStatusSchema,
+  accessZones: z.array(z.string()),
+  floorAccess: z.array(z.number().int()),
+  issuedAt: TimestampSchema,
+  expiresAt: TimestampSchema.nullable().optional(),
+  deactivatedAt: TimestampSchema.nullable().optional(),
+  deactivatedBy: UUIDSchema.nullable().optional(),
+  notes: z.string().nullable().optional(),
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
+});
+export type AccessCard = z.infer<typeof AccessCardSchema>;
+
+export const CreateAccessCardSchema = z.object({
+  cardNumber: z.string().min(1).max(50),
+  apartmentId: UUIDSchema,
+  holderId: UUIDSchema.optional(),
+  cardType: AccessCardTypeSchema,
+  accessZones: z.array(z.string()).optional(),
+  floorAccess: z.array(z.number().int().nonnegative()).optional(),
+  expiresAt: z.string().datetime().optional(),
+  notes: z.string().max(500).optional(),
+});
+export type CreateAccessCardInput = z.infer<typeof CreateAccessCardSchema>;
+
+export const UpdateAccessCardSchema = z.object({
+  accessZones: z.array(z.string()).optional(),
+  floorAccess: z.array(z.number().int().nonnegative()).optional(),
+  expiresAt: z.string().datetime().nullable().optional(),
+  notes: z.string().max(500).optional(),
+});
+export type UpdateAccessCardInput = z.infer<typeof UpdateAccessCardSchema>;
+
+export const DeactivateAccessCardSchema = z.object({
+  reason: DeactivationReasonSchema,
+  notes: z.string().max(500).optional(),
+});
+export type DeactivateAccessCardInput = z.infer<typeof DeactivateAccessCardSchema>;
+
+export const AccessCardListResponseSchema = z.object({
+  data: z.array(AccessCardSchema),
+  total: z.number().int().nonnegative(),
+  activeCount: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+});
+export type AccessCardListResponse = z.infer<typeof AccessCardListResponseSchema>;
+
+export const AccessCardStatsSchema = z.object({
+  total: z.number().int().nonnegative(),
+  active: z.number().int().nonnegative(),
+  lost: z.number().int().nonnegative(),
+  deactivated: z.number().int().nonnegative(),
+  expired: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  available: z.number().int().nonnegative(),
+});
+export type AccessCardStats = z.infer<typeof AccessCardStatsSchema>;

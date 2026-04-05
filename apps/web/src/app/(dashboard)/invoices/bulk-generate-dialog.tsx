@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Loader2, CheckCircle2, XCircle, FileText } from 'lucide-react';
-import { useGenerateInvoices, useBillingJob } from '@/hooks/use-billing';
+import { Play, Loader2, CheckCircle2, XCircle, FileText, AlertTriangle } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useGenerateInvoices, useBillingJob, useUtilityTypes } from '@/hooks/use-billing';
 import { useBuildings } from '@/hooks/use-apartments';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,7 +24,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+
+// Job summary stored in errorLog
+interface JobSummary {
+  createdCount?: number;
+  skippedCount?: number;
+  errors?: Array<{ contractId: string; error: string }>;
+}
+
+// Predefined categories (rent + utility types)
+const BASE_CATEGORIES = [
+  { code: 'rent', name: 'Rent', description: 'Base monthly rent' },
+];
 
 function getCurrentBillingPeriod(): string {
   const now = new Date();
@@ -53,10 +67,14 @@ export function BulkGenerateInvoicesDialog({ trigger }: BulkGenerateDialogProps)
   const [open, setOpen] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState(getCurrentBillingPeriod());
   const [buildingId, setBuildingId] = useState<string>('all');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const hasShownCompletionToast = useRef(false);
   
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: buildingsData } = useBuildings();
+  const { data: utilityTypesData } = useUtilityTypes();
   const generateInvoices = useGenerateInvoices();
   
   // Poll billing job status when active
@@ -65,8 +83,22 @@ export function BulkGenerateInvoicesDialog({ trigger }: BulkGenerateDialogProps)
   });
   
   const buildings = buildingsData?.data ?? [];
+  const utilityTypes = utilityTypesData?.data ?? [];
   const billingPeriodOptions = getBillingPeriodOptions();
   const job = jobData?.data;
+
+  // Parse job summary from errorLog
+  const jobSummary: JobSummary | null = job?.errorLog as JobSummary | null;
+  const createdCount = jobSummary?.createdCount ?? 0;
+  const skippedCount = jobSummary?.skippedCount ?? 0;
+
+  // Combine base categories with utility types
+  const allCategories = [
+    ...BASE_CATEGORIES,
+    ...utilityTypes
+      .filter((ut) => ut.isActive)
+      .map((ut) => ({ code: ut.code, name: ut.name, description: `${ut.name} charges` })),
+  ];
   
   // Calculate progress percentage
   const progress = job
@@ -78,28 +110,73 @@ export function BulkGenerateInvoicesDialog({ trigger }: BulkGenerateDialogProps)
   // Check if job is completed or failed
   const isJobComplete = job?.status === 'completed' || job?.status === 'failed';
   const isJobRunning = !!activeJobId && !isJobComplete;
-  
-  // Auto-close after completion
+
+  // Reset toast flag when starting new job
   useEffect(() => {
-    if (job?.status === 'completed') {
-      toast({
-        title: 'Invoices generated successfully',
-        description: `Generated ${job.processedCount - job.failedCount} invoices for ${billingPeriod}`,
-      });
-    } else if (job?.status === 'failed') {
+    if (activeJobId && !isJobComplete) {
+      hasShownCompletionToast.current = false;
+    }
+  }, [activeJobId, isJobComplete]);
+  
+  // Handle job completion - show toast and invalidate queries
+  useEffect(() => {
+    if (!job || hasShownCompletionToast.current) return;
+    
+    if (job.status === 'completed') {
+      hasShownCompletionToast.current = true;
+      
+      // Invalidate invoices query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      
+      if (createdCount > 0) {
+        toast({
+          title: 'Invoices generated',
+          description: `Created ${createdCount} new invoice(s)${skippedCount > 0 ? `, ${skippedCount} skipped (already exist)` : ''}.`,
+        });
+      } else if (skippedCount > 0) {
+        toast({
+          title: 'No new invoices',
+          description: `All ${skippedCount} invoice(s) already exist for ${billingPeriod}.`,
+          variant: 'default',
+        });
+      } else {
+        toast({
+          title: 'Job completed',
+          description: 'No contracts found to generate invoices for.',
+        });
+      }
+    } else if (job.status === 'failed') {
+      hasShownCompletionToast.current = true;
       toast({
         title: 'Invoice generation failed',
-        description: `${job.failedCount} invoices failed. Check the job logs for details.`,
+        description: `${job.failedCount} invoice(s) failed. Check the job logs for details.`,
         variant: 'destructive',
       });
     }
-  }, [job?.status, job?.processedCount, job?.failedCount, billingPeriod, toast]);
+  }, [job, createdCount, skippedCount, billingPeriod, toast, queryClient]);
+
+  const handleCategoryToggle = (code: string, checked: boolean) => {
+    if (checked) {
+      setSelectedCategories((prev) => [...prev, code]);
+    } else {
+      setSelectedCategories((prev) => prev.filter((c) => c !== code));
+    }
+  };
+
+  const handleSelectAllCategories = () => {
+    setSelectedCategories(allCategories.map((c) => c.code));
+  };
+
+  const handleClearCategories = () => {
+    setSelectedCategories([]);
+  };
   
   const handleGenerate = async () => {
     try {
       const result = await generateInvoices.mutateAsync({
         billingPeriod,
         buildingId: buildingId === 'all' ? undefined : buildingId,
+        categories: selectedCategories.length > 0 ? selectedCategories : undefined,
       });
       
       setActiveJobId(result.data.jobId);
@@ -192,6 +269,58 @@ export function BulkGenerateInvoicesDialog({ trigger }: BulkGenerateDialogProps)
               </SelectContent>
             </Select>
           </div>
+
+          {/* Category Selection */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Categories (Optional)</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSelectAllCategories}
+                  disabled={isJobRunning}
+                >
+                  All
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearCategories}
+                  disabled={isJobRunning}
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mb-2">
+              Leave empty to generate full invoices with all charges.
+            </p>
+            <div className="grid grid-cols-2 gap-2 max-h-[150px] overflow-y-auto border rounded p-2">
+              {allCategories.map((category) => (
+                <label
+                  key={category.code}
+                  className="flex items-center gap-2 rounded p-1.5 cursor-pointer hover:bg-muted/50"
+                >
+                  <Checkbox
+                    checked={selectedCategories.includes(category.code)}
+                    onCheckedChange={(checked) =>
+                      handleCategoryToggle(category.code, !!checked)
+                    }
+                    disabled={isJobRunning}
+                  />
+                  <span className="text-sm">{category.name}</span>
+                </label>
+              ))}
+            </div>
+            {selectedCategories.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Selected: {selectedCategories.join(', ')}
+              </p>
+            )}
+          </div>
           
           {/* Progress Indicator */}
           <AnimatePresence>
@@ -230,7 +359,32 @@ export function BulkGenerateInvoicesDialog({ trigger }: BulkGenerateDialogProps)
                   />
                 </div>
                 
-                {job && job.failedCount > 0 && (
+                {/* Summary when complete */}
+                {isJobComplete && (
+                  <div className="text-xs space-y-1 pt-1 border-t">
+                    {createdCount > 0 && (
+                      <p className="text-green-600 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        {createdCount} invoice(s) created
+                      </p>
+                    )}
+                    {skippedCount > 0 && (
+                      <p className="text-muted-foreground flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {skippedCount} skipped (already exist)
+                      </p>
+                    )}
+                    {job && job.failedCount > 0 && (
+                      <p className="text-destructive flex items-center gap-1">
+                        <XCircle className="h-3 w-3" />
+                        {job.failedCount} failed
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {/* Error during processing */}
+                {!isJobComplete && job && job.failedCount > 0 && (
                   <p className="text-xs text-destructive">
                     {job.failedCount} invoice(s) failed to generate
                   </p>

@@ -11,6 +11,8 @@ import { BuildingPoliciesController } from './building-policies.controller';
 import { BuildingPoliciesService } from './building-policies.service';
 import { ParkingController } from './parking.controller';
 import { ParkingService } from './parking.service';
+import { AccessCardsController } from './access-cards.controller';
+import { AccessCardsService } from './access-cards.service';
 
 @Module({
   controllers: [
@@ -20,6 +22,7 @@ import { ParkingService } from './parking.service';
     PaymentScheduleController,
     BuildingPoliciesController,
     ParkingController,
+    AccessCardsController,
   ],
   providers: [
     BuildingsService,
@@ -28,6 +31,7 @@ import { ParkingService } from './parking.service';
     PaymentScheduleService,
     BuildingPoliciesService,
     ParkingService,
+    AccessCardsService,
   ],
   exports: [
     BuildingsService,
@@ -36,6 +40,7 @@ import { ParkingService } from './parking.service';
     PaymentScheduleService,
     BuildingPoliciesService,
     ParkingService,
+    AccessCardsService,
   ],
 })
 export class ApartmentsModule {}

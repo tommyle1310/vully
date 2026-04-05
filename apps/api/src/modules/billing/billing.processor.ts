@@ -9,6 +9,7 @@ export interface GenerateMonthlyInvoicesPayload {
   buildingId?: string;
   triggeredById: string;
   billingJobId: string;
+  categories?: string[];
 }
 
 @Injectable()
@@ -30,7 +31,7 @@ export class BillingProcessor extends WorkerHost {
   }
 
   async process(job: Job<GenerateMonthlyInvoicesPayload>): Promise<{ success: number; failed: number }> {
-    const { billingPeriod, buildingId, triggeredById, billingJobId } = job.data;
+    const { billingPeriod, buildingId, triggeredById, billingJobId, categories } = job.data;
 
     this.logger.log({
       event: 'billing_job_started',
@@ -38,6 +39,7 @@ export class BillingProcessor extends WorkerHost {
       billingJobId,
       billingPeriod,
       buildingId,
+      categories,
     });
 
     // Update billing job status to processing
@@ -78,6 +80,7 @@ export class BillingProcessor extends WorkerHost {
 
       let successCount = 0;
       let failedCount = 0;
+      let skippedCount = 0;
       const errors: Array<{ contractId: string; error: string }> = [];
 
       // Process each contract
@@ -94,6 +97,7 @@ export class BillingProcessor extends WorkerHost {
           });
 
           if (existing) {
+            skippedCount++;
             this.logger.debug({
               event: 'invoice_skipped',
               contractId: contract.id,
@@ -108,6 +112,7 @@ export class BillingProcessor extends WorkerHost {
               contractId: contract.id,
               billingPeriod,
               notes: `Auto-generated for ${billingPeriod}`,
+              categories,
             },
             triggeredById,
           );
@@ -145,6 +150,13 @@ export class BillingProcessor extends WorkerHost {
         });
       }
 
+      // Build summary for error_log (includes created/skipped counts)
+      const jobSummary = {
+        createdCount: successCount,
+        skippedCount,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+
       // Update billing job as completed
       await this.prisma.billing_jobs.update({
         where: { id: billingJobId },
@@ -153,7 +165,7 @@ export class BillingProcessor extends WorkerHost {
           completed_at: new Date(),
           processed_count: contracts.length,
           failed_count: failedCount,
-          error_log: errors.length > 0 ? errors : undefined,
+          error_log: jobSummary,
         },
       });
 
@@ -164,6 +176,7 @@ export class BillingProcessor extends WorkerHost {
         jobId: job.id,
         billingJobId,
         successCount,
+        skippedCount,
         failedCount,
         totalContracts: contracts.length,
       });

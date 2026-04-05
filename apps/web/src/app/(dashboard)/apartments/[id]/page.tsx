@@ -37,8 +37,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { ApartmentFormDialog } from '../apartment-form-dialog';
+import { AccessCardsTab } from '@/components/access-cards';
+import { useAccessCardStats } from '@/hooks/use-access-cards';
 
 const statusVariants: Record<string, 'default' | 'success' | 'warning' | 'destructive'> = {
   VACANT: 'success',
@@ -134,8 +137,11 @@ export default function ApartmentDetailPage() {
   const { data: apartmentData, isLoading, error } = useApartment(apartmentId);
   const updateStatus = useUpdateApartmentStatus();
   const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const { data: cardStats } = useAccessCardStats(apartmentId);
 
   const apartment = apartmentData?.data;
+  // Building floor count for floor access selection (fallback to 20)
+  const buildingFloorCount = (apartment?.building as { floorCount?: number })?.floorCount ?? 20;
 
   if (isLoading) {
     return <PageSkeleton />;
@@ -222,12 +228,28 @@ export default function ApartmentDetailPage() {
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="grid gap-4 md:grid-cols-4"
-      >
+      {/* Tabs */}
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="access-cards" className="flex items-center gap-2">
+            <KeyRound className="h-4 w-4" />
+            Access Cards
+            {cardStats?.data && (
+              <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
+                {cardStats.data.active}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          {/* Quick Stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid gap-4 md:grid-cols-4"
+          >
         <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -449,6 +471,15 @@ export default function ApartmentDetailPage() {
           </CardContent>
         </Card>
       </motion.div>
+        </TabsContent>
+
+        <TabsContent value="access-cards">
+          <AccessCardsTab
+            apartmentId={apartment.id}
+            buildingFloorCount={buildingFloorCount}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* Edit Dialog */}
       <ApartmentFormDialog

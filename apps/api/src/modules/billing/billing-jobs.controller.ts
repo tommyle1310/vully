@@ -51,6 +51,7 @@ export class BillingJobsController {
       dto.billingPeriod,
       user.id,
       dto.buildingId,
+      dto.categories,
     );
 
     return {

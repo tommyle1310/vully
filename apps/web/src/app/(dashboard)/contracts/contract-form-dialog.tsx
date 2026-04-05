@@ -15,6 +15,8 @@ import {
   Home,
   Key,
   ShoppingBag,
+  Car,
+  CreditCard,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
@@ -24,9 +26,11 @@ import {
   useCreateContract,
   useUpdateContract,
 } from '@/hooks/use-contracts';
+import { useIssueAccessCard } from '@/hooks/use-access-cards';
 import { ApartmentCombobox } from '@/components/apartment-combobox';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -149,6 +153,10 @@ const contractFormSchema = z.object({
   citizenId: z.string().max(30).optional(),
   numberOfResidents: z.coerce.number().int().min(1).optional(),
   termsNotes: z.string().optional(),
+  // Access card options (only for create mode)
+  issueBuildingCard: z.boolean().optional(),
+  issueParkingCard: z.boolean().optional(),
+  requestedFacilities: z.array(z.string()).optional(),
 });
 
 type ContractFormValues = z.infer<typeof contractFormSchema>;
@@ -495,6 +503,7 @@ export function ContractFormDialog({
   const { toast } = useToast();
   const createContract = useCreateContract();
   const updateContract = useUpdateContract();
+  const issueAccessCard = useIssueAccessCard();
 
   const form = useForm<ContractFormValues>({
     resolver: zodResolver(contractFormSchema),
@@ -519,6 +528,10 @@ export function ContractFormDialog({
       citizenId: '',
       numberOfResidents: undefined,
       termsNotes: '',
+      // Access card defaults
+      issueBuildingCard: true,
+      issueParkingCard: false,
+      requestedFacilities: ['lobby', 'elevator'],
     },
   });
 
@@ -639,6 +652,10 @@ export function ContractFormDialog({
           citizenId: contract.citizenId || '',
           numberOfResidents: contract.numberOfResidents,
           termsNotes: getCleanTermsNotes(contract.termsNotes),
+          // Access cards not editable in edit mode
+          issueBuildingCard: false,
+          issueParkingCard: false,
+          requestedFacilities: [],
         });
       } else {
         form.reset({
@@ -662,6 +679,10 @@ export function ContractFormDialog({
           citizenId: '',
           numberOfResidents: undefined,
           termsNotes: '',
+          // Access card defaults for new contracts
+          issueBuildingCard: true,
+          issueParkingCard: false,
+          requestedFacilities: ['lobby', 'elevator'],
         });
       }
     }
@@ -699,10 +720,52 @@ export function ContractFormDialog({
           rentCreditPercent: values.contractType === 'lease_to_own' ? values.rentCreditPercent : undefined,
         };
         await createContract.mutateAsync(input);
-        toast({
-          title: 'Contract created',
-          description: getSuccessMessage(values.contractType),
-        });
+
+        // Issue access cards if requested
+        const accessCardPromises: Promise<unknown>[] = [];
+
+        if (values.issueBuildingCard) {
+          accessCardPromises.push(
+            issueAccessCard.mutateAsync({
+              apartmentId: values.apartmentId,
+              cardType: 'building',
+              accessZones: values.requestedFacilities || ['lobby', 'elevator'],
+            }),
+          );
+        }
+
+        if (values.issueParkingCard) {
+          accessCardPromises.push(
+            issueAccessCard.mutateAsync({
+              apartmentId: values.apartmentId,
+              cardType: 'parking',
+              accessZones: ['parking'],
+            }),
+          );
+        }
+
+        // Wait for all access cards to be issued
+        if (accessCardPromises.length > 0) {
+          try {
+            await Promise.all(accessCardPromises);
+            toast({
+              title: 'Contract created',
+              description: `${getSuccessMessage(values.contractType)} Access cards have been issued.`,
+            });
+          } catch {
+            // Contract was created but access cards failed
+            toast({
+              title: 'Contract created',
+              description: `${getSuccessMessage(values.contractType)} However, some access cards failed to issue. Please issue them manually.`,
+              variant: 'default',
+            });
+          }
+        } else {
+          toast({
+            title: 'Contract created',
+            description: getSuccessMessage(values.contractType),
+          });
+        }
       } else if (contract) {
         await updateContract.mutateAsync({
           id: contract.id,
@@ -731,7 +794,7 @@ export function ContractFormDialog({
     }
   };
 
-  const isSubmitting = createContract.isPending || updateContract.isPending;
+  const isSubmitting = createContract.isPending || updateContract.isPending || issueAccessCard.isPending;
   const typeConfig = CONTRACT_TYPES[contractType];
   const TypeIcon = typeConfig.icon;
 
@@ -1198,6 +1261,122 @@ export function ContractFormDialog({
             </div>
 
             <Separator />
+
+            {/* Access Cards Section (only for create mode) */}
+            {mode === 'create' && (
+              <>
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Access Cards
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Issue access cards automatically when creating this contract.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Building Card */}
+                    <FormField
+                      control={form.control}
+                      name="issueBuildingCard"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel className="flex items-center gap-2">
+                              <Key className="h-4 w-4" />
+                              Building Card
+                            </FormLabel>
+                            <FormDescription>
+                              Lobby & elevator access
+                            </FormDescription>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Parking Card */}
+                    <FormField
+                      control={form.control}
+                      name="issueParkingCard"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel className="flex items-center gap-2">
+                              <Car className="h-4 w-4" />
+                              Parking Card
+                            </FormLabel>
+                            <FormDescription>
+                              Vehicle parking access
+                            </FormDescription>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Facility access selection (only if building card is checked) */}
+                  {form.watch('issueBuildingCard') && (
+                    <FormField
+                      control={form.control}
+                      name="requestedFacilities"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Facility Access</FormLabel>
+                          <FormDescription>
+                            Select which facilities the building card can access.
+                          </FormDescription>
+                          <div className="grid grid-cols-3 gap-2 mt-2">
+                            {[
+                              { id: 'lobby', label: 'Lobby' },
+                              { id: 'elevator', label: 'Elevator' },
+                              { id: 'gym', label: 'Gym' },
+                              { id: 'pool', label: 'Pool' },
+                              { id: 'rooftop', label: 'Rooftop' },
+                              { id: 'laundry', label: 'Laundry' },
+                            ].map((facility) => (
+                              <label
+                                key={facility.id}
+                                className="flex items-center gap-2 rounded border p-2 cursor-pointer hover:bg-muted/50"
+                              >
+                                <Checkbox
+                                  checked={field.value?.includes(facility.id)}
+                                  onCheckedChange={(checked) => {
+                                    const current = field.value || [];
+                                    if (checked) {
+                                      field.onChange([...current, facility.id]);
+                                    } else {
+                                      field.onChange(
+                                        current.filter((f) => f !== facility.id),
+                                      );
+                                    }
+                                  }}
+                                />
+                                <span className="text-sm">{facility.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                </div>
+
+                <Separator />
+              </>
+            )}
 
             {/* Terms & Notes */}
             <FormField
