@@ -10,10 +10,14 @@ import {
   UpdatePaymentScheduleDto,
   PaymentScheduleResponseDto,
   RecordPaymentDto,
+  ReportPaymentDto,
+  VerifyPaymentDto,
   PaymentResponseDto,
   ContractFinancialSummaryDto,
   PaymentType,
   PaymentStatus,
+  ContractPaymentStatus,
+  PendingPaymentResponseDto,
 } from './dto/payment.dto';
 import { isPast } from 'date-fns';
 import { toScheduleResponseDto, toPaymentResponseDto } from './payment-schedule.mapper';
@@ -82,6 +86,9 @@ export class PaymentScheduleService {
             users: {
               select: { id: true, email: true, first_name: true, last_name: true },
             },
+            reporter: {
+              select: { id: true, email: true, first_name: true, last_name: true },
+            },
           },
           orderBy: { recorded_at: 'desc' },
         },
@@ -99,6 +106,9 @@ export class PaymentScheduleService {
         payments: {
           include: {
             users: {
+              select: { id: true, email: true, first_name: true, last_name: true },
+            },
+            reporter: {
               select: { id: true, email: true, first_name: true, last_name: true },
             },
           },
@@ -170,7 +180,7 @@ export class PaymentScheduleService {
   }
 
   // =========================================================================
-  // Payment Recording
+  // Payment Recording (Admin)
   // =========================================================================
 
   async recordPayment(
@@ -194,6 +204,7 @@ export class PaymentScheduleService {
           payment_date: new Date(dto.paymentDate),
           payment_method: dto.paymentMethod,
           reference_number: dto.referenceNumber,
+          status: 'confirmed', // Admin-recorded payments are auto-confirmed
           recorded_by: recordedById,
           receipt_url: dto.receiptUrl,
           notes: dto.notes,
@@ -240,6 +251,258 @@ export class PaymentScheduleService {
     return toPaymentResponseDto(result);
   }
 
+  // =========================================================================
+  // Payment Reporting (Resident - awaiting verification)
+  // =========================================================================
+
+  async reportPayment(
+    scheduleId: string,
+    dto: ReportPaymentDto,
+    reportedById: string,
+  ): Promise<PaymentResponseDto> {
+    const schedule = await this.schedules.findUnique({
+      where: { id: scheduleId },
+      include: {
+        contracts: {
+          select: { tenant_id: true },
+        },
+      },
+    });
+
+    if (!schedule) {
+      throw new NotFoundException('Payment schedule not found');
+    }
+
+    // Verify the reporter is the tenant
+    if (schedule.contracts.tenant_id !== reportedById) {
+      throw new BadRequestException('You can only report payments for your own contracts');
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const payment = await tx.contract_payments.create({
+        data: {
+          schedule_id: scheduleId,
+          amount: dto.amount,
+          payment_date: new Date(dto.paymentDate),
+          payment_method: dto.paymentMethod,
+          reference_number: dto.referenceNumber,
+          status: 'reported', // Awaiting admin verification
+          reported_by: reportedById,
+          reported_at: new Date(),
+          recorded_by: reportedById, // Initially same as reporter
+          receipt_url: dto.receiptUrl,
+          notes: dto.notes,
+        },
+        include: {
+          users: {
+            select: { id: true, email: true, first_name: true, last_name: true },
+          },
+          reporter: {
+            select: { id: true, email: true, first_name: true, last_name: true },
+          },
+        },
+      });
+
+      // Update schedule status to "reported" (pending verification)
+      await tx.contract_payment_schedules.update({
+        where: { id: scheduleId },
+        data: {
+          status: 'reported',
+          updated_at: new Date(),
+        },
+      });
+
+      return payment;
+    });
+
+    this.logger.log({
+      event: 'payment_reported',
+      paymentId: result.id,
+      scheduleId,
+      amount: dto.amount,
+      reportedById,
+    });
+
+    // TODO: Send WebSocket notification to admins
+    // this.socketGateway.server.to(`building:${buildingId}`).emit('payment:reported', {...});
+
+    return toPaymentResponseDto(result);
+  }
+
+  // =========================================================================
+  // Payment Verification (Admin)
+  // =========================================================================
+
+  async verifyPayment(
+    paymentId: string,
+    dto: VerifyPaymentDto,
+    verifiedById: string,
+  ): Promise<PaymentResponseDto> {
+    const payment = await this.payments.findUnique({
+      where: { id: paymentId },
+      include: {
+        schedule: true,
+      },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    if (payment.status !== 'reported') {
+      throw new BadRequestException('Only reported payments can be verified');
+    }
+
+    const finalAmount = dto.actualAmount ?? Number(payment.amount);
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updatedPayment = await tx.contract_payments.update({
+        where: { id: paymentId },
+        data: {
+          status: dto.status,
+          amount: finalAmount,
+          verified_by: verifiedById,
+          verified_at: new Date(),
+          recorded_by: verifiedById, // Update to verifying admin
+          recorded_at: new Date(),
+          notes: dto.notes ? `${payment.notes ?? ''}\n[Admin]: ${dto.notes}` : payment.notes,
+        },
+        include: {
+          users: {
+            select: { id: true, email: true, first_name: true, last_name: true },
+          },
+          reporter: {
+            select: { id: true, email: true, first_name: true, last_name: true },
+          },
+        },
+      });
+
+      if (dto.status === ContractPaymentStatus.confirmed) {
+        // Payment confirmed - update schedule amounts
+        const newReceivedAmount = Number(payment.schedule.received_amount) + finalAmount;
+        const expectedAmount = Number(payment.schedule.expected_amount);
+
+        let newStatus: PaymentStatus;
+        if (newReceivedAmount >= expectedAmount) {
+          newStatus = PaymentStatus.paid;
+        } else if (newReceivedAmount > 0) {
+          newStatus = PaymentStatus.partial;
+        } else {
+          newStatus = PaymentStatus.pending;
+        }
+
+        await tx.contract_payment_schedules.update({
+          where: { id: payment.schedule_id },
+          data: {
+            received_amount: newReceivedAmount,
+            status: newStatus,
+            updated_at: new Date(),
+          },
+        });
+      } else if (dto.status === ContractPaymentStatus.rejected) {
+        // Payment rejected - revert schedule to pending/overdue
+        const pendingPayments = await tx.contract_payments.count({
+          where: {
+            schedule_id: payment.schedule_id,
+            status: 'reported',
+            id: { not: paymentId },
+          },
+        });
+
+        // Only revert if no other pending payments
+        if (pendingPayments === 0) {
+          const newStatus = isPast(payment.schedule.due_date)
+            ? PaymentStatus.overdue
+            : PaymentStatus.pending;
+
+          await tx.contract_payment_schedules.update({
+            where: { id: payment.schedule_id },
+            data: {
+              status: newStatus,
+              updated_at: new Date(),
+            },
+          });
+        }
+      }
+
+      return updatedPayment;
+    });
+
+    this.logger.log({
+      event: 'payment_verified',
+      paymentId,
+      status: dto.status,
+      verifiedById,
+      finalAmount,
+    });
+
+    // TODO: Send notification to resident
+    // this.notificationService.notify(payment.reported_by, {...});
+
+    return toPaymentResponseDto(result);
+  }
+
+  // =========================================================================
+  // Pending Payments (for Admin verification tab)
+  // =========================================================================
+
+  async findPendingPayments(): Promise<PendingPaymentResponseDto[]> {
+    const payments = await this.payments.findMany({
+      where: {
+        status: 'reported',
+      },
+      include: {
+        users: {
+          select: { id: true, email: true, first_name: true, last_name: true },
+        },
+        reporter: {
+          select: { id: true, email: true, first_name: true, last_name: true },
+        },
+        schedule: {
+          select: {
+            id: true,
+            period_label: true,
+            expected_amount: true,
+            due_date: true,
+            contract_id: true,
+            contracts: {
+              select: {
+                id: true,
+                apartment_id: true,
+                tenant_id: true,
+                users_contracts_tenant_idTousers: {
+                  select: { first_name: true, last_name: true },
+                },
+                apartments: {
+                  select: { apartment_code: true },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { reported_at: 'asc' },
+    });
+
+    return payments.map((p) => ({
+      ...toPaymentResponseDto(p),
+      schedule: {
+        id: p.schedule.id,
+        periodLabel: p.schedule.period_label,
+        expectedAmount: Number(p.schedule.expected_amount),
+        dueDate: p.schedule.due_date,
+        contractId: p.schedule.contract_id,
+      },
+      contract: {
+        id: p.schedule.contracts.id,
+        apartmentId: p.schedule.contracts.apartment_id,
+        tenantId: p.schedule.contracts.tenant_id,
+        tenantName: `${p.schedule.contracts.users_contracts_tenant_idTousers.first_name} ${p.schedule.contracts.users_contracts_tenant_idTousers.last_name}`,
+        apartmentCode: p.schedule.contracts.apartments.apartment_code ?? 'N/A',
+      },
+    }));
+  }
+
   async findPaymentsByContract(contractId: string): Promise<PaymentResponseDto[]> {
     const payments = await this.payments.findMany({
       where: {
@@ -247,6 +510,9 @@ export class PaymentScheduleService {
       },
       include: {
         users: {
+          select: { id: true, email: true, first_name: true, last_name: true },
+        },
+        reporter: {
           select: { id: true, email: true, first_name: true, last_name: true },
         },
         schedule: {

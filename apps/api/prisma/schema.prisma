@@ -149,6 +149,37 @@ model buildings {
   utility_tiers          utility_tiers[]
   building_policies      building_policies[]
   parking_zones          parking_zones[]
+  bank_accounts          bank_accounts[]
+}
+
+// ============================================================================
+// Bank Accounts (for VietQR Payment)
+// ============================================================================
+
+model bank_accounts {
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bank_name      String  @db.VarChar(100) // e.g., "Vietinbank", "BIDV"
+  bank_code      String  @db.VarChar(50) // e.g., "vietinbank", "bidv" (for VietQR)
+  account_number String  @db.VarChar(30)
+  account_name   String  @db.VarChar(255)
+  is_primary     Boolean @default(false)
+  is_active      Boolean @default(true)
+  notes          String?
+
+  // Linked to either a building (management fees) or user/owner (rent)
+  building_id String? @db.Uuid
+  owner_id    String? @db.Uuid
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @db.Timestamptz(6)
+
+  // Relations
+  buildings buildings? @relation(fields: [building_id], references: [id], onDelete: Cascade)
+  owner     users?     @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+
+  @@unique([bank_code, account_number]) // Prevent duplicate accounts
+  @@index([building_id])
+  @@index([owner_id])
 }
 
 // ============================================================================
@@ -570,9 +601,12 @@ model users {
   password_reset_tokens                  password_reset_tokens[]
   refresh_tokens                         refresh_tokens[]
   user_role_assignments                  user_role_assignments[]
-  contract_payments                      contract_payments[]
+  payments_recorded                      contract_payments[]     @relation("payment_recorded_by")
+  payments_reported                      contract_payments[]     @relation("payment_reported_by")
+  payments_verified                      contract_payments[]     @relation("payment_verified_by")
   access_cards_as_holder                 access_cards[]          @relation("access_card_holder")
   access_cards_as_deactivator            access_cards[]          @relation("access_card_deactivator")
+  bank_accounts                          bank_accounts[]
 }
 
 model utility_tiers {
@@ -642,25 +676,42 @@ model contract_payments {
   schedule_id String @db.Uuid
 
   // Payment details
-  amount           Decimal        @db.Decimal(15, 2)
-  payment_date     DateTime       @db.Date
+  amount           Decimal               @db.Decimal(15, 2)
+  payment_date     DateTime              @db.Date
   payment_method   PaymentMethod?
-  reference_number String?        @db.VarChar(100) // Bank transfer ref, receipt no.
+  reference_number String?               @db.VarChar(100) // Bank transfer ref, receipt no.
+  status           ContractPaymentStatus @default(confirmed) // For tracking verification workflow
 
-  // Who recorded it
-  recorded_by String   @db.Uuid
-  recorded_at DateTime @default(now()) @db.Timestamptz(6)
+  // Who reported it (resident) vs who verified/recorded it (admin)
+  reported_by String?   @db.Uuid // Resident who claimed the payment
+  reported_at DateTime? @db.Timestamptz(6)
+  recorded_by String    @db.Uuid // Admin who verified/recorded
+  recorded_at DateTime  @default(now()) @db.Timestamptz(6)
+
+  // Verification workflow
+  verified_by String?   @db.Uuid
+  verified_at DateTime? @db.Timestamptz(6)
 
   // Evidence
-  receipt_url String?
+  receipt_url String? // Receipt/proof uploaded by resident
   notes       String?
 
   // Relations
   schedule contract_payment_schedules @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
-  users    users                      @relation(fields: [recorded_by], references: [id])
+  users    users                      @relation("payment_recorded_by", fields: [recorded_by], references: [id])
+  reporter users?                     @relation("payment_reported_by", fields: [reported_by], references: [id])
+  verifier users?                     @relation("payment_verified_by", fields: [verified_by], references: [id])
 
   @@index([schedule_id])
   @@index([recorded_by])
+  @@index([status])
+}
+
+// Contract Payment Status (for verification workflow)
+enum ContractPaymentStatus {
+  reported // Resident claimed transfer, awaiting verification
+  confirmed // Admin verified and confirmed (default for admin-recorded payments)
+  rejected // Admin rejected (invalid payment claim)
 }
 
 enum ApartmentStatus {
@@ -788,6 +839,8 @@ enum PaymentType {
 
 enum PaymentStatus {
   pending
+  reported // Resident claimed transfer (awaiting admin verification)
+  verified // Admin confirmed payment received
   partial
   paid
   overdue

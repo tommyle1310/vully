@@ -3,6 +3,8 @@ import {
   PaymentResponseDto,
   PaymentType,
   PaymentStatus,
+  ContractPaymentStatus,
+  BankAccountResponseDto,
 } from './dto/payment.dto';
 
 export function toScheduleResponseDto(
@@ -26,8 +28,13 @@ export function toScheduleResponseDto(
       payment_date: Date;
       payment_method: string | null;
       reference_number: string | null;
+      status?: string;
+      reported_by?: string | null;
+      reported_at?: Date | null;
       recorded_by: string;
       recorded_at: Date;
+      verified_by?: string | null;
+      verified_at?: Date | null;
       receipt_url: string | null;
       notes: string | null;
       users?: {
@@ -36,6 +43,12 @@ export function toScheduleResponseDto(
         first_name: string;
         last_name: string;
       };
+      reporter?: {
+        id: string;
+        email: string;
+        first_name: string;
+        last_name: string;
+      } | null;
     }>;
   },
   includePayments = false,
@@ -71,8 +84,13 @@ export function toPaymentResponseDto(
     payment_date: Date;
     payment_method: string | null;
     reference_number: string | null;
+    status?: string;
+    reported_by?: string | null;
+    reported_at?: Date | null;
     recorded_by: string;
     recorded_at: Date;
+    verified_by?: string | null;
+    verified_at?: Date | null;
     receipt_url: string | null;
     notes: string | null;
     users?: {
@@ -81,6 +99,12 @@ export function toPaymentResponseDto(
       first_name: string;
       last_name: string;
     };
+    reporter?: {
+      id: string;
+      email: string;
+      first_name: string;
+      last_name: string;
+    } | null;
   },
 ): PaymentResponseDto {
   return {
@@ -90,8 +114,13 @@ export function toPaymentResponseDto(
     paymentDate: payment.payment_date,
     paymentMethod: payment.payment_method as PaymentResponseDto['paymentMethod'],
     referenceNumber: payment.reference_number ?? undefined,
+    status: (payment.status ?? 'confirmed') as ContractPaymentStatus,
+    reportedBy: payment.reported_by ?? undefined,
+    reportedAt: payment.reported_at ?? undefined,
     recordedBy: payment.recorded_by,
     recordedAt: payment.recorded_at,
+    verifiedBy: payment.verified_by ?? undefined,
+    verifiedAt: payment.verified_at ?? undefined,
     receiptUrl: payment.receipt_url ?? undefined,
     notes: payment.notes ?? undefined,
     ...(payment.users && {
@@ -102,5 +131,45 @@ export function toPaymentResponseDto(
         lastName: payment.users.last_name,
       },
     }),
+    ...(payment.reporter && {
+      reportedByUser: {
+        id: payment.reporter.id,
+        email: payment.reporter.email,
+        firstName: payment.reporter.first_name,
+        lastName: payment.reporter.last_name,
+      },
+    }),
+  };
+}
+
+export function toBankAccountResponseDto(
+  bankAccount: {
+    id: string;
+    bank_name: string;
+    bank_code: string;
+    account_number: string;
+    account_name: string;
+    is_primary: boolean;
+    is_active: boolean;
+    notes: string | null;
+    building_id: string | null;
+    owner_id: string | null;
+    created_at: Date;
+    updated_at: Date;
+  },
+): BankAccountResponseDto {
+  return {
+    id: bankAccount.id,
+    bankName: bankAccount.bank_name,
+    bankCode: bankAccount.bank_code,
+    accountNumber: bankAccount.account_number,
+    accountName: bankAccount.account_name,
+    isPrimary: bankAccount.is_primary,
+    isActive: bankAccount.is_active,
+    notes: bankAccount.notes ?? undefined,
+    buildingId: bankAccount.building_id ?? undefined,
+    ownerId: bankAccount.owner_id ?? undefined,
+    createdAt: bankAccount.created_at,
+    updatedAt: bankAccount.updated_at,
   };
 }

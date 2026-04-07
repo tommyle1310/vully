@@ -20,6 +20,8 @@ import { AccessCardsController } from './access-cards.controller';
 import { AccessCardsService } from './access-cards.service';
 import { AccessCardsHelpersService } from './access-cards-helpers.service';
 import { AccessCardsLifecycleService } from './access-cards-lifecycle.service';
+import { BankAccountsController } from './bank-accounts.controller';
+import { BankAccountsService } from './bank-accounts.service';
 
 @Module({
   controllers: [
@@ -30,6 +32,7 @@ import { AccessCardsLifecycleService } from './access-cards-lifecycle.service';
     BuildingPoliciesController,
     ParkingController,
     AccessCardsController,
+    BankAccountsController,
   ],
   providers: [
     BuildingsService,
@@ -46,6 +49,7 @@ import { AccessCardsLifecycleService } from './access-cards-lifecycle.service';
     AccessCardsService,
     AccessCardsHelpersService,
     AccessCardsLifecycleService,
+    BankAccountsService,
   ],
   exports: [
     BuildingsService,
@@ -62,6 +66,7 @@ import { AccessCardsLifecycleService } from './access-cards-lifecycle.service';
     AccessCardsService,
     AccessCardsHelpersService,
     AccessCardsLifecycleService,
+    BankAccountsService,
   ],
 })
 export class ApartmentsModule implements OnModuleInit {

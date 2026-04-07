@@ -1,12 +1,17 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { User, Lock } from 'lucide-react';
+import { User, Lock, Building2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SettingsProfileForm } from './settings-profile-form';
 import { SettingsPasswordForm } from './settings-password-form';
+import { SettingsBankAccountsForm } from './settings-bank-accounts-form';
+import { useAuthStore } from '@/stores/authStore';
 
 export default function SettingsPage() {
+  const { hasRole } = useAuthStore();
+  const isAdmin = hasRole('admin');
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -28,6 +33,12 @@ export default function SettingsPage() {
             <Lock className="h-4 w-4" />
             Security
           </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="bank-accounts" className="gap-2">
+              <Building2 className="h-4 w-4" />
+              Bank Accounts
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Profile Tab */}
@@ -49,6 +60,18 @@ export default function SettingsPage() {
             <SettingsPasswordForm />
           </motion.div>
         </TabsContent>
+
+        {/* Bank Accounts Tab (Admin only) */}
+        {isAdmin && (
+          <TabsContent value="bank-accounts" className="space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <SettingsBankAccountsForm />
+            </motion.div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

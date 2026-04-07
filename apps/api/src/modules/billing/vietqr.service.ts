@@ -11,33 +11,45 @@ export interface PaymentQRResult {
   isMock: boolean;
 }
 
+export interface BankAccountInfo {
+  bankCode: string;
+  accountNumber: string;
+  accountName: string;
+}
+
 interface IPaymentQRAdapter {
   generateQR(
     amount: number,
     reference: string,
+    bankAccount?: BankAccountInfo,
   ): PaymentQRResult;
 }
 
 class VietQRAdapter implements IPaymentQRAdapter {
   constructor(
-    private readonly bankId: string,
-    private readonly accountNo: string,
-    private readonly accountName: string,
+    private readonly defaultBankId: string,
+    private readonly defaultAccountNo: string,
+    private readonly defaultAccountName: string,
     private readonly template: string,
   ) {}
 
-  generateQR(amount: number, reference: string): PaymentQRResult {
-    const encodedName = encodeURIComponent(this.accountName);
+  generateQR(amount: number, reference: string, bankAccount?: BankAccountInfo): PaymentQRResult {
+    // Use provided bank account or fall back to defaults
+    const bankId = bankAccount?.bankCode ?? this.defaultBankId;
+    const accountNo = bankAccount?.accountNumber ?? this.defaultAccountNo;
+    const accountName = bankAccount?.accountName ?? this.defaultAccountName;
+
+    const encodedName = encodeURIComponent(accountName);
     const encodedRef = encodeURIComponent(reference);
     const qrImageUrl =
-      `https://img.vietqr.io/image/${this.bankId}-${this.accountNo}-${this.template}.png` +
+      `https://img.vietqr.io/image/${bankId}-${accountNo}-${this.template}.png` +
       `?amount=${Math.round(amount)}&addInfo=${encodedRef}&accountName=${encodedName}`;
 
     return {
       qrImageUrl,
-      bankId: this.bankId,
-      accountNo: this.accountNo,
-      accountName: this.accountName,
+      bankId,
+      accountNo,
+      accountName,
       amount: Math.round(amount),
       addInfo: reference,
       isMock: false,
@@ -46,12 +58,17 @@ class VietQRAdapter implements IPaymentQRAdapter {
 }
 
 class MockQRAdapter implements IPaymentQRAdapter {
-  generateQR(amount: number, reference: string): PaymentQRResult {
+  generateQR(amount: number, reference: string, bankAccount?: BankAccountInfo): PaymentQRResult {
+    // Use provided bank account info in mock mode too (for UI preview)
+    const bankId = bankAccount?.bankCode ?? 'vietinbank';
+    const accountNo = bankAccount?.accountNumber ?? '0000000000';
+    const accountName = bankAccount?.accountName ?? 'MOCK ACCOUNT';
+
     return {
-      qrImageUrl: `https://img.vietqr.io/image/vietinbank-0000000000-compact2.png?amount=${Math.round(amount)}&addInfo=${encodeURIComponent(reference)}&accountName=MOCK`,
-      bankId: 'mock',
-      accountNo: '0000000000',
-      accountName: 'MOCK ACCOUNT',
+      qrImageUrl: `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${Math.round(amount)}&addInfo=${encodeURIComponent(reference)}&accountName=${encodeURIComponent(accountName)}`,
+      bankId,
+      accountNo,
+      accountName,
       amount: Math.round(amount),
       addInfo: reference,
       isMock: true,
@@ -81,7 +98,13 @@ export class VietQRService {
     }
   }
 
-  generateQR(amount: number, reference: string): PaymentQRResult {
-    return this.adapter.generateQR(amount, reference);
+  /**
+   * Generate VietQR payment code
+   * @param amount Payment amount in VND
+   * @param reference Payment reference string
+   * @param bankAccount Optional dynamic bank account (overrides default)
+   */
+  generateQR(amount: number, reference: string, bankAccount?: BankAccountInfo): PaymentQRResult {
+    return this.adapter.generateQR(amount, reference, bankAccount);
   }
 }

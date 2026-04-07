@@ -875,7 +875,8 @@ import { WS_EVENTS, WS_ROOMS, IncidentEventPayload } from '@vully/shared-types';
 | **building_policies** | building_id, effective_from, effective_to, max_residents, access_card_limit, pet_allowed, billing_cycle, trash_collection_schedule | → buildings |
 | **contracts** | apartment_id, tenant_id, contract_type, status, start_date, end_date, rent_amount, deposit_months, deposit_amount, purchase_price, down_payment, option_fee, rent_credit_percent, payment_due_day | → apartments, users, invoices, contract_payment_schedules |
 | **contract_payment_schedules** | contract_id, payment_type, due_date, expected_amount, received_amount, status, notes | → contracts, contract_payments |
-| **contract_payments** | schedule_id, amount, payment_date, payment_method, reference_number, receipt_url, recorded_by_id, is_voided, voided_by_id, void_reason | → schedules, users |
+| **contract_payments** | schedule_id, amount, payment_date, payment_method, reference_number, receipt_url, recorded_by_id, is_voided, voided_by_id, void_reason, status (ContractPaymentStatus), reported_by_id, reported_at, verified_by_id, verified_at, admin_notes | → schedules, users |
+| **bank_accounts** | building_id?, owner_id?, bank_name, account_number, account_holder, branch, bin_code, template, is_default, is_active | → buildings, users |
 | **invoices** | contract_id, billing_period, subtotal, tax_amount, total_amount, paid_amount, status, due_date, paid_at | → contracts, invoice_line_items |
 | **invoice_line_items** | invoice_id, description, quantity, unit_price, amount, meter_reading_id, utility_type_id | → invoices, meter_readings, utility_types |
 | **meter_readings** | apartment_id, utility_type_id, billing_period, previous_value, current_value, consumption | → apartments, utility_types |
@@ -904,8 +905,9 @@ IncidentStatus: open, assigned, in_progress, pending_review, resolved, closed
 IncidentCategory: plumbing, electrical, hvac, structural, appliance, pest, noise, security, other
 IncidentPriority: low, medium, high, urgent
 PaymentType: downpayment, installment, rent, deposit, option_fee, penalty, adjustment
-PaymentStatus: pending, partial, paid, overdue, waived
+PaymentStatus: pending, partial, paid, overdue, waived, reported, verified
 PaymentMethod: bank_transfer, cash, check, card, other
+ContractPaymentStatus: pending, confirmed, rejected (for verification workflow)
 ParkingType: car, motorcycle, bicycle
 ParkingSlotStatus: available, assigned, reserved, maintenance
 AccessCardType: building, parking
@@ -1001,9 +1003,22 @@ All routes: `BASE_URL/api/v1/...`
 | POST | `/:contractId/payment-schedules` | JWT | admin | Create schedule |
 | POST | `/:contractId/payment-schedules/generate` | JWT | admin | Auto-generate schedules |
 | GET | `/:contractId/payment-schedules/:id` | JWT | admin | Get schedule detail |
-| POST | `/:contractId/payments` | JWT | admin | Record payment |
+| POST | `/:contractId/payments` | JWT | admin | Record payment (direct confirmation) |
 | POST | `/:contractId/payments/:id/void` | JWT | admin | Void payment |
 | GET | `/:contractId/financial-summary` | JWT | admin, resident | Financial summary |
+| POST | `/:contractId/payments/report` | JWT | resident | Report payment (awaits admin verification) |
+| GET | `/payments/pending` | JWT | admin | List all pending payments awaiting verification |
+| POST | `/payments/:id/verify` | JWT | admin | Verify (confirm/reject) reported payment |
+
+### Bank Accounts (`/bank-accounts`)
+| Method | Path | Auth | Roles | Description |
+|--------|------|------|-------|-------------|
+| GET | `/bank-accounts` | JWT | admin | List all bank accounts |
+| POST | `/bank-accounts` | JWT | admin | Create bank account (for building or owner) |
+| GET | `/bank-accounts/:id` | JWT | admin | Get bank account details |
+| PATCH | `/bank-accounts/:id` | JWT | admin | Update bank account |
+| DELETE | `/bank-accounts/:id` | JWT | admin | Delete bank account |
+| GET | `/bank-accounts/for-payment` | JWT | resident | Get appropriate bank account for payment (dynamic based on building/owner) |
 
 ### Parking (`/buildings/:buildingId/parking`)
 | Method | Path | Auth | Roles | Description |

@@ -8,6 +8,7 @@ import {
   Receipt,
   Calendar,
   ArrowUpDown,
+  Send,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,8 +25,10 @@ import { cn } from '@/lib/utils';
 
 const columnHelper = createColumnHelper<PaymentSchedule>();
 
-export const statusConfig: Record<PaymentStatus, { label: string; variant: 'default' | 'success' | 'warning' | 'destructive' | 'outline' }> = {
+export const statusConfig: Record<PaymentStatus, { label: string; variant: 'default' | 'success' | 'warning' | 'destructive' | 'outline' | 'secondary' }> = {
   pending: { label: 'Pending', variant: 'default' },
+  reported: { label: 'Reported', variant: 'secondary' }, // Awaiting admin verification
+  verified: { label: 'Verified', variant: 'success' },
   partial: { label: 'Partial', variant: 'warning' },
   paid: { label: 'Paid', variant: 'success' },
   overdue: { label: 'Overdue', variant: 'destructive' },
@@ -47,6 +50,8 @@ export function usePaymentColumns(
   onDelete: (scheduleId: string) => void,
   onEdit?: (schedule: PaymentSchedule) => void,
   isAdmin: boolean = true,
+  onReportPayment?: (schedule: PaymentSchedule) => void,
+  isResident: boolean = false,
 ) {
   return useMemo(
     () => [
@@ -137,6 +142,7 @@ export function usePaymentColumns(
         cell: (info) => {
           const schedule = info.row.original;
           const canRecordPayment = schedule.status !== 'paid' && schedule.status !== 'waived';
+          const canReportPayment = isResident && canRecordPayment && schedule.status !== 'reported';
           
           return (
             <DropdownMenu>
@@ -146,10 +152,18 @@ export function usePaymentColumns(
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {canRecordPayment && (
+                {/* Admin: Record Payment */}
+                {isAdmin && canRecordPayment && (
                   <DropdownMenuItem onClick={() => onRecordPayment(schedule)}>
                     <Receipt className="mr-2 h-4 w-4" />
                     Record Payment
+                  </DropdownMenuItem>
+                )}
+                {/* Resident: Report Payment */}
+                {canReportPayment && onReportPayment && (
+                  <DropdownMenuItem onClick={() => onReportPayment(schedule)}>
+                    <Send className="mr-2 h-4 w-4" />
+                    Report Payment
                   </DropdownMenuItem>
                 )}
                 {isAdmin && (
@@ -177,7 +191,7 @@ export function usePaymentColumns(
         size: 50,
       }),
     ],
-    [onRecordPayment, onDelete, onEdit, isAdmin]
+    [onRecordPayment, onDelete, onEdit, isAdmin, onReportPayment, isResident]
   );
 }
 

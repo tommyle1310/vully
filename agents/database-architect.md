@@ -9,13 +9,14 @@ You are a database architect specializing in PostgreSQL, Prisma ORM, and data mo
 ## Project Context
 
 **Database Stack**: PostgreSQL 15+ with Prisma ORM, pgvector extension (for AI embeddings), uuid-ossp extension
-**Current Schema**: 20 models across 6 domains:
+**Current Schema**: 21 models across 7 domains:
 1. **Identity**: users, user_role_assignments, permissions, role_permissions, refresh_tokens, password_reset_tokens, audit_logs
 2. **Apartments**: buildings, apartments, contracts, management_fee_configs
 3. **Billing**: invoices, invoice_line_items, meter_readings, utility_types, utility_tiers, billing_jobs
-4. **Incidents**: incidents, incident_comments, notifications
-5. **AI Assistant**: documents, document_chunks (with vector embeddings)
-6. **Stats**: chat_queries (for analytics)
+4. **Payments**: contract_payment_schedules, contract_payments, bank_accounts
+5. **Incidents**: incidents, incident_comments, notifications
+6. **AI Assistant**: documents, document_chunks (with vector embeddings)
+7. **Stats**: chat_queries (for analytics)
 
 ## Existing Schema Patterns to Follow
 
@@ -127,6 +128,78 @@ model utility_tiers {
   effective_to    DateTime?     @db.Date
   buildings       buildings?    @relation(fields: [building_id], references: [id], onDelete: Cascade)
   utility_types   utility_types @relation(fields: [utility_type_id], references: [id], onDelete: Cascade)
+}
+```
+
+### 11. Bank Account Pattern (for VietQR Dynamic Recipients)
+```prisma
+model bank_accounts {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  building_id    String?   @db.Uuid    // For management fees (building-level)
+  owner_id       String?   @db.Uuid    // For rent payments (owner-level)
+  bank_name      String    @db.VarChar(100)
+  account_number String    @db.VarChar(50)
+  account_holder String    @db.VarChar(200)
+  branch         String?   @db.VarChar(100)
+  bin_code       String    @db.VarChar(20)  // VietQR bank code
+  template       String    @default("print") @db.VarChar(20)
+  is_default     Boolean   @default(false)
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @db.Timestamptz(6)
+  buildings      buildings? @relation(fields: [building_id], references: [id], onDelete: Cascade)
+  users          users?     @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+
+  @@index([building_id])
+  @@index([owner_id])
+}
+```
+
+### 12. Payment Verification Workflow Pattern
+```prisma
+enum ContractPaymentStatus {
+  pending
+  confirmed
+  rejected
+}
+
+model contract_payments {
+  id               String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  schedule_id      String                @db.Uuid
+  amount           Decimal               @db.Decimal(15, 2)
+  payment_date     DateTime              @db.Date
+  payment_method   PaymentMethod
+  reference_number String?               @db.VarChar(100)
+  receipt_url      String?               @db.VarChar(500)
+  notes            String?
+
+  // Verification workflow fields
+  status           ContractPaymentStatus @default(pending)
+  reported_by_id   String?               @db.Uuid  // Resident who reported the payment
+  reported_at      DateTime?             @db.Timestamptz(6)
+  verified_by_id   String?               @db.Uuid  // Admin who verified/rejected
+  verified_at      DateTime?             @db.Timestamptz(6)
+  admin_notes      String?               // Admin verification notes
+
+  // Void tracking
+  recorded_by_id   String?               @db.Uuid
+  is_voided        Boolean               @default(false)
+  voided_by_id     String?               @db.Uuid
+  voided_at        DateTime?             @db.Timestamptz(6)
+  void_reason      String?
+
+  created_at       DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime              @db.Timestamptz(6)
+
+  schedule         contract_payment_schedules @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
+  recorded_by      users?                @relation("recorded_payments", fields: [recorded_by_id], references: [id])
+  reported_by      users?                @relation("reported_payments", fields: [reported_by_id], references: [id])
+  verified_by      users?                @relation("verified_payments", fields: [verified_by_id], references: [id])
+  voided_by        users?                @relation("voided_payments", fields: [voided_by_id], references: [id])
+
+  @@index([schedule_id])
+  @@index([status])  // For filtering pending payments
+  @@index([reported_by_id])
 }
 ```
 

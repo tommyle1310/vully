@@ -26,10 +26,19 @@ export enum PaymentType {
 
 export enum PaymentStatus {
   pending = 'pending',
+  reported = 'reported', // Resident claimed transfer, awaiting admin verification
+  verified = 'verified', // Admin confirmed payment received
   partial = 'partial',
   paid = 'paid',
   overdue = 'overdue',
   waived = 'waived',
+}
+
+// Contract Payment Status (for individual payment transaction verification)
+export enum ContractPaymentStatus {
+  reported = 'reported',   // Resident claimed transfer, awaiting verification
+  confirmed = 'confirmed', // Admin verified and confirmed (default for admin-recorded)
+  rejected = 'rejected',   // Admin rejected (invalid payment claim)
 }
 
 export enum PaymentMethod {
@@ -189,6 +198,57 @@ export class RecordPaymentDto {
   notes?: string;
 }
 
+// DTO for resident to report a transfer (awaiting admin verification)
+export class ReportPaymentDto {
+  @ApiProperty({ example: 15000000, description: 'Payment amount claimed in VND' })
+  @IsNumber()
+  @Min(1)
+  amount: number;
+
+  @ApiProperty({ example: '2026-04-03', description: 'Date of claimed transfer' })
+  @IsDateString()
+  paymentDate: string;
+
+  @ApiPropertyOptional({ enum: PaymentMethod, example: PaymentMethod.bank_transfer })
+  @IsOptional()
+  @IsEnum(PaymentMethod)
+  paymentMethod?: PaymentMethod;
+
+  @ApiPropertyOptional({ example: 'VCB-123456', description: 'Bank transfer reference number' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  referenceNumber?: string;
+
+  @ApiPropertyOptional({ description: 'Receipt/proof image URL (MinIO upload)' })
+  @IsOptional()
+  @IsUrl()
+  receiptUrl?: string;
+
+  @ApiPropertyOptional({ description: 'Additional notes from resident' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+// DTO for admin to verify a reported payment
+export class VerifyPaymentDto {
+  @ApiProperty({ description: 'Whether the payment is confirmed or rejected' })
+  @IsEnum(ContractPaymentStatus)
+  status: ContractPaymentStatus;
+
+  @ApiPropertyOptional({ description: 'Admin notes (e.g., rejection reason)' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ApiPropertyOptional({ description: 'Override the payment amount if different from reported' })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  actualAmount?: number;
+}
+
 export class PaymentResponseDto {
   @ApiProperty()
   id: string;
@@ -208,11 +268,28 @@ export class PaymentResponseDto {
   @ApiPropertyOptional()
   referenceNumber?: string;
 
-  @ApiProperty()
+  @ApiProperty({ enum: ContractPaymentStatus })
+  status: ContractPaymentStatus;
+
+  // Who reported/recorded the payment
+  @ApiPropertyOptional({ description: 'User who reported the payment (resident)' })
+  reportedBy?: string;
+
+  @ApiPropertyOptional()
+  reportedAt?: Date;
+
+  @ApiProperty({ description: 'User who recorded/confirmed the payment (admin)' })
   recordedBy: string;
 
   @ApiProperty()
   recordedAt: Date;
+
+  // Verification info
+  @ApiPropertyOptional({ description: 'Admin who verified the payment' })
+  verifiedBy?: string;
+
+  @ApiPropertyOptional()
+  verifiedAt?: Date;
 
   @ApiPropertyOptional()
   receiptUrl?: string;
@@ -222,6 +299,14 @@ export class PaymentResponseDto {
 
   @ApiPropertyOptional()
   recordedByUser?: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
+
+  @ApiPropertyOptional()
+  reportedByUser?: {
     id: string;
     email: string;
     firstName: string;
@@ -287,4 +372,139 @@ export class GeneratePurchaseMilestonesDto {
   @Min(1)
   @Max(100)
   downPaymentPercent?: number;
+}
+
+// ============================================================================
+// Bank Account DTOs (for VietQR Payment)
+// ============================================================================
+
+export class CreateBankAccountDto {
+  @ApiProperty({ example: 'Vietinbank', description: 'Bank name' })
+  @IsString()
+  @MaxLength(100)
+  bankName: string;
+
+  @ApiProperty({ example: 'vietinbank', description: 'Bank code for VietQR' })
+  @IsString()
+  @MaxLength(50)
+  bankCode: string;
+
+  @ApiProperty({ example: '1234567890', description: 'Bank account number' })
+  @IsString()
+  @MaxLength(30)
+  accountNumber: string;
+
+  @ApiProperty({ example: 'NGUYEN VAN A', description: 'Account holder name' })
+  @IsString()
+  @MaxLength(255)
+  accountName: string;
+
+  @ApiPropertyOptional({ example: true, description: 'If this is the primary account' })
+  @IsOptional()
+  isPrimary?: boolean;
+
+  @ApiPropertyOptional({ description: 'Additional notes' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  // Link to building (for management) or owner (for rent)
+  @ApiPropertyOptional({ description: 'Building ID (for management accounts)' })
+  @IsOptional()
+  @IsUUID()
+  buildingId?: string;
+
+  @ApiPropertyOptional({ description: 'Owner/User ID (for rent collection accounts)' })
+  @IsOptional()
+  @IsUUID()
+  ownerId?: string;
+}
+
+export class UpdateBankAccountDto {
+  @ApiPropertyOptional({ example: 'Vietinbank' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  bankName?: string;
+
+  @ApiPropertyOptional({ example: 'NGUYEN VAN A' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  accountName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  isPrimary?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  isActive?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class BankAccountResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  bankName: string;
+
+  @ApiProperty()
+  bankCode: string;
+
+  @ApiProperty()
+  accountNumber: string;
+
+  @ApiProperty()
+  accountName: string;
+
+  @ApiProperty()
+  isPrimary: boolean;
+
+  @ApiProperty()
+  isActive: boolean;
+
+  @ApiPropertyOptional()
+  notes?: string;
+
+  @ApiPropertyOptional()
+  buildingId?: string;
+
+  @ApiPropertyOptional()
+  ownerId?: string;
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+}
+
+// ============================================================================
+// Pending Verification DTOs
+// ============================================================================
+
+export class PendingPaymentResponseDto extends PaymentResponseDto {
+  @ApiProperty({ description: 'Schedule info for context' })
+  schedule: {
+    id: string;
+    periodLabel: string;
+    expectedAmount: number;
+    dueDate: Date;
+    contractId: string;
+  };
+
+  @ApiPropertyOptional({ description: 'Contract info for context' })
+  contract?: {
+    id: string;
+    apartmentId: string;
+    tenantId: string;
+    tenantName: string;
+    apartmentCode: string;
+  };
 }

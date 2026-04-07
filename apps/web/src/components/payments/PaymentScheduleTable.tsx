@@ -14,6 +14,7 @@ import {
   Plus,
   Wand2,
   AlertCircle,
+  Send,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +34,7 @@ import {
   PaymentSchedule,
 } from '@/hooks/use-payments';
 import { RecordPaymentDialog } from './RecordPaymentDialog';
+import { ReportPaymentDialog } from './ReportPaymentDialog';
 import { EditPaymentScheduleDialog } from './EditPaymentScheduleDialog';
 import { usePaymentColumns, PaymentTableSkeleton } from './payment-schedule-columns';
 import { useToast } from '@/hooks/use-toast';
@@ -53,8 +55,11 @@ export function PaymentScheduleTable({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [selectedSchedule, setSelectedSchedule] = useState<PaymentSchedule | null>(null);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [reportPaymentOpen, setReportPaymentOpen] = useState(false);
   const [editScheduleOpen, setEditScheduleOpen] = useState(false);
-  const isAdmin = useAuthStore((s) => s.hasRole('admin') || s.hasRole('technician'));
+  const { hasRole, hasAnyRole } = useAuthStore();
+  const isAdmin = hasRole('admin') || hasRole('technician');
+  const isResident = hasRole('resident') && !hasAnyRole(['admin', 'technician']);
 
   const { data, isLoading, error, refetch } = usePaymentSchedules(contractId);
   const deleteSchedule = useDeletePaymentSchedule();
@@ -66,6 +71,11 @@ export function PaymentScheduleTable({
   const handleRecordPayment = useCallback((schedule: PaymentSchedule) => {
     setSelectedSchedule(schedule);
     setRecordPaymentOpen(true);
+  }, []);
+
+  const handleReportPayment = useCallback((schedule: PaymentSchedule) => {
+    setSelectedSchedule(schedule);
+    setReportPaymentOpen(true);
   }, []);
 
   const handleDeleteSchedule = useCallback((scheduleId: string) => {
@@ -87,7 +97,14 @@ export function PaymentScheduleTable({
     setEditScheduleOpen(true);
   }, []);
 
-  const columns = usePaymentColumns(handleRecordPayment, handleDeleteSchedule, handleEditSchedule, isAdmin);
+  const columns = usePaymentColumns(
+    handleRecordPayment, 
+    handleDeleteSchedule, 
+    handleEditSchedule, 
+    isAdmin,
+    handleReportPayment,
+    isResident
+  );
 
   const table = useReactTable({
     data: schedules,
@@ -172,6 +189,20 @@ export function PaymentScheduleTable({
                 Add Entry
               </Button>
             )}
+            {/* Resident: Quick Report Payment button for next unpaid schedule */}
+            {isResident && schedules.length > 0 && (
+              (() => {
+                const nextUnpaid = schedules.find(
+                  (s) => s.status !== 'paid' && s.status !== 'waived' && s.status !== 'reported'
+                );
+                return nextUnpaid ? (
+                  <Button size="sm" onClick={() => handleReportPayment(nextUnpaid)}>
+                    <Send className="mr-2 h-4 w-4" />
+                    Report Transfer
+                  </Button>
+                ) : null;
+              })()
+            )}
           </div>
         </div>
 
@@ -233,6 +264,13 @@ export function PaymentScheduleTable({
       <RecordPaymentDialog
         open={recordPaymentOpen}
         onOpenChange={setRecordPaymentOpen}
+        schedule={selectedSchedule}
+        onSuccess={() => refetch()}
+      />
+
+      <ReportPaymentDialog
+        open={reportPaymentOpen}
+        onOpenChange={setReportPaymentOpen}
         schedule={selectedSchedule}
         onSuccess={() => refetch()}
       />

@@ -124,9 +124,10 @@ apps/web/src/
 │   │   ├── apartment-detail-panel.tsx, map-controls.tsx
 │   │   ├── svg-builder-dialog.tsx, svg-upload-dialog.tsx
 │   │   └── svg-builder/             # Builder sub-components
-│   ├── payments/                    # Payment tracking
+│   ├── payments/                    # Payment tracking & verification
 │   │   ├── PaymentScheduleTable.tsx, payment-schedule-columns.tsx,
-│   │   │   ContractFinancialSummary.tsx, RecordPaymentDialog.tsx, index.ts
+│   │   │   ContractFinancialSummary.tsx, RecordPaymentDialog.tsx,
+│   │   │   ReportPaymentDialog.tsx, VerifyPaymentDialog.tsx, index.ts
 │   ├── users/                       # User management dialogs
 │   │   ├── create-user-dialog.tsx, edit-user-dialog.tsx, manage-roles-dialog.tsx
 │   ├── apartment-combobox.tsx       # Reusable apartment picker
@@ -151,7 +152,7 @@ apps/web/src/
 │   ├── use-invoices.ts
 │   ├── use-meter-readings.ts
 │   ├── use-billing.ts               # Utility types/tiers
-│   ├── use-payments.ts              # Payment schedules + financial summary
+│   ├── use-payments.ts              # Payment schedules + financial summary + verification workflow
 │   ├── use-parking.ts
 │   ├── use-access-cards.ts
 │   ├── use-stats.ts

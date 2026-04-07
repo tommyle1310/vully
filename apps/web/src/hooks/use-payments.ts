@@ -5,7 +5,8 @@ import { apiClient } from '@/lib/api-client';
 
 // Types matching backend DTOs
 export type PaymentType = 'downpayment' | 'installment' | 'rent' | 'deposit' | 'option_fee' | 'penalty' | 'adjustment';
-export type PaymentStatus = 'pending' | 'partial' | 'paid' | 'overdue' | 'waived';
+export type PaymentStatus = 'pending' | 'reported' | 'verified' | 'partial' | 'paid' | 'overdue' | 'waived';
+export type ContractPaymentStatus = 'reported' | 'confirmed' | 'rejected';
 export type PaymentMethod = 'bank_transfer' | 'cash' | 'check' | 'card' | 'other';
 
 export interface PaymentSchedule {
@@ -32,8 +33,13 @@ export interface Payment {
   paymentDate: string;
   paymentMethod?: PaymentMethod;
   referenceNumber?: string;
+  status: ContractPaymentStatus;
+  reportedBy?: string;
+  reportedAt?: string;
   recordedBy: string;
   recordedAt: string;
+  verifiedBy?: string;
+  verifiedAt?: string;
   receiptUrl?: string;
   notes?: string;
   recordedByUser?: {
@@ -41,6 +47,29 @@ export interface Payment {
     email: string;
     firstName: string;
     lastName: string;
+  };
+  reportedByUser?: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
+export interface PendingPayment extends Payment {
+  schedule: {
+    id: string;
+    periodLabel: string;
+    expectedAmount: number;
+    dueDate: string;
+    contractId: string;
+  };
+  contract?: {
+    id: string;
+    apartmentId: string;
+    tenantId: string;
+    tenantName: string;
+    apartmentCode: string;
   };
 }
 
@@ -79,6 +108,21 @@ export interface RecordPaymentInput {
   notes?: string;
 }
 
+export interface ReportPaymentInput {
+  amount: number;
+  paymentDate: string;
+  paymentMethod?: PaymentMethod;
+  referenceNumber?: string;
+  receiptUrl?: string;
+  notes?: string;
+}
+
+export interface VerifyPaymentInput {
+  status: ContractPaymentStatus;
+  notes?: string;
+  actualAmount?: number;
+}
+
 export interface GenerateRentScheduleInput {
   months?: number;
   paymentDueDay?: number;
@@ -104,10 +148,15 @@ interface PaymentsResponse {
 
 interface PaymentResponse {
   data: Payment;
+  message?: string;
 }
 
 interface FinancialSummaryResponse {
   data: ContractFinancialSummary;
+}
+
+interface PendingPaymentsResponse {
+  data: PendingPayment[];
 }
 
 // =============================================================================
@@ -275,6 +324,60 @@ export function useVoidPayment() {
       return apiClient.delete(`/payments/${paymentId}`);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-schedules'] });
+    },
+  });
+}
+
+// =============================================================================
+// Payment Reporting (Resident)
+// =============================================================================
+
+/**
+ * Report a payment transfer (for residents, awaiting admin verification)
+ */
+export function useReportPayment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ scheduleId, data }: { scheduleId: string; data: ReportPaymentInput }) => {
+      return apiClient.post<PaymentResponse>(`/payment-schedules/${scheduleId}/report`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-schedules'] });
+    },
+  });
+}
+
+// =============================================================================
+// Payment Verification (Admin)
+// =============================================================================
+
+/**
+ * Get all pending payments awaiting verification
+ */
+export function usePendingPayments() {
+  return useQuery({
+    queryKey: ['payments', 'pending'],
+    queryFn: () => apiClient.get<PendingPaymentsResponse>('/payments/pending'),
+    staleTime: 30 * 1000, // 30 seconds - needs to be fresher
+  });
+}
+
+/**
+ * Verify or reject a reported payment
+ */
+export function useVerifyPayment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ paymentId, data }: { paymentId: string; data: VerifyPaymentInput }) => {
+      return apiClient.patch<PaymentResponse>(`/payments/${paymentId}/verify`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments', 'pending'] });
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['payment-schedules'] });
     },

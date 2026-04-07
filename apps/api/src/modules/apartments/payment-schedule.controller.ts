@@ -24,10 +24,13 @@ import {
   UpdatePaymentScheduleDto,
   PaymentScheduleResponseDto,
   RecordPaymentDto,
+  ReportPaymentDto,
+  VerifyPaymentDto,
   PaymentResponseDto,
   ContractFinancialSummaryDto,
   GenerateRentScheduleDto,
   GeneratePurchaseMilestonesDto,
+  PendingPaymentResponseDto,
 } from './dto/payment.dto';
 import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -161,6 +164,65 @@ export class PaymentScheduleController {
   ): Promise<{ message: string }> {
     await this.paymentScheduleService.deletePayment(id);
     return { message: 'Payment deleted' };
+  }
+
+  // =========================================================================
+  // Payment Reporting (Resident)
+  // =========================================================================
+
+  @Post('payment-schedules/:scheduleId/report')
+  @Roles('admin', 'resident')
+  @ApiOperation({ summary: 'Report a payment transfer (resident - awaiting admin verification)' })
+  @ApiResponse({ status: 201, description: 'Payment reported (pending verification)', type: PaymentResponseDto })
+  @ApiResponse({ status: 400, description: 'Not your contract' })
+  async reportPayment(
+    @Param('scheduleId', ParseUUIDPipe) scheduleId: string,
+    @Body() dto: ReportPaymentDto,
+    @CurrentUser() user: AuthUser,
+  ): Promise<{ data: PaymentResponseDto; message: string }> {
+    const payment = await this.paymentScheduleService.reportPayment(
+      scheduleId,
+      dto,
+      user.id,
+    );
+    return {
+      data: payment,
+      message: 'Payment reported successfully. Admin will verify your transfer.',
+    };
+  }
+
+  // =========================================================================
+  // Payment Verification (Admin)
+  // =========================================================================
+
+  @Get('payments/pending')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Get all pending payments awaiting verification' })
+  @ApiResponse({ status: 200, description: 'Pending payments list', type: [PendingPaymentResponseDto] })
+  async findPendingPayments(): Promise<{ data: PendingPaymentResponseDto[] }> {
+    const payments = await this.paymentScheduleService.findPendingPayments();
+    return { data: payments };
+  }
+
+  @Patch('payments/:id/verify')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Verify or reject a reported payment' })
+  @ApiResponse({ status: 200, description: 'Payment verified/rejected', type: PaymentResponseDto })
+  @ApiResponse({ status: 400, description: 'Payment not in reported status' })
+  async verifyPayment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: VerifyPaymentDto,
+    @CurrentUser() user: AuthUser,
+  ): Promise<{ data: PaymentResponseDto; message: string }> {
+    const payment = await this.paymentScheduleService.verifyPayment(
+      id,
+      dto,
+      user.id,
+    );
+    return {
+      data: payment,
+      message: dto.status === 'confirmed' ? 'Payment verified and confirmed' : 'Payment rejected',
+    };
   }
 
   // =========================================================================
