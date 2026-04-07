@@ -77,16 +77,17 @@ export class StatsAnalyticsService {
 
     const allInvoices = await this.prisma.invoices.findMany({
       where: {
-        status: 'paid',
-        paid_at: { gte: rangeStart, lt: rangeEnd },
+        status: { in: ['pending', 'overdue', 'paid'] },
+        issue_date: { gte: rangeStart, lt: rangeEnd },
       },
       include: { invoice_line_items: true },
     });
 
     const byMonth = new Map<string, typeof allInvoices>();
     for (const inv of allInvoices) {
-      if (!inv.paid_at) continue;
-      const key = inv.paid_at.toISOString().substring(0, 7);
+      const bucketDate = inv.paid_at || inv.issue_date;
+      if (!bucketDate) continue;
+      const key = bucketDate.toISOString().substring(0, 7);
       if (!byMonth.has(key)) byMonth.set(key, []);
       byMonth.get(key)!.push(inv);
     }

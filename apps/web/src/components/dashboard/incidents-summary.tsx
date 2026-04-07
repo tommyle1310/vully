@@ -2,6 +2,17 @@
 
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import {
+  Wrench,
+  Zap,
+  Wind,
+  Hammer,
+  Settings,
+  Bug,
+  Volume2,
+  ShieldAlert,
+  ClipboardList,
+} from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIncidentAnalytics } from '@/hooks/use-stats';
@@ -15,16 +26,16 @@ const STATUS_COLORS: Record<string, string> = {
   closed: '#6b7280',      // gray-500
 };
 
-const CATEGORY_ICONS: Record<string, string> = {
-  plumbing: '💧',
-  electrical: '⚡',
-  hvac: '❄️',
-  structural: '🏗️',
-  appliance: '🔧',
-  pest: '🐛',
-  noise: '🔊',
-  security: '🔒',
-  other: '📋',
+const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  plumbing: Wrench,
+  electrical: Zap,
+  hvac: Wind,
+  structural: Hammer,
+  appliance: Settings,
+  pest: Bug,
+  noise: Volume2,
+  security: ShieldAlert,
+  other: ClipboardList,
 };
 
 interface TooltipProps {
@@ -133,24 +144,26 @@ export function IncidentsSummary() {
             <div>
               <h4 className="mb-3 text-sm font-medium">Top Categories</h4>
               <div className="space-y-3">
-                {topCategories.map((cat) => (
-                  <div key={cat.category} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">
-                        {CATEGORY_ICONS[cat.category] || '📋'}
-                      </span>
-                      <div>
-                        <p className="text-sm font-medium">
+                {topCategories.map((cat) => {
+                  const Icon = CATEGORY_ICONS[cat.category] || ClipboardList;
+                  return (
+                  <div key={cat.category} className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                        <Icon className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
                           {cat.category.charAt(0).toUpperCase() + cat.category.slice(1)}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="truncate text-xs text-muted-foreground">
                           Avg: {cat.avgResolutionTime}h resolution
                         </p>
                       </div>
                     </div>
-                    <span className="text-sm font-bold">{cat.count}</span>
+                    <span className="shrink-0 text-sm font-bold">{cat.count}</span>
                   </div>
-                ))}
+                )})}
               </div>
 
               {/* Priority Summary */}

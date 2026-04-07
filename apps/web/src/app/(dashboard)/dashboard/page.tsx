@@ -193,9 +193,13 @@ export default function DashboardPage() {
       </div>
 
       {/* Incidents Summary and Recent Activity */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <IncidentsSummary />
-        <RecentActivity />
+      <div className="grid gap-4 md:grid-cols-12">
+        <div className="md:col-span-5">
+          <IncidentsSummary />
+        </div>
+        <div className="md:col-span-7">
+          <RecentActivity />
+        </div>
       </div>
     </div>
   );

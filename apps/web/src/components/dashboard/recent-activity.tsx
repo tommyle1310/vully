@@ -39,7 +39,7 @@ const PRIORITY_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive'>
 };
 
 export function RecentActivity() {
-  const { data, isLoading, isError } = useRecentActivity(10);
+  const { data, isLoading, isError } = useRecentActivity(7);
 
   if (isError) {
     return (
@@ -57,7 +57,7 @@ export function RecentActivity() {
       <Card>
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
-          <CardDescription>Last 7 days</CardDescription>
+          <CardDescription>Most relevant updates</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -83,7 +83,7 @@ export function RecentActivity() {
       <Card>
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
-          <CardDescription>Last 7 days</CardDescription>
+          <CardDescription>Most relevant updates</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">No recent activity</p>
@@ -101,10 +101,10 @@ export function RecentActivity() {
       <Card>
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
-          <CardDescription>Last 7 days</CardDescription>
+          <CardDescription>Most relevant updates</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
             {activities.map((activity, index) => {
               const Icon = TYPE_ICONS[activity.type] || Clock;
               const iconColor = TYPE_COLORS[activity.type] || 'text-gray-500';
@@ -115,31 +115,31 @@ export function RecentActivity() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="flex items-start gap-4 pb-4 last:pb-0 border-b last:border-b-0"
+                  className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/25 p-3"
                 >
-                  <div className={`rounded-full bg-muted p-2 ${iconColor}`}>
-                    <Icon className="h-5 w-5" />
+                  <div className={`rounded-lg bg-muted p-2 ${iconColor}`}>
+                    <Icon className="h-4 w-4" />
                   </div>
                   
                   <div className="flex-1 space-y-1">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
-                        <p className="text-sm font-medium leading-none">
+                        <p className="text-sm font-medium leading-none line-clamp-1">
                           {activity.title}
                         </p>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                           {activity.description}
                         </p>
                       </div>
                       
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         {activity.priority && (
-                          <Badge variant={PRIORITY_VARIANTS[activity.priority] || 'default'} className="text-xs">
+                          <Badge variant={PRIORITY_VARIANTS[activity.priority] || 'default'} className="text-[10px]">
                             {activity.priority}
                           </Badge>
                         )}
                         {activity.status && (
-                          <Badge variant={STATUS_VARIANTS[activity.status] || 'default'} className="text-xs">
+                          <Badge variant={STATUS_VARIANTS[activity.status] || 'default'} className="text-[10px]">
                             {activity.status.replace('_', ' ')}
                           </Badge>
                         )}

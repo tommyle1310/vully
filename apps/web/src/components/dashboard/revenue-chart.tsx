@@ -24,12 +24,16 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
         {payload.map((item, index) => (
           <div key={index} className="flex items-center justify-between gap-4 text-sm">
             <span style={{ color: item.color }}>{item.name}</span>
-            <span className="font-medium">${item.value.toLocaleString()}</span>
+            <span className="font-medium">
+              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(item.value)}
+            </span>
           </div>
         ))}
         <div className="border-t pt-1 flex items-center justify-between gap-4 text-sm font-semibold">
           <span>Total</span>
-          <span>${total.toLocaleString()}</span>
+          <span>
+            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(total)}
+          </span>
         </div>
       </div>
     </div>
@@ -71,6 +75,8 @@ export function RevenueChart() {
     Fees: item.fees,
   })) || [];
 
+  const isAllZero = chartData.every((item) => item.Rent === 0 && item.Utilities === 0 && item.Fees === 0);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -83,6 +89,11 @@ export function RevenueChart() {
           <CardDescription>Monthly revenue by category (last 6 months)</CardDescription>
         </CardHeader>
         <CardContent>
+          {isAllZero ? (
+            <div className="flex h-[300px] items-center justify-center rounded-lg border border-dashed border-border/70 text-sm text-muted-foreground">
+              No billing data yet for the selected period.
+            </div>
+          ) : (
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <defs>
@@ -108,7 +119,7 @@ export function RevenueChart() {
               <YAxis
                 className="text-xs"
                 tick={{ fill: 'hsl(var(--foreground))' }}
-                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                tickFormatter={(value) => `${Math.round(value / 1000000)}M`}
               />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: '14px' }} />
@@ -135,6 +146,7 @@ export function RevenueChart() {
               />
             </AreaChart>
           </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
     </motion.div>

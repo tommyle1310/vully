@@ -93,6 +93,9 @@ export class UserResponseDto {
   @ApiPropertyOptional()
   phone?: string;
 
+  @ApiPropertyOptional({ description: 'Additional profile data as JSON' })
+  profileData?: Record<string, unknown>;
+
   @ApiProperty()
   isActive: boolean;
 

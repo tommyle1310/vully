@@ -9,6 +9,9 @@ import {
   Plus,
   ChevronRight,
   FileSignature,
+  CalendarClock,
+  Wallet,
+  Receipt,
 } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 import { useMyContracts, useMyApartment } from '@/hooks/use-contracts';
 import { useIncidents } from '@/hooks/use-incidents';
+import { useInvoices } from '@/hooks/use-invoices';
 import { useAuthStore } from '@/stores/authStore';
 import { formatDistanceToNow, format } from 'date-fns';
 
@@ -58,9 +62,11 @@ export function ResidentDashboard() {
   const { data: apartmentData, isLoading: isLoadingApartment } = useMyApartment();
   const { data: contractsData, isLoading: isLoadingContracts } = useMyContracts();
   const { data: incidentsData, isLoading: isLoadingIncidents } = useIncidents({}, 1, 5);
+  const { data: invoicesData, isLoading: isLoadingInvoices } = useInvoices({ limit: 20 });
 
   const apartment = apartmentData?.data;
   const contracts = contractsData?.data || [];
+  const invoices = invoicesData?.data || [];
   const activeContract = contracts.find((c) => c.status === 'active');
   
   // Fallback: If useMyApartment doesn't return data but we have an active contract, use contract data
@@ -73,16 +79,21 @@ export function ResidentDashboard() {
   } : null);
   
   const incidents = incidentsData?.data?.filter((i) => i.apartment?.id === apartmentInfo?.apartmentId) || [];
+  const openIncidents = incidents.filter((i) => !['resolved', 'closed'].includes(i.status));
+  const payableInvoices = invoices
+    .filter((inv) => inv.status === 'pending' || inv.status === 'overdue')
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+  const nextInvoice = payableInvoices[0];
+  const totalOutstanding = payableInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
 
   return (
     <div className="space-y-6">
-      {/* Welcome Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">
           Welcome, {user?.firstName || 'Resident'}
         </h1>
         <p className="text-muted-foreground">
-          Your apartment dashboard overview
+          Everything important for your apartment and payments, in one place.
         </p>
       </div>
 
@@ -92,13 +103,12 @@ export function ResidentDashboard() {
         animate="show"
         className="space-y-6"
       >
-        {/* Apartment Overview Card */}
         <motion.div variants={item}>
-          <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+          <Card className="border-primary/25 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Home className="h-5 w-5" />
-                Your Apartment
+                Your Home Snapshot
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -114,6 +124,11 @@ export function ResidentDashboard() {
                     <p className="text-muted-foreground">
                       {apartmentInfo.buildingName}
                     </p>
+                    {activeContract?.endDate && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Lease ends {format(new Date(activeContract.endDate), 'MMM dd, yyyy')}
+                      </p>
+                    )}
                   </div>
                   <Link href={`/apartments/${apartmentInfo.apartmentId}`}>
                     <Button variant="outline" size="sm">
@@ -131,9 +146,7 @@ export function ResidentDashboard() {
           </Card>
         </motion.div>
 
-        {/* Stats Cards */}
         <motion.div variants={item} className="grid gap-4 md:grid-cols-3">
-          {/* Contract Card */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Contract Status</CardTitle>
@@ -159,29 +172,27 @@ export function ResidentDashboard() {
             </CardContent>
           </Card>
 
-          {/* Open Incidents Card */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Open Incidents</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Outstanding Balance</CardTitle>
+              <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              {isLoadingIncidents ? (
+              {isLoadingInvoices ? (
                 <Skeleton className="h-8 w-20" />
               ) : (
                 <>
                   <div className="text-2xl font-bold">
-                    {incidents.filter((i) => !['resolved', 'closed'].includes(i.status)).length}
+                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalOutstanding)}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {incidents.filter((i) => i.status === 'in_progress').length} in progress
+                    {payableInvoices.length} unpaid invoices
                   </p>
                 </>
               )}
             </CardContent>
           </Card>
 
-          {/* Quick Actions Card */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
@@ -203,14 +214,66 @@ export function ResidentDashboard() {
           </Card>
         </motion.div>
 
-        {/* Recent Incidents */}
-        <motion.div variants={item}>
+        <motion.div variants={item} className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Recent Incidents</CardTitle>
-                  <CardDescription>Your reported incidents</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <Receipt className="h-4 w-4" />
+                    Next Payment
+                  </CardTitle>
+                  <CardDescription>Upcoming due item</CardDescription>
+                </div>
+                <Link href="/invoices">
+                  <Button variant="outline" size="sm">
+                    View All
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isLoadingInvoices ? (
+                <Skeleton className="h-20 w-full" />
+              ) : nextInvoice ? (
+                <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Invoice {nextInvoice.invoice_number}</p>
+                      <p className="text-xl font-semibold">
+                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(nextInvoice.totalAmount)}
+                      </p>
+                    </div>
+                    <Badge variant={nextInvoice.status === 'overdue' ? 'destructive' : 'outline'}>
+                      {nextInvoice.status}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                    <CalendarClock className="h-3.5 w-3.5" />
+                    Due {format(new Date(nextInvoice.dueDate), 'MMM dd, yyyy')}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No unpaid invoices</p>
+                  <Link href="/invoices">
+                    <Button variant="link" className="mt-2">
+                      Open invoices
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Service Requests</CardTitle>
+                  <CardDescription>Your recent incidents</CardDescription>
                 </div>
                 <Link href="/incidents">
                   <Button variant="outline" size="sm">
@@ -222,58 +285,40 @@ export function ResidentDashboard() {
             </CardHeader>
             <CardContent>
               {isLoadingIncidents ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-center gap-4">
-                      <Skeleton className="h-10 w-10 rounded-full" />
-                      <div className="space-y-2 flex-1">
-                        <Skeleton className="h-4 w-3/4" />
-                        <Skeleton className="h-3 w-1/2" />
-                      </div>
-                    </div>
-                  ))}
+                <div className="space-y-3">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
                 </div>
-              ) : incidents.length > 0 ? (
-                <div className="space-y-4">
-                  {incidents.slice(0, 5).map((incident) => (
+              ) : openIncidents.length > 0 ? (
+                <div className="space-y-2">
+                  {openIncidents.slice(0, 3).map((incident) => (
                     <Link
                       key={incident.id}
                       href={`/incidents?incident=${incident.id}`}
-                      className="flex items-start gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                      className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5 hover:bg-muted/40"
                     >
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <AlertTriangle className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-medium truncate">{incident.title}</p>
-                          <Badge variant={statusBadgeVariant[incident.status as keyof typeof statusBadgeVariant] || 'secondary'}>
-                            {statusLabels[incident.status as keyof typeof statusLabels] || incident.status}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{incident.title}</p>
+                        <p className="text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(incident.created_at), { addSuffix: true })}
                         </p>
                       </div>
+                      <Badge variant={statusBadgeVariant[incident.status as keyof typeof statusBadgeVariant] || 'secondary'}>
+                        {statusLabels[incident.status as keyof typeof statusLabels] || incident.status}
+                      </Badge>
                     </Link>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No incidents reported</p>
-                  <Link href="/incidents">
-                    <Button variant="link" className="mt-2">
-                      Report your first incident
-                    </Button>
-                  </Link>
+                <div className="py-8 text-center text-muted-foreground">
+                  <AlertTriangle className="mx-auto mb-3 h-10 w-10 opacity-50" />
+                  <p>No active service requests</p>
                 </div>
               )}
             </CardContent>
           </Card>
         </motion.div>
 
-        {/* Contract Details */}
         {activeContract && (
           <motion.div variants={item}>
             <Card>

@@ -79,30 +79,14 @@ export class UsersController {
     };
   }
 
-  @Get(':id')
-  @Roles(UserRole.admin)
-  @ApiOperation({ summary: 'Get user by ID (admin only)' })
-  @ApiResponse({ status: 200, description: 'User details', type: UserResponseDto })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async findOne(
-    @Param('id', ParseUUIDPipe) id: string,
+  @Get('me')
+  @ApiOperation({ summary: 'Get own profile' })
+  @ApiResponse({ status: 200, description: 'Current user profile', type: UserResponseDto })
+  async getMyProfile(
+    @CurrentUser() user: AuthUser,
   ): Promise<{ data: UserResponseDto }> {
-    const user = await this.usersService.findOne(id);
-    return { data: user };
-  }
-
-  @Patch(':id')
-  @Roles(UserRole.admin)
-  @ApiOperation({ summary: 'Update user (admin only)' })
-  @ApiResponse({ status: 200, description: 'User updated', type: UserResponseDto })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateUserDto,
-    @CurrentUser() actor: AuthUser,
-  ): Promise<{ data: UserResponseDto }> {
-    const user = await this.usersService.update(id, dto, actor.id, actor.roles);
-    return { data: user };
+    const profile = await this.usersService.findOne(user.id);
+    return { data: profile };
   }
 
   @Patch('me/password')
@@ -130,6 +114,32 @@ export class UsersController {
   ): Promise<{ data: UserResponseDto }> {
     const updatedUser = await this.usersService.updateProfile(user.id, dto);
     return { data: updatedUser };
+  }
+
+  @Get(':id')
+  @Roles(UserRole.admin)
+  @ApiOperation({ summary: 'Get user by ID (admin only)' })
+  @ApiResponse({ status: 200, description: 'User details', type: UserResponseDto })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{ data: UserResponseDto }> {
+    const user = await this.usersService.findOne(id);
+    return { data: user };
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.admin)
+  @ApiOperation({ summary: 'Update user (admin only)' })
+  @ApiResponse({ status: 200, description: 'User updated', type: UserResponseDto })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateUserDto,
+    @CurrentUser() actor: AuthUser,
+  ): Promise<{ data: UserResponseDto }> {
+    const user = await this.usersService.update(id, dto, actor.id, actor.roles);
+    return { data: user };
   }
 
   @Post(':id/roles/:role')

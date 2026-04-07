@@ -1,120 +1,21 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  Building2,
-  Home,
-  Building,
-  Users,
-  FileText,
-  FileSignature,
-  AlertTriangle,
-  BarChart3,
-  Settings,
   Menu,
-  Gauge,
-  Zap,
-  Clock,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { UserProfileDropdown } from '@/components/user-profile-dropdown';
 import { ProtectedRoute } from '@/components/protected-route';
-import { useAuthStore } from '@/stores/authStore';
 import { FloatingChatWidget } from '@/components/floating-chat-widget';
-import { UserRole } from '@vully/shared-types';
 import { useState } from 'react';
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  roles?: UserRole[]; // Use typed enum instead of string
-}
-
-const navItems: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/apartments', label: 'Apartments', icon: Building },
-  { href: '/contracts', label: 'Contracts', icon: FileSignature },
-  { href: '/buildings', label: 'Buildings', icon: Building2 },
-  { href: '/users', label: 'Users', icon: Users, roles: [UserRole.admin] },
-  { href: '/invoices', label: 'Invoices', icon: FileText },
-  { href: '/payments/pending', label: 'Pending Payments', icon: Clock, roles: [UserRole.admin] },
-  { href: '/meter-readings', label: 'Meter Readings', icon: Gauge },
-  { href: '/utility-types', label: 'Utility Types', icon: Zap, roles: [UserRole.admin] },
-  { href: '/incidents', label: 'Incidents', icon: AlertTriangle },
-  { href: '/reports', label: 'Reports', icon: BarChart3, roles: [UserRole.admin] },
-  { href: '/settings', label: 'Settings', icon: Settings },
-];
-
-function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const pathname = usePathname();
-  const { user, hasAnyRole } = useAuthStore();
-  const filteredNavItems = navItems.filter(
-    (item) => !item.roles || (user && hasAnyRole(item.roles))
-  );
-
-  return (
-    <>
-      {/* Mobile overlay */}
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={onClose}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          'fixed left-0 top-0 z-50 h-full w-64 border-r bg-card transition-transform duration-300',
-          'lg:static lg:transform-none',
-          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        )}
-      >
-        {/* Logo */}
-        <div className="flex h-16 items-center gap-2 border-b px-6">
-          <Building2 className="h-8 w-8 text-primary" />
-          <span className="text-xl font-bold">Vully</span>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-4">
-          {filteredNavItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-            const Icon = item.icon;
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
-    </>
-  );
-}
+import { DashboardSidebar } from '@/components/layout/dashboard-sidebar';
 
 function Header({ onMenuClick }: { onMenuClick: () => void }) {
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between
+     lg:px-6 px-4
+     ">
       <Button
         variant="ghost"
         size="icon"
@@ -137,15 +38,21 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
     <ProtectedRoute>
       <div className="flex h-screen overflow-hidden">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <DashboardSidebar
+          isMobileOpen={mobileSidebarOpen}
+          isCollapsed={sidebarCollapsed}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
+          onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
+        />
 
-        <div className="flex flex-1 flex-col overflow-hidden lg:ml-0">
-          <Header onMenuClick={() => setSidebarOpen(true)} />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Header onMenuClick={() => setMobileSidebarOpen(true)} />
 
           <main className="flex-1 overflow-y-auto p-4 lg:p-6">
             <motion.div

@@ -8,6 +8,8 @@ interface User {
   roles: UserRole[]; // Multi-role support (1-3 roles)
   firstName: string;
   lastName: string;
+  phone?: string;
+  profileData?: Record<string, unknown>;
 }
 
 interface AuthState {

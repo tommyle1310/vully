@@ -17,6 +17,14 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
+
 export function FloatingChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -54,11 +62,11 @@ export function FloatingChatWidget() {
           };
           setMessages((prev) => [...prev, assistantMessage]);
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        onError: (error: any) => {
+        onError: (error: unknown) => {
+          const apiError = error as ApiError;
           const errorMessage: ChatMessage = {
             role: 'assistant',
-            content: error.response?.data?.message || 'Sorry, I encountered an error. Please try again.',
+            content: apiError.response?.data?.message || 'Sorry, I encountered an error. Please try again.',
             timestamp: new Date(),
           };
           setMessages((prev) => [...prev, errorMessage]);
@@ -78,29 +86,30 @@ export function FloatingChatWidget() {
     ? quota.remaining 
     : quota?.remaining;
   const isLimited = typeof remainingQueries === 'number';
+  const hasLowQuota = isLimited && remainingQueries <= 5 && remainingQueries > 0;
 
   return (
     <>
-      {/* Floating Button */}
       <AnimatePresence>
         {!isOpen && (
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
-            className="fixed bottom-6 right-6 z-50"
+            className="fixed bottom-5 right-5 z-50"
           >
             <Button
               size="lg"
-              className="h-14 w-14 rounded-full shadow-lg"
+              className="group relative h-14 w-14 rounded-2xl border border-primary/35 bg-primary/90 shadow-[0_18px_45px_hsl(var(--primary)/0.35)] backdrop-blur-lg hover:bg-primary"
               onClick={() => setIsOpen(true)}
             >
-              <MessageCircle className="h-6 w-6" />
+              <MessageCircle className="h-6 w-6 text-primary-foreground transition-transform group-hover:scale-105" />
+              <span className="pointer-events-none absolute -inset-1 rounded-2xl border border-primary/20 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
             </Button>
-            {isLimited && remainingQueries <= 5 && remainingQueries > 0 && (
+            {hasLowQuota && (
               <Badge 
                 variant="destructive" 
-                className="absolute -top-1 -right-1 h-6 w-6 rounded-full p-0 flex items-center justify-center"
+                className="absolute -top-2 -right-2 h-6 min-w-6 rounded-full px-1 text-[10px]"
               >
                 {remainingQueries}
               </Badge>
@@ -109,55 +118,71 @@ export function FloatingChatWidget() {
         )}
       </AnimatePresence>
 
-      {/* Chat Window */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="fixed bottom-6 right-6 z-50 w-96 h-[600px]"
+            transition={{ duration: 0.22 }}
+            className="fixed bottom-5 right-5 z-50 h-[min(76vh,680px)] w-[calc(100vw-1.5rem)] max-w-[440px]"
           >
-            <Card className="flex flex-col h-full shadow-2xl">
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b bg-primary text-primary-foreground rounded-t-lg">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5" />
-                  <h3 className="font-semibold">AI Assistant</h3>
-                </div>
-                <div className="flex items-center gap-2">
-                  {quota && (
-                    <Badge variant="secondary" className="text-xs">
-                      {isLimited ? `${remainingQueries}/${quota.limit} left` : 'Unlimited'}
-                    </Badge>
-                  )}
+            <Card className="flex h-full flex-col overflow-hidden rounded-3xl border border-border/70 bg-card/80 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+              <div className="relative border-b border-border/60 bg-gradient-to-r from-primary/20 via-primary/5 to-transparent px-4 pb-4 pt-3">
+                <div className="absolute right-4 top-3">
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
+                    className="h-8 w-8 rounded-xl"
                     onClick={() => setIsOpen(false)}
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
+
+                <div className="pr-12">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/20 text-primary">
+                      <Sparkles className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold tracking-wide">Vully Concierge</h3>
+                      <p className="text-xs text-muted-foreground">Building support, billing, policies</p>
+                    </div>
+                  </div>
+
+                  {quota && (
+                    <Badge variant="outline" className="mt-3 rounded-md border-border/60 bg-background/40 text-[11px]">
+                      {isLimited ? `${remainingQueries}/${quota.limit} queries left` : 'Unlimited access'}
+                    </Badge>
+                  )}
+                </div>
               </div>
 
-              {/* Messages */}
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4">
                   {messages.length === 0 && (
-                    <div className="text-center text-muted-foreground py-8">
-                      <Sparkles className="h-12 w-12 mx-auto mb-3 text-primary" />
-                      <p className="text-sm">
-                        Hi! I'm your AI assistant. Ask me about:
+                    <div className="rounded-2xl border border-border/70 bg-muted/25 p-4">
+                      <div className="mb-3 flex items-center gap-2 text-primary">
+                        <Sparkles className="h-4 w-4" />
+                        <span className="text-xs font-semibold uppercase tracking-[0.12em]">Ask anything</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Ask about dues, lease terms, incident process, building policy, and resident services.
                       </p>
-                      <ul className="text-xs mt-2 space-y-1">
-                        <li>• Building rules & regulations</li>
-                        <li>• Payment policies & invoices</li>
-                        <li>• Maintenance procedures</li>
-                        <li>• Apartment information</li>
-                      </ul>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {['How to pay invoices?', 'Lease expiry date?', 'Parking policy?', 'Report an issue'].map((quickPrompt) => (
+                          <Button
+                            key={quickPrompt}
+                            variant="outline"
+                            size="sm"
+                            className="h-8 justify-start rounded-lg border-border/60 bg-background/40 text-xs"
+                            onClick={() => setInput(quickPrompt)}
+                          >
+                            {quickPrompt}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -173,14 +198,14 @@ export function FloatingChatWidget() {
                     >
                       <div
                         className={cn(
-                          'rounded-lg px-4 py-2 max-w-[85%] overflow-hidden',
+                          'max-w-[88%] overflow-hidden rounded-2xl px-4 py-2.5',
                           message.role === 'user'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted'
+                            ? 'bg-primary text-primary-foreground shadow-[0_10px_25px_hsl(var(--primary)/0.28)]'
+                            : 'border border-border/60 bg-muted/50'
                         )}
                       >
                         {message.role === 'assistant' ? (
-                          <div className="text-sm prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-headings:font-semibold prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-strong:font-semibold prose-hr:my-2 [&_*]:break-words [&_*]:overflow-wrap-anywhere">
+                          <div className="prose prose-sm max-w-none text-sm dark:prose-invert prose-p:my-1.5 prose-headings:mb-1.5 prose-headings:mt-3 prose-headings:font-semibold prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-strong:font-semibold prose-hr:my-2 [&_*]:break-words [&_*]:overflow-wrap-anywhere">
                             <ReactMarkdown 
                               remarkPlugins={[remarkGfm]}
                               components={{
@@ -197,14 +222,14 @@ export function FloatingChatWidget() {
                         )}
                         
                         {message.sources && message.sources.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-border/50">
-                            <p className="text-xs font-medium mb-1">Sources:</p>
+                          <div className="mt-2 border-t border-border/50 pt-2">
+                            <p className="mb-1 text-xs font-medium">Sources</p>
                             <div className="space-y-1">
                               {message.sources.map((source, idx) => (
-                                <div key={idx} className="flex items-center gap-1 text-xs">
-                                  <ExternalLink className="h-3 w-3" />
-                                  <span>{source.title}</span>
-                                  <Badge variant="outline" className="text-[10px] ml-auto">
+                                <div key={idx} className="flex items-center gap-1.5 rounded-md border border-border/50 bg-background/45 px-2 py-1 text-xs">
+                                  <ExternalLink className="h-3 w-3 shrink-0" />
+                                  <span className="line-clamp-1">{source.title}</span>
+                                  <Badge variant="outline" className="ml-auto text-[10px]">
                                     {Math.round(source.relevance * 100)}%
                                   </Badge>
                                 </div>
@@ -226,8 +251,8 @@ export function FloatingChatWidget() {
                       animate={{ opacity: 1 }}
                       className="flex justify-start"
                     >
-                      <div className="bg-muted rounded-lg px-4 py-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                      <div className="rounded-xl border border-border/60 bg-muted/50 px-3 py-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
                       </div>
                     </motion.div>
                   )}
@@ -235,21 +260,21 @@ export function FloatingChatWidget() {
                 </div>
               </ScrollArea>
 
-              {/* Input */}
-              <div className="p-4 border-t">
+              <div className="border-t border-border/60 bg-background/40 p-4">
                 <div className="flex gap-2">
                   <Input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="Ask me anything..."
+                    placeholder="Ask policy, payment, contract..."
                     disabled={isPending || (isLimited && remainingQueries === 0)}
-                    className="flex-1"
+                    className="h-10 flex-1 rounded-xl border-border/70 bg-card/70"
                   />
                   <Button
                     size="icon"
                     onClick={handleSend}
                     disabled={!input.trim() || isPending || (isLimited && remainingQueries === 0)}
+                    className="h-10 w-10 rounded-xl"
                   >
                     <Send className="h-4 w-4" />
                   </Button>

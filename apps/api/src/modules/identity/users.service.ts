@@ -424,6 +424,7 @@ export class UsersService {
     last_name: string;
     role: UserRoleEnum;
     phone: string | null;
+    profile_data?: unknown;
     is_active: boolean;
     created_at: Date;
     updated_at: Date;
@@ -442,6 +443,7 @@ export class UsersService {
       role: user.role, // DEPRECATED: For backward compatibility
       roles: roles,
       phone: user.phone || undefined,
+      profileData: (user.profile_data as Record<string, unknown> | undefined) || undefined,
       isActive: user.is_active,
       created_at: user.created_at,
       updatedAt: user.updated_at,
