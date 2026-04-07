@@ -1,9 +1,21 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import * as THREE from 'three';
-import { ExtrudeGeometry } from 'three';
-import { ApartmentStatusInfo, STATUS_COLORS } from './building-3d';
+import { ExtrudeGeometry, ThreeEvent } from 'three';
+import { ApartmentStatusInfo, STATUS_COLORS, ApartmentStatus } from './building-3d';
+
+// Hover info type for tooltip display
+export interface HoverInfo {
+  type: 'apartment' | 'utility';
+  label?: string;
+  apartmentType?: string;
+  apartmentName?: string;
+  utilityType?: string;
+  status?: ApartmentStatus;
+  grossArea?: number;
+  floorIndex: number;
+}
 
 interface FloorProps {
   shapes: THREE.Shape[];
@@ -12,15 +24,21 @@ interface FloorProps {
     type: 'wall' | 'floor' | 'utility' | 'apartment';
     color: string;
     apartmentId?: string;
+    apartmentType?: string;
+    apartmentName?: string;
+    utilityType?: string;
+    label?: string;
+    grossArea?: number;
   }>;
   floorIndex: number;
   height: number;
   baseHeight?: number;
   totalFloors: number;
   apartmentStatuses?: ApartmentStatusInfo[];
+  onHover?: (info: HoverInfo | null, event: ThreeEvent<PointerEvent>) => void;
 }
 
-export function Floor({ paths, floorIndex, height, totalFloors, apartmentStatuses }: FloorProps) {
+export function Floor({ paths, floorIndex, height, totalFloors, apartmentStatuses, onHover }: FloorProps) {
   // Y position is cumulative height (already calculated by parent)
   const yPosition = 0; // Parent group handles positioning
 
@@ -30,18 +48,21 @@ export function Floor({ paths, floorIndex, height, totalFloors, apartmentStatuse
     return 0.95 + (floorIndex / totalFloors) * 0.1;
   }, [floorIndex, totalFloors]);
 
-  // Helper to get color based on apartment status (matches by svgElementId AND floorIndex)
-  const getApartmentColor = (apartmentId?: string, originalColor?: string): string => {
-    if (!apartmentId || !apartmentStatuses) {
-      return originalColor || '#9ca3af'; // Default gray
-    }
-    // floorIndex in Floor component is 0-indexed, but data is 1-indexed
+  // Helper to get status for an apartment
+  const getApartmentStatus = (apartmentId?: string): ApartmentStatus | undefined => {
+    if (!apartmentId || !apartmentStatuses) return undefined;
     const floorNum = floorIndex + 1;
     const statusInfo = apartmentStatuses.find(
       s => s.svgElementId === apartmentId && s.floorIndex === floorNum
     );
-    if (statusInfo) {
-      return STATUS_COLORS[statusInfo.status] || originalColor || '#9ca3af';
+    return statusInfo?.status;
+  };
+
+  // Helper to get color based on apartment status (matches by svgElementId AND floorIndex)
+  const getApartmentColor = (apartmentId?: string, originalColor?: string): string => {
+    const status = getApartmentStatus(apartmentId);
+    if (status) {
+      return STATUS_COLORS[status] || originalColor || '#9ca3af';
     }
     return originalColor || '#9ca3af';
   };
@@ -80,9 +101,42 @@ export function Floor({ paths, floorIndex, height, totalFloors, apartmentStatuse
         color,
         type: pathData.type,
         apartmentId: pathData.apartmentId,
+        apartmentType: pathData.apartmentType,
+        apartmentName: pathData.apartmentName,
+        utilityType: pathData.utilityType,
+        label: pathData.label,
+        grossArea: pathData.grossArea,
       };
     });
   }, [paths, height, apartmentStatuses]);
+
+  // Create hover handler
+  const handlePointerEnter = useCallback((
+    item: typeof geometries[number],
+    event: ThreeEvent<PointerEvent>
+  ) => {
+    if (!onHover) return;
+    if (item.type !== 'apartment' && item.type !== 'utility') return;
+
+    const status = item.type === 'apartment' ? getApartmentStatus(item.apartmentId) : undefined;
+    
+    onHover({
+      type: item.type,
+      label: item.label,
+      apartmentType: item.apartmentType,
+      apartmentName: item.apartmentName,
+      utilityType: item.utilityType,
+      status,
+      grossArea: item.grossArea,
+      floorIndex: floorIndex + 1, // 1-indexed for display
+    }, event);
+  }, [onHover, floorIndex, getApartmentStatus]);
+
+  const handlePointerLeave = useCallback(() => {
+    if (onHover) {
+      onHover(null, null as unknown as ThreeEvent<PointerEvent>);
+    }
+  }, [onHover]);
 
   return (
     <group position={[0, yPosition, 0]}>
@@ -101,10 +155,21 @@ export function Floor({ paths, floorIndex, height, totalFloors, apartmentStatuse
           edgeColor = '#1a1a1a';
         }
 
+        const isInteractive = item.type === 'apartment' || item.type === 'utility';
+
         return (
           <group key={index}>
             {/* Main mesh with apartment/utility shape */}
-            <mesh geometry={item.geometry} castShadow receiveShadow>
+            <mesh 
+              geometry={item.geometry} 
+              castShadow 
+              receiveShadow
+              onPointerEnter={isInteractive ? (e) => {
+                e.stopPropagation();
+                handlePointerEnter(item, e);
+              } : undefined}
+              onPointerLeave={isInteractive ? handlePointerLeave : undefined}
+            >
               <meshStandardMaterial 
                 color={baseColor} 
                 transparent={opacity < 1}

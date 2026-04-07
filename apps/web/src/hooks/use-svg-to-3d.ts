@@ -25,7 +25,11 @@ interface SVGPathData {
   apartmentType?: string;
   apartmentName?: string;
   utilityType?: string;
+  label?: string;
+  grossArea?: number;
 }
+
+export type { SVGPathData };
 
 export function useSVGto3D(svgContent: string | undefined) {
   return useMemo<FloorData | null>(() => {
@@ -78,11 +82,16 @@ export function useSVGto3D(svgContent: string | undefined) {
 
       // Convert SVG paths to Three.js shapes
       svgData.paths.forEach((path) => {
+        const node = path.userData?.node;
         const fillColor = path.userData?.style?.fill || '#e0e0e0';
-        const apartmentId = path.userData?.node?.getAttribute?.('data-apartment-id');
-        const apartmentType = path.userData?.node?.getAttribute?.('data-apartment-type');
-        const apartmentName = path.userData?.node?.getAttribute?.('data-apartment-name');
-        const utilityType = path.userData?.node?.getAttribute?.('data-utility-type');
+        const apartmentId = node?.getAttribute?.('data-apartment-id');
+        const apartmentType = node?.getAttribute?.('data-apartment-type');
+        const apartmentName = node?.getAttribute?.('data-apartment-name');
+        const utilityType = node?.getAttribute?.('data-utility-type');
+        const utilityName = node?.getAttribute?.('data-utility-name');
+        const label = node?.getAttribute?.('data-label');
+        const grossAreaStr = node?.getAttribute?.('data-area-sqm') || node?.getAttribute?.('data-gross-area');
+        const grossArea = grossAreaStr ? parseFloat(grossAreaStr) : undefined;
 
         path.toShapes(true).forEach((shape) => {
           shapes.push(shape);
@@ -103,6 +112,8 @@ export function useSVGto3D(svgContent: string | undefined) {
             apartmentType,
             apartmentName,
             utilityType,
+            label: label || utilityName, // Use utilityName as label fallback for utilities
+            grossArea,
           });
         });
       });

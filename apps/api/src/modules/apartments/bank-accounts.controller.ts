@@ -66,6 +66,31 @@ export class BankAccountsController {
     return { data: bankAccounts };
   }
 
+  // =========================================================================
+  // Payment-related endpoints (accessible by residents)
+  // Must be defined BEFORE :id route to avoid route collision
+  // =========================================================================
+
+  @Get('for-payment')
+  @Roles('admin', 'resident')
+  @ApiOperation({ summary: 'Get bank account for payment QR' })
+  @ApiQuery({ name: 'buildingId', required: true, type: String })
+  @ApiQuery({ name: 'ownerId', required: false, type: String })
+  @ApiQuery({ name: 'isRentPayment', required: false, type: Boolean })
+  @ApiResponse({ status: 200, description: 'Bank account for payment', type: BankAccountResponseDto })
+  async getForPayment(
+    @Query('buildingId', ParseUUIDPipe) buildingId: string,
+    @Query('ownerId') ownerId?: string,
+    @Query('isRentPayment') isRentPayment?: string,
+  ): Promise<{ data: BankAccountResponseDto | null }> {
+    const bankAccount = await this.bankAccountsService.getBankAccountForPayment(
+      buildingId,
+      ownerId,
+      isRentPayment === 'true',
+    );
+    return { data: bankAccount };
+  }
+
   @Get(':id')
   @Roles('admin')
   @ApiOperation({ summary: 'Get bank account by ID' })
@@ -101,30 +126,6 @@ export class BankAccountsController {
   ): Promise<{ message: string }> {
     await this.bankAccountsService.delete(id);
     return { message: 'Bank account deleted' };
-  }
-
-  // =========================================================================
-  // Payment-related endpoints (accessible by residents)
-  // =========================================================================
-
-  @Get('for-payment')
-  @Roles('admin', 'resident')
-  @ApiOperation({ summary: 'Get bank account for payment QR' })
-  @ApiQuery({ name: 'buildingId', required: true, type: String })
-  @ApiQuery({ name: 'ownerId', required: false, type: String })
-  @ApiQuery({ name: 'isRentPayment', required: false, type: Boolean })
-  @ApiResponse({ status: 200, description: 'Bank account for payment', type: BankAccountResponseDto })
-  async getForPayment(
-    @Query('buildingId', ParseUUIDPipe) buildingId: string,
-    @Query('ownerId') ownerId?: string,
-    @Query('isRentPayment') isRentPayment?: string,
-  ): Promise<{ data: BankAccountResponseDto | null }> {
-    const bankAccount = await this.bankAccountsService.getBankAccountForPayment(
-      buildingId,
-      ownerId,
-      isRentPayment === 'true',
-    );
-    return { data: bankAccount };
   }
 
   // =========================================================================

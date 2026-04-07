@@ -1,10 +1,11 @@
 'use client';
 
-import { Suspense, useMemo, useRef, useEffect, useState } from 'react';
+import { Suspense, useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Grid, Environment } from '@react-three/drei';
 import * as THREE from 'three';
-import { Floor } from './floor';
+import { ThreeEvent } from '@react-three/fiber';
+import { Floor, HoverInfo } from './floor';
 import { useSVGto3D } from '@/hooks/use-svg-to-3d';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,11 +43,13 @@ function Building3DScene({
   totalFloors, 
   floorHeights,
   apartmentStatuses,
+  onHover,
 }: { 
   svgContent: string; 
   totalFloors: number; 
   floorHeights?: Record<string, number>;
   apartmentStatuses?: ApartmentStatusInfo[];
+  onHover?: (info: HoverInfo | null, event: ThreeEvent<PointerEvent>) => void;
 }) {
   const floorData = useSVGto3D(svgContent);
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
@@ -190,6 +193,7 @@ function Building3DScene({
                 baseHeight={baseHeight}
                 totalFloors={totalFloors}
                 apartmentStatuses={apartmentStatuses}
+                onHover={onHover}
               />
               
               {/* Floor label */}
@@ -212,6 +216,24 @@ export function Building3D({
 }: Building3DProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Hover state for tooltip
+  const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+
+  const handleHover = useCallback((info: HoverInfo | null, event: ThreeEvent<PointerEvent>) => {
+    setHoverInfo(info);
+    if (info && event?.nativeEvent) {
+      // Get container bounds for relative positioning
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        setTooltipPosition({
+          x: event.nativeEvent.clientX - rect.left + 12,
+          y: event.nativeEvent.clientY - rect.top + 12,
+        });
+      }
+    }
+  }, []);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -231,6 +253,31 @@ export function Building3D({
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  // Format utility type for display
+  const formatUtilityType = (type?: string) => {
+    if (!type) return 'Utility';
+    const labelMap: Record<string, string> = {
+      elevator: 'Elevator',
+      stairwell: 'Stairwell',
+      electric: 'Electric Room',
+      trash: 'Trash Room',
+      water: 'Water Room',
+    };
+    return labelMap[type] || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  };
+
+  // Format status for display
+  const formatStatus = (status?: ApartmentStatus) => {
+    if (!status) return null;
+    const statusLabels: Record<ApartmentStatus, string> = {
+      vacant: 'Vacant',
+      occupied: 'Occupied',
+      maintenance: 'Maintenance',
+      reserved: 'Reserved',
+    };
+    return statusLabels[status];
+  };
 
   return (
     <Card ref={containerRef} className={className}>
@@ -260,6 +307,48 @@ export function Building3D({
           </p>
         </div>
 
+        {/* Hover Tooltip */}
+        {hoverInfo && (
+          <div 
+            className="absolute z-20 pointer-events-none bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg px-3 py-2 text-sm"
+            style={{
+              left: tooltipPosition.x,
+              top: tooltipPosition.y,
+              maxWidth: 200,
+            }}
+          >
+            {hoverInfo.type === 'utility' ? (
+              <div className="font-medium">
+                {formatUtilityType(hoverInfo.utilityType)}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {hoverInfo.label && (
+                  <div className="font-semibold">Unit {hoverInfo.label}</div>
+                )}
+                {hoverInfo.apartmentType && (
+                  <div className="text-xs text-muted-foreground">{hoverInfo.apartmentType}</div>
+                )}
+                <div className="text-xs">Floor {hoverInfo.floorIndex}</div>
+                {formatStatus(hoverInfo.status) && (
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span 
+                      className="w-2 h-2 rounded-full" 
+                      style={{ backgroundColor: STATUS_COLORS[hoverInfo.status!] }}
+                    />
+                    {formatStatus(hoverInfo.status)}
+                  </div>
+                )}
+                {hoverInfo.grossArea && (
+                  <div className="text-xs text-muted-foreground">
+                    {hoverInfo.grossArea.toFixed(1)} m²
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Canvas */}
         <div className="w-full h-full">
           <Canvas
@@ -277,6 +366,7 @@ export function Building3D({
                 totalFloors={totalFloors}
                 floorHeights={floorHeights}
                 apartmentStatuses={apartmentStatuses}
+                onHover={handleHover}
               />
             </Suspense>
           </Canvas>

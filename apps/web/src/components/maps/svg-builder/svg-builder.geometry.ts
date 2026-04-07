@@ -322,3 +322,90 @@ export function getPolygonCentroid(points: Point[]): Point {
     y: sum.y / points.length,
   };
 }
+
+// =============================================================================
+// Rounded Polygon Path Generation
+// =============================================================================
+
+/**
+ * Calculate cross product to determine if a corner is convex or concave
+ * Returns positive for convex (external corner), negative for concave (internal notch)
+ */
+function crossProduct(p1: Point, p2: Point, p3: Point): number {
+  return (p2.x - p1.x) * (p3.y - p2.y) - (p2.y - p1.y) * (p3.x - p2.x);
+}
+
+/**
+ * Calculate distance between two points
+ */
+function distance(p1: Point, p2: Point): number {
+  return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
+}
+
+/**
+ * Generate SVG path with rounded convex corners for a polygon
+ * Concave corners (internal notches) remain sharp
+ *
+ * @param points - Polygon points string (e.g., "0,0 100,0 100,100")
+ * @param radius - Corner radius for convex corners (default: 4, matching rect rx)
+ * @returns SVG path d attribute string
+ */
+export function createRoundedPolygonPath(points: string, radius: number = 4): string {
+  const pts = parsePolygonPoints(points);
+  if (pts.length < 3) return '';
+
+  const pathParts: string[] = [];
+
+  for (let i = 0; i < pts.length; i++) {
+    const prev = pts[(i - 1 + pts.length) % pts.length];
+    const curr = pts[i];
+    const next = pts[(i + 1) % pts.length];
+
+    // Calculate if this is a convex corner (cross product determines winding)
+    const cross = crossProduct(prev, curr, next);
+    const isConvex = cross >= 0; // For clockwise polygon, positive = convex
+
+    // Calculate distances to adjacent points
+    const distPrev = distance(prev, curr);
+    const distNext = distance(curr, next);
+
+    // Limit radius to half the shorter adjacent edge
+    const maxRadius = Math.min(distPrev, distNext) / 2;
+    const r = isConvex ? Math.min(radius, maxRadius) : 0;
+
+    if (r > 0 && isConvex) {
+      // Calculate the point where we start the arc (on the line from prev to curr)
+      const t1 = r / distPrev;
+      const arcStart: Point = {
+        x: curr.x - (curr.x - prev.x) * t1,
+        y: curr.y - (curr.y - prev.y) * t1,
+      };
+
+      // Calculate the point where we end the arc (on the line from curr to next)
+      const t2 = r / distNext;
+      const arcEnd: Point = {
+        x: curr.x + (next.x - curr.x) * t2,
+        y: curr.y + (next.y - curr.y) * t2,
+      };
+
+      if (i === 0) {
+        pathParts.push(`M ${arcStart.x},${arcStart.y}`);
+      } else {
+        pathParts.push(`L ${arcStart.x},${arcStart.y}`);
+      }
+
+      // Arc to the end point (sweep-flag=1 for clockwise arc)
+      pathParts.push(`A ${r},${r} 0 0 1 ${arcEnd.x},${arcEnd.y}`);
+    } else {
+      // Sharp corner (concave or no radius)
+      if (i === 0) {
+        pathParts.push(`M ${curr.x},${curr.y}`);
+      } else {
+        pathParts.push(`L ${curr.x},${curr.y}`);
+      }
+    }
+  }
+
+  pathParts.push('Z');
+  return pathParts.join(' ');
+}

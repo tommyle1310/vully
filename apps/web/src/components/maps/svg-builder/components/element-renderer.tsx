@@ -1,5 +1,6 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import type { SvgElement } from '../svg-builder.types';
+import { createRoundedPolygonPath } from '../svg-builder.geometry';
 
 interface ElementRendererProps {
   element: SvgElement;
@@ -131,27 +132,28 @@ export const PolygonElement = memo(function PolygonElement({
   const rotation = element.rotation || 0;
   const textCounterRotate = rotation ? `rotate(${-rotation} ${pcx} ${pcy})` : undefined;
 
+  // Generate rounded path for convex corners (matches rect rx={4})
+  const roundedPath = useMemo(
+    () => element.points ? createRoundedPolygonPath(element.points, 4) : '',
+    [element.points]
+  );
+
   return (
     <g transform={rotation ? `rotate(${rotation} ${pcx} ${pcy})` : undefined}>
-      {/* Fill */}
-      <polygon points={element.points} fill={element.fill} stroke="none" />
-
-      {/* Stroke - Outer */}
-      <polygon
-        points={element.points}
-        fill="none"
+      {/* Fill + Stroke - uses path for rounded convex corners */}
+      <path
+        d={roundedPath}
+        fill={element.fill}
         stroke={hasOverlap ? '#ef4444' : isSelected ? '#3b82f6' : isInMultiSelection ? '#6366f1' : element.stroke}
-        strokeWidth={isSelected || isInMultiSelection ? 6 : 4}
-        strokeLinejoin="miter"
-        strokeLinecap="butt"
+        strokeWidth={hasOverlap ? 3 : isSelected ? element.strokeWidth + 1 : isInMultiSelection ? element.strokeWidth + 1 : element.strokeWidth}
         className="cursor-move"
         style={{ userSelect: 'none' }}
         onMouseDown={(e) => onMouseDown(e, element.id)}
       />
 
       {/* Invisible hit area */}
-      <polygon
-        points={element.points}
+      <path
+        d={roundedPath}
         fill="transparent"
         stroke="transparent"
         strokeWidth={12}
@@ -161,25 +163,23 @@ export const PolygonElement = memo(function PolygonElement({
 
       {/* Selection dashed outline */}
       {isSelected && (
-        <polygon
-          points={element.points}
+        <path
+          d={roundedPath}
           fill="none"
           stroke="#3b82f6"
-          strokeWidth={3}
-          strokeDasharray="8 4"
-          strokeLinejoin="miter"
+          strokeWidth={2}
+          strokeDasharray="6 3"
         />
       )}
 
       {/* Multi-selection dashed outline */}
       {isInMultiSelection && !isSelected && (
-        <polygon
-          points={element.points}
+        <path
+          d={roundedPath}
           fill="none"
           stroke="#6366f1"
-          strokeWidth={2.5}
+          strokeWidth={2}
           strokeDasharray="6 3"
-          strokeLinejoin="miter"
           pointerEvents="none"
         />
       )}
