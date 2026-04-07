@@ -1,14 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Thêm dòng này để tắt cái icon build ở góc màn hình
+  devIndicators: {
+    buildActivity: false,
+  },
   transpilePackages: ['@vully/shared-types'],
-  // Performance: Enable if needed for bundle analysis
-  // eslint: {
-  //   ignoreDuringBuilds: true, // TODO: Fix linting errors
-  // },
-  // typescript: {
-  //   ignoreBuildErrors: true, // TODO: Fix TypeScript errors
-  // },
+  // ... các phần còn lại giữ nguyên
   images: {
     remotePatterns: [
       {
@@ -29,10 +27,6 @@ const nextConfig = {
       },
     ];
   },
-  // Disabled typedRoutes temporarily until all routes are properly defined
-  // experimental: {
-  //   typedRoutes: true,
-  // },
 };
 
 module.exports = nextConfig;

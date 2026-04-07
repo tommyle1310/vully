@@ -40,7 +40,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         </AuthSync>
         <Toaster />
       </ThemeProvider>
-      <ReactQueryDevtools initialIsOpen={false} />
+      {/* <ReactQueryDevtools initialIsOpen={false} /> */}
     </QueryClientProvider>
   );
 }

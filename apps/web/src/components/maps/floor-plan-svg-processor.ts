@@ -16,6 +16,83 @@ export const STATUS_HOVER_COLORS: Record<string, string> = {
   reserved: 'hsl(263, 70%, 40%)',
 };
 
+/**
+ * Create a rounded corners SVG path from polygon points
+ * Convex corners are rounded, concave corners stay sharp
+ */
+function createRoundedPolygonPath(pointsStr: string, radius: number = 0.4): string {
+  const points = pointsStr.trim().split(/\s+/).map(pair => {
+    const [x, y] = pair.split(',').map(Number);
+    return { x, y };
+  });
+  
+  if (points.length < 3) return '';
+
+  const pathParts: string[] = [];
+
+  for (let i = 0; i < points.length; i++) {
+    const prev = points[(i - 1 + points.length) % points.length];
+    const curr = points[i];
+    const next = points[(i + 1) % points.length];
+
+    // Cross product to determine convex vs concave
+    const cross = (curr.x - prev.x) * (next.y - curr.y) - (curr.y - prev.y) * (next.x - curr.x);
+    const isConvex = cross >= 0;
+
+    // Calculate distances
+    const distPrev = Math.sqrt((curr.x - prev.x) ** 2 + (curr.y - prev.y) ** 2);
+    const distNext = Math.sqrt((next.x - curr.x) ** 2 + (next.y - curr.y) ** 2);
+
+    const maxRadius = Math.min(distPrev, distNext) / 2;
+    const r = isConvex ? Math.min(radius, maxRadius) : 0;
+
+    if (r > 0 && isConvex) {
+      const t1 = r / distPrev;
+      const arcStart = {
+        x: curr.x - (curr.x - prev.x) * t1,
+        y: curr.y - (curr.y - prev.y) * t1,
+      };
+
+      const t2 = r / distNext;
+      const arcEnd = {
+        x: curr.x + (next.x - curr.x) * t2,
+        y: curr.y + (next.y - curr.y) * t2,
+      };
+
+      if (i === 0) {
+        pathParts.push(`M ${arcStart.x},${arcStart.y}`);
+      } else {
+        pathParts.push(`L ${arcStart.x},${arcStart.y}`);
+      }
+      pathParts.push(`A ${r},${r} 0 0 1 ${arcEnd.x},${arcEnd.y}`);
+    } else {
+      if (i === 0) {
+        pathParts.push(`M ${curr.x},${curr.y}`);
+      } else {
+        pathParts.push(`L ${curr.x},${curr.y}`);
+      }
+    }
+  }
+
+  pathParts.push('Z');
+  return pathParts.join(' ');
+}
+
+/**
+ * Transform polygon elements to path elements with rounded corners
+ */
+function transformPolygonsToRoundedPaths(svg: string): string {
+  // Match polygon elements and convert to path
+  return svg.replace(
+    /<polygon\s+([^>]*?)points\s*=\s*"([^"]+)"([^>]*?)\/?\s*>/gi,
+    (_match, beforeAttrs: string, points: string, afterAttrs: string) => {
+      const allAttrs = (beforeAttrs + afterAttrs).trim();
+      const pathD = createRoundedPolygonPath(points, 0.4);
+      return `<path ${allAttrs} d="${pathD}" />`;
+    }
+  );
+}
+
 export function useProcessedSvg(svgContent: string) {
   return useMemo(() => {
     if (!svgContent) return '';
@@ -30,6 +107,8 @@ export function useProcessedSvg(svgContent: string) {
       }
       return `<svg${cleaned}>`;
     });
+    // Transform polygons to rounded paths for consistent styling
+    svg = transformPolygonsToRoundedPaths(svg);
     return svg;
   }, [svgContent]);
 }

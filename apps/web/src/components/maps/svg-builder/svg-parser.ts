@@ -6,7 +6,7 @@ import {
   TEMPLATE_SUB_RECTS,
   getTemplateTypeId,
 } from './svg-builder.constants';
-import { computeAreaSqm } from './svg-builder.geometry';
+import { computeAreaSqm, createRoundedPolygonPath } from './svg-builder.geometry';
 import { scaleSubRects } from './sub-rect.utils';
 
 // =============================================================================
@@ -574,6 +574,7 @@ function generatePolygonSvg(
   scaledStrokeWidth: number,
   areaSqm: number
 ): string {
+  // Scale polygon points for export
   const scaledPoints =
     el.points
       ?.split(' ')
@@ -582,6 +583,9 @@ function generatePolygonSvg(
         return `${x / SCALE_FACTOR},${y / SCALE_FACTOR}`;
       })
       .join(' ') || '';
+
+  // Generate rounded path (radius 0.4 = 4 builder units / SCALE_FACTOR)
+  const roundedPath = createRoundedPolygonPath(scaledPoints, 0.4);
 
   const dataAttrs = [
     el.apartmentId ? `data-apartment-id="${el.apartmentId}"` : '',
@@ -600,9 +604,10 @@ function generatePolygonSvg(
     .filter(Boolean)
     .join(' ');
 
-  const polygonShape = `    <polygon 
+  // Use <path> instead of <polygon> for rounded corners
+  const polygonShape = `    <path 
       ${dataAttrs}
-      points="${scaledPoints}" 
+      d="${roundedPath}" 
       fill="${el.fill}" 
       stroke="${el.stroke}" 
       stroke-width="${scaledStrokeWidth}"
