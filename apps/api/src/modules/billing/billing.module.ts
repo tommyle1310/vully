@@ -10,6 +10,7 @@ import { UtilityTypesService } from './utility-types.service';
 import { BillingProcessor } from './billing.processor';
 import { BillingQueueService } from './billing-queue.service';
 import { BillingJobsController } from './billing-jobs.controller';
+import { VietQRService } from './vietqr.service';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { BillingJobsController } from './billing-jobs.controller';
     UtilityTypesService,
     BillingProcessor,
     BillingQueueService,
+    VietQRService,
   ],
   exports: [
     InvoicesService,
@@ -44,6 +46,7 @@ import { BillingJobsController } from './billing-jobs.controller';
     MeterReadingsService,
     UtilityTypesService,
     BillingQueueService,
+    VietQRService,
   ],
 })
 export class BillingModule {}

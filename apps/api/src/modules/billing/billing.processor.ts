@@ -1,5 +1,5 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { InvoicesService } from './invoices.service';
@@ -52,10 +52,9 @@ export class BillingProcessor extends WorkerHost {
     });
 
     try {
-      // Get all active rental and lease_to_own contracts (skip purchase contracts - they use payment schedules)
+      // Get all active contracts (all types incl. purchase for utilities/mgmt fees/milestones)
       const whereClause: Record<string, unknown> = {
         status: 'active',
-        contract_type: { in: ['rental', 'lease_to_own'] }, // Only contracts with monthly billing
       };
 
       if (buildingId) {
@@ -82,6 +81,7 @@ export class BillingProcessor extends WorkerHost {
       let successCount = 0;
       let failedCount = 0;
       let skippedCount = 0;
+      const createdByType: Record<string, number> = {};
       const errors: Array<{ contractId: string; error: string }> = [];
 
       // Process each contract
@@ -119,22 +119,39 @@ export class BillingProcessor extends WorkerHost {
           );
 
           successCount++;
+          const cType = contract.contract_type || 'rental';
+          createdByType[cType] = (createdByType[cType] || 0) + 1;
           
           this.logger.debug({
             event: 'invoice_generated',
             contractId: contract.id,
+            contractType: cType,
             billingPeriod,
           });
         } catch (error) {
-          failedCount++;
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          errors.push({ contractId: contract.id, error: errorMessage });
 
-          this.logger.error({
-            event: 'invoice_generation_failed',
-            contractId: contract.id,
-            error: errorMessage,
-          });
+          // "No billable items" is expected for contracts with nothing due this period
+          // (e.g. purchase contracts with milestones in other months, no utility readings).
+          // Treat as skip, not failure.
+          if (error instanceof BadRequestException && errorMessage.includes('No billable items')) {
+            skippedCount++;
+            this.logger.debug({
+              event: 'invoice_skipped',
+              contractId: contract.id,
+              reason: 'no_billable_items',
+              detail: errorMessage,
+            });
+          } else {
+            failedCount++;
+            errors.push({ contractId: contract.id, error: errorMessage });
+
+            this.logger.error({
+              event: 'invoice_generation_failed',
+              contractId: contract.id,
+              error: errorMessage,
+            });
+          }
         }
 
         // Update progress
@@ -155,6 +172,7 @@ export class BillingProcessor extends WorkerHost {
       const jobSummary = {
         createdCount: successCount,
         skippedCount,
+        createdByType,
         errors: errors.length > 0 ? errors : undefined,
       };
 

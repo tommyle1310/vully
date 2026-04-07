@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Progress } from '@/components/ui/progress';
 import { useContractFinancialSummary } from '@/hooks/use-payments';
-import { AlertCircle, Calendar, TrendingUp } from 'lucide-react';
+import { AlertCircle, Calendar, TrendingUp, QrCode } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 interface ContractFinancialSummaryCardProps {
   contractId: string;
@@ -152,6 +153,17 @@ export function ContractFinancialSummaryCard({ contractId }: ContractFinancialSu
                 {getStatusBadge(summary.nextDue.status)}
               </div>
             </div>
+            {summary.outstanding > 0 && (
+              <div className="mt-3 pt-3 border-t">
+                <Link
+                  href={`/invoices?contractId=${contractId}`}
+                  className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                >
+                  <QrCode className="h-3 w-3" />
+                  View invoices for VietQR payment
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </CardContent>

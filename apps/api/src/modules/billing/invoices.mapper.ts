@@ -16,12 +16,20 @@ export function toInvoiceResponseDto(invoice: InvoiceWithLineItems): InvoiceResp
     paidAmount: Number(invoice.paid_amount),
     paid_at: invoice.paid_at ?? undefined,
     notes: invoice.notes ?? undefined,
+    paymentReference:
+      (invoice.price_snapshot as Record<string, unknown>)?.paymentReference as
+        | string
+        | undefined,
     lineItems: invoice.invoice_line_items?.map((item) => ({
       id: item.id,
       description: item.description,
+      category: item.category ?? undefined,
       quantity: Number(item.quantity),
       unitPrice: Number(item.unit_price),
       amount: Number(item.amount),
+      vatRate: Number(item.vat_rate),
+      vatAmount: Number(item.vat_amount),
+      environmentFee: Number(item.environment_fee),
       utilityTypeId: item.utility_type_id ?? undefined,
       meterReadingId: item.meter_reading_id ?? undefined,
       tierBreakdown: (item.tier_breakdown as Record<string, unknown>) ?? undefined,

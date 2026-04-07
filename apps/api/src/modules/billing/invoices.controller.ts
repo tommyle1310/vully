@@ -8,6 +8,8 @@ import {
   Query,
   ParseUUIDPipe,
   UseGuards,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,6 +19,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { InvoicesService } from './invoices.service';
+import { VietQRService } from './vietqr.service';
 import {
   CreateInvoiceDto,
   UpdateInvoiceDto,
@@ -35,7 +38,10 @@ import { AuthUser } from '../../common/interfaces/auth-user.interface';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class InvoicesController {
-  constructor(private readonly invoicesService: InvoicesService) {}
+  constructor(
+    private readonly invoicesService: InvoicesService,
+    private readonly vietqrService: VietQRService,
+  ) {}
 
   @Post()
   @Roles('admin')
@@ -159,5 +165,32 @@ export class InvoicesController {
       user.id,
     );
     return { data: invoice };
+  }
+
+  @Get(':id/payment-qr')
+  @Roles('admin', 'resident')
+  @ApiOperation({ summary: 'Get VietQR payment code for an invoice' })
+  @ApiResponse({ status: 200, description: 'Payment QR data' })
+  @ApiResponse({ status: 400, description: 'Invoice already paid or cancelled' })
+  async getPaymentQR(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const invoice = await this.invoicesService.findOne(id, user.id, user.role);
+
+    if (invoice.status === 'paid' || invoice.status === 'cancelled') {
+      throw new BadRequestException(
+        `Cannot generate QR for ${invoice.status} invoice`,
+      );
+    }
+
+    const reference =
+      (invoice as unknown as Record<string, unknown>).paymentReference ??
+      `INV_${invoice.invoice_number}`;
+    const qr = this.vietqrService.generateQR(
+      invoice.totalAmount,
+      String(reference),
+    );
+    return { data: qr };
   }
 }

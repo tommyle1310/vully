@@ -94,6 +94,9 @@ export class InvoiceLineItemDto {
   @ApiProperty()
   description: string;
 
+  @ApiPropertyOptional()
+  category?: string;
+
   @ApiProperty()
   quantity: number;
 
@@ -102,6 +105,15 @@ export class InvoiceLineItemDto {
 
   @ApiProperty()
   amount: number;
+
+  @ApiProperty()
+  vatRate: number;
+
+  @ApiProperty()
+  vatAmount: number;
+
+  @ApiProperty()
+  environmentFee: number;
 
   @ApiPropertyOptional()
   utilityTypeId?: string;
@@ -152,6 +164,9 @@ export class InvoiceResponseDto {
 
   @ApiPropertyOptional()
   notes?: string;
+
+  @ApiPropertyOptional()
+  paymentReference?: string;
 
   @ApiProperty({ type: [InvoiceLineItemDto] })
   lineItems: InvoiceLineItemDto[];

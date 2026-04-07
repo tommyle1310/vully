@@ -73,6 +73,7 @@ export default function InvoicesPage() {
   const [urlFilters, setUrlFilters] = useQueryStates({
     status: parseAsString.withDefault('all'),
     apartmentId: parseAsString.withDefault(''),
+    contractId: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
   });
   
@@ -106,6 +107,7 @@ export default function InvoicesPage() {
     limit: 20,
     status: urlFilters.status === 'all' ? undefined : urlFilters.status as Invoice['status'],
     apartmentId: urlFilters.apartmentId || undefined,
+    contractId: urlFilters.contractId || undefined,
   });
 
   const invoices = data?.data || [];

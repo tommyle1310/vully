@@ -9,6 +9,10 @@ export interface InvoiceLineItem {
   quantity: number;
   unitPrice: number;
   amount: number;
+  category?: string;
+  vatRate?: number;
+  vatAmount?: number;
+  environmentFee?: number;
   utilityTypeId?: string;
   meterReadingId?: string;
   tierBreakdown?: Record<string, unknown>;
@@ -28,6 +32,7 @@ export interface Invoice {
   paidAmount: number;
   paid_at?: string;
   notes?: string;
+  paymentReference?: string;
   lineItems: InvoiceLineItem[];
   created_at: string;
   updatedAt: string;

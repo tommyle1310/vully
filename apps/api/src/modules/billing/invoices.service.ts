@@ -49,12 +49,6 @@ export class InvoicesService {
       throw new BadRequestException('Contract is not active');
     }
 
-    if (contract.contract_type === 'purchase') {
-      throw new BadRequestException(
-        'Purchase contracts use payment schedules, not invoices. Use the payment tracking feature instead.',
-      );
-    }
-
     const existing = await this.prisma.invoices.findFirst({
       where: {
         contract_id: dto.contractId,
@@ -75,6 +69,8 @@ export class InvoicesService {
       dto.billingPeriod,
       Number(contract.rent_amount),
       dto.categories,
+      contract.contract_type,
+      contract.apartments.unit_number,
     );
 
     if (calculation.lineItems.length === 0 || calculation.totalAmount <= 0) {
@@ -104,14 +100,20 @@ export class InvoicesService {
         notes: dto.notes,
         price_snapshot: {
           rentAmount: Number(contract.rent_amount),
+          contractType: contract.contract_type,
+          paymentReference: calculation.paymentReference,
           calculatedAt: new Date().toISOString(),
         },
         invoice_line_items: {
           create: calculation.lineItems.map((item) => ({
             description: item.description,
+            category: item.category,
             quantity: item.quantity,
             unit_price: item.unitPrice,
             amount: item.amount,
+            vat_rate: item.vatRate,
+            vat_amount: item.vatAmount,
+            environment_fee: item.environmentFee,
             utility_type_id: item.utilityTypeId,
             meter_reading_id: item.meterReadingId,
             tier_breakdown: item.tierBreakdown as Prisma.InputJsonValue,

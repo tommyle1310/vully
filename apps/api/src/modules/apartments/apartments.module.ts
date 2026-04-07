@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { BuildingsController } from './buildings.controller';
 import { BuildingsService } from './buildings.service';
 import { BuildingsSvgService } from './buildings-svg.service';
@@ -64,4 +64,19 @@ import { AccessCardsLifecycleService } from './access-cards-lifecycle.service';
     AccessCardsLifecycleService,
   ],
 })
-export class ApartmentsModule {}
+export class ApartmentsModule implements OnModuleInit {
+  private readonly logger = new Logger(ApartmentsModule.name);
+
+  constructor(private readonly paymentGeneratorService: PaymentGeneratorService) {}
+
+  async onModuleInit() {
+    try {
+      const count = await this.paymentGeneratorService.updateOverdueStatuses();
+      if (count > 0) {
+        this.logger.log(`Updated ${count} overdue payment schedule(s) on startup`);
+      }
+    } catch (error) {
+      this.logger.error('Failed to update overdue statuses on startup', error);
+    }
+  }
+}

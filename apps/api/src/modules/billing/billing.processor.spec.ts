@@ -1,17 +1,17 @@
-import { Test, TestingModule } from '@nestjs/testing';
+﻿import { Test, TestingModule } from '@nestjs/testing';
 import { Job } from 'bullmq';
 import { BillingProcessor, GenerateMonthlyInvoicesPayload } from './billing.processor';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { InvoicesService } from './invoices.service';
 
 const mockPrismaService = {
-  billingJob: {
+  billing_jobs: {
     update: jest.fn(),
   },
   contracts: {
     findMany: jest.fn(),
   },
-  invoice: {
+  invoices: {
     findFirst: jest.fn(),
   },
 };
@@ -28,9 +28,21 @@ describe('BillingProcessor', () => {
   const mockContract = {
     id: 'contract-uuid-1',
     status: 'active',
+    contract_type: 'rental',
     apartments: {
       id: 'apartment-uuid-1',
       unit_number: 'A101',
+      buildings: { id: 'building-uuid-1', name: 'Building A' },
+    },
+  };
+
+  const mockPurchaseContract = {
+    id: 'contract-uuid-2',
+    status: 'active',
+    contract_type: 'purchase',
+    apartments: {
+      id: 'apartment-uuid-2',
+      unit_number: 'B201',
       buildings: { id: 'building-uuid-1', name: 'Building A' },
     },
   };
@@ -75,7 +87,7 @@ describe('BillingProcessor', () => {
 
       const mockJob = createMockJob(jobData);
 
-      prisma.billingJob.update.mockResolvedValue({});
+      prisma.billing_jobs.update.mockResolvedValue({});
       prisma.contracts.findMany.mockResolvedValue([mockContract]);
       prisma.invoices.findFirst.mockResolvedValue(null);
       invoicesService.create.mockResolvedValue({ id: 'invoice-uuid' });
@@ -102,7 +114,7 @@ describe('BillingProcessor', () => {
 
       const mockJob = createMockJob(jobData);
 
-      prisma.billingJob.update.mockResolvedValue({});
+      prisma.billing_jobs.update.mockResolvedValue({});
       prisma.contracts.findMany.mockResolvedValue([mockContract]);
       prisma.invoices.findFirst.mockResolvedValue({ id: 'existing-invoice' });
 
@@ -121,7 +133,7 @@ describe('BillingProcessor', () => {
 
       const mockJob = createMockJob(jobData);
 
-      prisma.billingJob.update.mockResolvedValue({});
+      prisma.billing_jobs.update.mockResolvedValue({});
       prisma.contracts.findMany.mockResolvedValue([mockContract, { ...mockContract, id: 'contract-2' }]);
       prisma.invoices.findFirst.mockResolvedValue(null);
       invoicesService.create
@@ -143,7 +155,7 @@ describe('BillingProcessor', () => {
 
       const mockJob = createMockJob(jobData);
 
-      prisma.billingJob.update.mockResolvedValue({});
+      prisma.billing_jobs.update.mockResolvedValue({});
       prisma.contracts.findMany.mockResolvedValue([]);
 
       await processor.process(mockJob as Job<GenerateMonthlyInvoicesPayload>);
@@ -166,12 +178,12 @@ describe('BillingProcessor', () => {
 
       const mockJob = createMockJob(jobData);
 
-      prisma.billingJob.update.mockResolvedValue({});
+      prisma.billing_jobs.update.mockResolvedValue({});
       prisma.contracts.findMany.mockResolvedValue([]);
 
       await processor.process(mockJob as Job<GenerateMonthlyInvoicesPayload>);
 
-      expect(prisma.billingJob.update).toHaveBeenCalledWith(
+      expect(prisma.billing_jobs.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'billing-job-uuid' },
           data: expect.objectContaining({
@@ -190,7 +202,7 @@ describe('BillingProcessor', () => {
 
       const mockJob = createMockJob(jobData);
 
-      prisma.billingJob.update.mockResolvedValue({});
+      prisma.billing_jobs.update.mockResolvedValue({});
       prisma.contracts.findMany.mockResolvedValue([mockContract]);
       prisma.invoices.findFirst.mockResolvedValue(null);
       invoicesService.create.mockResolvedValue({ id: 'invoice-uuid' });
@@ -198,7 +210,7 @@ describe('BillingProcessor', () => {
       await processor.process(mockJob as Job<GenerateMonthlyInvoicesPayload>);
 
       // Check last update call has 'completed' status
-      const lastCall = prisma.billingJob.update.mock.calls[prisma.billingJob.update.mock.calls.length - 1];
+      const lastCall = prisma.billing_jobs.update.mock.calls[prisma.billing_jobs.update.mock.calls.length - 1];
       expect(lastCall[0].data.status).toBe('completed');
     });
 
@@ -211,16 +223,36 @@ describe('BillingProcessor', () => {
 
       const mockJob = createMockJob(jobData);
 
-      prisma.billingJob.update.mockResolvedValue({});
+      prisma.billing_jobs.update.mockResolvedValue({});
       prisma.contracts.findMany.mockResolvedValue([mockContract]);
       prisma.invoices.findFirst.mockResolvedValue(null);
       invoicesService.create.mockRejectedValue(new Error('Generation failed'));
 
       await processor.process(mockJob as Job<GenerateMonthlyInvoicesPayload>);
 
-      const lastCall = prisma.billingJob.update.mock.calls[prisma.billingJob.update.mock.calls.length - 1];
+      const lastCall = prisma.billing_jobs.update.mock.calls[prisma.billing_jobs.update.mock.calls.length - 1];
       expect(lastCall[0].data.status).toBe('failed');
       expect(lastCall[0].data.errorLog).toBeDefined();
+    });
+
+    it('should include purchase contracts in processing', async () => {
+      const jobData: GenerateMonthlyInvoicesPayload = {
+        billingPeriod: '2026-03',
+        triggeredById: 'admin-uuid',
+        billingJobId: 'billing-job-uuid',
+      };
+
+      const mockJob = createMockJob(jobData);
+
+      prisma.billing_jobs.update.mockResolvedValue({});
+      prisma.contracts.findMany.mockResolvedValue([mockContract, mockPurchaseContract]);
+      prisma.invoices.findFirst.mockResolvedValue(null);
+      invoicesService.create.mockResolvedValue({ id: 'invoice-uuid' });
+
+      const result = await processor.process(mockJob as Job<GenerateMonthlyInvoicesPayload>);
+
+      expect(result).toEqual({ success: 2, failed: 0 });
+      expect(invoicesService.create).toHaveBeenCalledTimes(2);
     });
   });
 });

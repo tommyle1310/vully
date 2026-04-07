@@ -45,6 +45,8 @@ export const paymentTypeLabels: Record<PaymentType, string> = {
 export function usePaymentColumns(
   onRecordPayment: (schedule: PaymentSchedule) => void,
   onDelete: (scheduleId: string) => void,
+  onEdit?: (schedule: PaymentSchedule) => void,
+  isAdmin: boolean = true,
 ) {
   return useMemo(
     () => [
@@ -150,18 +152,24 @@ export function usePaymentColumns(
                     Record Payment
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem disabled>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit Schedule
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => onDelete(schedule.id)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => onEdit?.(schedule)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Schedule
+                  </DropdownMenuItem>
+                )}
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onClick={() => onDelete(schedule.id)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           );
@@ -169,7 +177,7 @@ export function usePaymentColumns(
         size: 50,
       }),
     ],
-    [onRecordPayment, onDelete]
+    [onRecordPayment, onDelete, onEdit, isAdmin]
   );
 }
 

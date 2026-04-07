@@ -3,6 +3,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { formatCurrency } from '@/lib/format';
+import { format, parseISO } from 'date-fns';
 import { z } from 'zod';
 import {
   Dialog,
@@ -23,8 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { DatePicker } from '@/components/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { useRecordPayment, PaymentSchedule, PaymentMethod } from '@/hooks/use-payments';
+import { useAuthStore } from '@/stores/authStore';
+import { VietQRDisplay } from './VietQRDisplay';
 import { Loader2, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -42,10 +46,11 @@ interface RecordPaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   schedule: PaymentSchedule | null;
+  invoiceId?: string;
   onSuccess?: () => void;
 }
 
-const paymentMethodLabels: Record<PaymentMethod, string> = {
+const allPaymentMethods: Record<PaymentMethod, string> = {
   bank_transfer: 'Bank Transfer',
   cash: 'Cash',
   check: 'Check',
@@ -53,16 +58,24 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
   other: 'Other',
 };
 
+const residentPaymentMethods: PaymentMethod[] = ['bank_transfer', 'cash'];
+
 export function RecordPaymentDialog({
   open,
   onOpenChange,
   schedule,
+  invoiceId,
   onSuccess,
 }: RecordPaymentDialogProps) {
   const { toast } = useToast();
   const recordPayment = useRecordPayment();
+  const isResident = useAuthStore((s) => s.hasRole('resident') && !s.hasRole('admin'));
   
   const balance = schedule ? schedule.expectedAmount - schedule.receivedAmount : 0;
+  
+  const availableMethods = isResident
+    ? residentPaymentMethods.map((m) => [m, allPaymentMethods[m]] as const)
+    : (Object.entries(allPaymentMethods) as Array<[PaymentMethod, string]>);
   
   const {
     register,
@@ -80,6 +93,7 @@ export function RecordPaymentDialog({
   });
 
   const watchedAmount = watch('amount');
+  const watchedMethod = watch('paymentMethod');
 
   const onSubmit = (data: RecordPaymentForm) => {
     if (!schedule) return;
@@ -124,7 +138,7 @@ export function RecordPaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
@@ -191,11 +205,12 @@ export function RecordPaymentDialog({
 
           {/* Payment Date */}
           <div className="space-y-2">
-            <Label htmlFor="paymentDate">Payment Date</Label>
-            <Input
-              id="paymentDate"
-              type="date"
-              {...register('paymentDate')}
+            <Label>Payment Date</Label>
+            <DatePicker
+              value={watch('paymentDate') ? parseISO(watch('paymentDate')) : new Date()}
+              onChange={(date) => {
+                if (date) setValue('paymentDate', format(date, 'yyyy-MM-dd'));
+              }}
             />
             {errors.paymentDate && (
               <p className="text-xs text-destructive">{errors.paymentDate.message}</p>
@@ -210,7 +225,7 @@ export function RecordPaymentDialog({
                 <SelectValue placeholder="Select method (optional)" />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(paymentMethodLabels).map(([value, label]) => (
+                {availableMethods.map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
                   </SelectItem>
@@ -218,6 +233,11 @@ export function RecordPaymentDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {/* VietQR Display for bank transfers */}
+          {isResident && watchedMethod === 'bank_transfer' && invoiceId && (
+            <VietQRDisplay invoiceId={invoiceId} amount={balance} />
+          )}
 
           {/* Reference Number */}
           <div className="space-y-2">

@@ -31,12 +31,16 @@ import { useToast } from '@/hooks/use-toast';
 interface JobSummary {
   createdCount?: number;
   skippedCount?: number;
+  createdByType?: { rental?: number; purchase?: number; lease_to_own?: number };
   errors?: Array<{ contractId: string; error: string }>;
 }
 
-// Predefined categories (rent + utility types)
+// Predefined categories (rent + installment + milestone + management fee + utility types)
 const BASE_CATEGORIES = [
-  { code: 'rent', name: 'Rent', description: 'Base monthly rent' },
+  { code: 'rent', name: 'Rent', description: 'Monthly rent (rental contracts)' },
+  { code: 'installment', name: 'Installment', description: 'Monthly installment (lease-to-own contracts)' },
+  { code: 'milestone', name: 'Milestone', description: 'Payment milestones (purchase contracts)' },
+  { code: 'management_fee', name: 'Management Fee', description: 'Building management fee' },
 ];
 
 function getCurrentBillingPeriod(): string {
@@ -368,6 +372,20 @@ export function BulkGenerateInvoicesDialog({ trigger }: BulkGenerateDialogProps)
                         {createdCount} invoice(s) created
                       </p>
                     )}
+                    {/* Breakdown by contract type */}
+                    {jobSummary?.createdByType && (
+                      <div className="pl-4 space-y-0.5 text-muted-foreground">
+                        {jobSummary.createdByType.rental ? (
+                          <p>Rental: {jobSummary.createdByType.rental}</p>
+                        ) : null}
+                        {jobSummary.createdByType.purchase ? (
+                          <p>Purchase: {jobSummary.createdByType.purchase}</p>
+                        ) : null}
+                        {jobSummary.createdByType.lease_to_own ? (
+                          <p>Lease-to-Own: {jobSummary.createdByType.lease_to_own}</p>
+                        ) : null}
+                      </div>
+                    )}
                     {skippedCount > 0 && (
                       <p className="text-muted-foreground flex items-center gap-1">
                         <AlertTriangle className="h-3 w-3" />
@@ -379,6 +397,16 @@ export function BulkGenerateInvoicesDialog({ trigger }: BulkGenerateDialogProps)
                         <XCircle className="h-3 w-3" />
                         {job.failedCount} failed
                       </p>
+                    )}
+                    {/* Detailed error messages */}
+                    {jobSummary?.errors && jobSummary.errors.length > 0 && (
+                      <div className="mt-2 max-h-[100px] overflow-y-auto rounded border border-destructive/20 bg-destructive/5 p-2">
+                        {jobSummary.errors.map((err, i) => (
+                          <p key={i} className="text-destructive truncate" title={err.error}>
+                            Contract {err.contractId.slice(0, 8)}…: {err.error}
+                          </p>
+                        ))}
+                      </div>
                     )}
                   </div>
                 )}

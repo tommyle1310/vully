@@ -33,8 +33,10 @@ import {
   PaymentSchedule,
 } from '@/hooks/use-payments';
 import { RecordPaymentDialog } from './RecordPaymentDialog';
+import { EditPaymentScheduleDialog } from './EditPaymentScheduleDialog';
 import { usePaymentColumns, PaymentTableSkeleton } from './payment-schedule-columns';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthStore } from '@/stores/authStore';
 
 interface PaymentScheduleTableProps {
   contractId: string;
@@ -51,6 +53,8 @@ export function PaymentScheduleTable({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [selectedSchedule, setSelectedSchedule] = useState<PaymentSchedule | null>(null);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [editScheduleOpen, setEditScheduleOpen] = useState(false);
+  const isAdmin = useAuthStore((s) => s.hasRole('admin') || s.hasRole('technician'));
 
   const { data, isLoading, error, refetch } = usePaymentSchedules(contractId);
   const deleteSchedule = useDeletePaymentSchedule();
@@ -78,7 +82,12 @@ export function PaymentScheduleTable({
     });
   }, [deleteSchedule, toast, refetch]);
 
-  const columns = usePaymentColumns(handleRecordPayment, handleDeleteSchedule);
+  const handleEditSchedule = useCallback((schedule: PaymentSchedule) => {
+    setSelectedSchedule(schedule);
+    setEditScheduleOpen(true);
+  }, []);
+
+  const columns = usePaymentColumns(handleRecordPayment, handleDeleteSchedule, handleEditSchedule, isAdmin);
 
   const table = useReactTable({
     data: schedules,
@@ -145,22 +154,24 @@ export function PaymentScheduleTable({
             </Badge>
           </div>
           <div className="flex gap-2">
-            {contractType === 'rental' && schedules.length === 0 && (
+            {isAdmin && contractType === 'rental' && schedules.length === 0 && (
               <Button variant="outline" size="sm" onClick={handleGenerateSchedules} disabled={generateRentSchedule.isPending}>
                 <Wand2 className="mr-2 h-4 w-4" />
                 Auto-Generate (12 months)
               </Button>
             )}
-            {contractType === 'purchase' && schedules.length === 0 && (
+            {isAdmin && contractType === 'purchase' && schedules.length === 0 && (
               <Button variant="outline" size="sm" onClick={handleGeneratePurchaseMilestones} disabled={generatePurchaseMilestones.isPending}>
                 <Wand2 className="mr-2 h-4 w-4" />
                 Generate Payment Milestones
               </Button>
             )}
-            <Button size="sm" disabled>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Entry
-            </Button>
+            {isAdmin && (
+              <Button size="sm" disabled>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Entry
+              </Button>
+            )}
           </div>
         </div>
 
@@ -168,13 +179,13 @@ export function PaymentScheduleTable({
           <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12">
             <DollarSign className="h-8 w-8 text-muted-foreground mb-2" />
             <p className="text-sm text-muted-foreground mb-4">No payment schedules yet</p>
-            {contractType === 'rental' && (
+            {isAdmin && contractType === 'rental' && (
               <Button variant="outline" onClick={handleGenerateSchedules} disabled={generateRentSchedule.isPending}>
                 <Wand2 className="mr-2 h-4 w-4" />
                 Generate Rent Schedule
               </Button>
             )}
-            {contractType === 'purchase' && (
+            {isAdmin && contractType === 'purchase' && (
               <Button variant="outline" onClick={handleGeneratePurchaseMilestones} disabled={generatePurchaseMilestones.isPending}>
                 <Wand2 className="mr-2 h-4 w-4" />
                 Generate Payment Milestones
@@ -222,6 +233,13 @@ export function PaymentScheduleTable({
       <RecordPaymentDialog
         open={recordPaymentOpen}
         onOpenChange={setRecordPaymentOpen}
+        schedule={selectedSchedule}
+        onSuccess={() => refetch()}
+      />
+
+      <EditPaymentScheduleDialog
+        open={editScheduleOpen}
+        onOpenChange={setEditScheduleOpen}
         schedule={selectedSchedule}
         onSuccess={() => refetch()}
       />

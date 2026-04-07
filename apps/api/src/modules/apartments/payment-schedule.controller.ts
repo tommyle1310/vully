@@ -60,7 +60,7 @@ export class PaymentScheduleController {
     @CurrentUser() user: AuthUser,
   ): Promise<{ data: PaymentScheduleResponseDto[] }> {
     // Verify contract ownership for residents
-    const isAdmin = user.role === 'admin' || user.role === 'technician';
+    const isAdmin = user.roles?.includes('admin') || user.roles?.includes('technician');
     if (!isAdmin) {
       const contract = await this.contractsService.findOne(contractId);
       if (contract.tenantId !== user.id) {
@@ -177,7 +177,7 @@ export class PaymentScheduleController {
     @CurrentUser() user: AuthUser,
   ): Promise<{ data: ContractFinancialSummaryDto }> {
     // Verify contract ownership for residents
-    const isAdmin = user.role === 'admin' || user.role === 'technician';
+    const isAdmin = user.roles?.includes('admin') || user.roles?.includes('technician');
     if (!isAdmin) {
       const contract = await this.contractsService.findOne(contractId);
       if (contract.tenantId !== user.id) {
@@ -205,7 +205,7 @@ export class PaymentScheduleController {
     @CurrentUser() user: AuthUser,
   ): Promise<{ data: PaymentScheduleResponseDto[]; message: string }> {
     // Verify contract ownership for residents
-    const isAdmin = user.role === 'admin' || user.role === 'technician';
+    const isAdmin = user.roles?.includes('admin') || user.roles?.includes('technician');
     if (!isAdmin) {
       const contract = await this.contractsService.findOne(contractId);
       if (contract.tenantId !== user.id) {
@@ -232,7 +232,7 @@ export class PaymentScheduleController {
     @CurrentUser() user: AuthUser,
   ): Promise<{ data: PaymentScheduleResponseDto[]; message: string }> {
     // Verify contract ownership for residents
-    const isAdmin = user.role === 'admin' || user.role === 'technician';
+    const isAdmin = user.roles?.includes('admin') || user.roles?.includes('technician');
     if (!isAdmin) {
       const contract = await this.contractsService.findOne(contractId);
       if (contract.tenantId !== user.id) {

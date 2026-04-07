@@ -3,19 +3,27 @@
 // =============================================================================
 
 // --- Invoice Calculation ---
+export interface InvoiceLineItemCalc {
+  description: string;
+  category: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  vatRate: number;
+  vatAmount: number;
+  environmentFee: number;
+  utilityTypeId?: string;
+  meterReadingId?: string;
+  tierBreakdown?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}
+
 export interface InvoiceCalculation {
   subtotal: number;
   taxAmount: number;
   totalAmount: number;
-  lineItems: Array<{
-    description: string;
-    quantity: number;
-    unitPrice: number;
-    amount: number;
-    utilityTypeId?: string;
-    meterReadingId?: string;
-    tierBreakdown?: Record<string, unknown>;
-  }>;
+  paymentReference?: string;
+  lineItems: InvoiceLineItemCalc[];
 }
 
 // --- Dashboard Stats ---
