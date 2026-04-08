@@ -61,7 +61,7 @@ function InfoRow({
       <Icon className="h-4 w-4 mt-0.5 text-muted-foreground" />
       <div className="flex-1">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-sm font-medium">{value}</p>
+        <div className="text-sm font-medium">{value}</div>
       </div>
     </div>
   );
@@ -194,12 +194,27 @@ export default function ContractDetailPage({ params }: PageProps) {
               <Separator />
               <InfoRow
                 icon={DollarSign}
-                label="Monthly Rent"
+                label={contractType === 'lease_to_own' ? 'Monthly Installment' : 'Monthly Rent'}
                 value={
-                  <span>
-                    {formatCurrency(contract.rentAmount)}
-                    <span className="text-xs text-muted-foreground ml-1">(excl. VAT)</span>
-                  </span>
+                  <div>
+                    <span>{formatCurrency(contract.rentAmount)}</span>
+                    {contractType === 'rental' && (
+                      <>
+                        <span className="text-xs text-muted-foreground ml-1">(excl. VAT)</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Incl. 10% VAT: {formatCurrency(contract.rentAmount * 1.1)}
+                        </p>
+                      </>
+                    )}
+                    {contractType === 'lease_to_own' && (
+                      <>
+                        <span className="text-xs text-muted-foreground ml-1">(excl. VAT)</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Incl. 10% VAT: {formatCurrency(contract.rentAmount * 1.1)}
+                        </p>
+                      </>
+                    )}
+                  </div>
                 }
               />
               <InfoRow

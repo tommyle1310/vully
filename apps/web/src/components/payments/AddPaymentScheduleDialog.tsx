@@ -194,14 +194,28 @@ export function AddPaymentScheduleDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="expectedAmount">Expected Amount (excl. VAT)</Label>
+            <Label htmlFor="expectedAmount">Expected Amount</Label>
             <Input
               id="expectedAmount"
               type="number"
               {...register('expectedAmount')}
               placeholder="Enter amount"
             />
-            <p className="text-xs text-muted-foreground">Base amount before 10% VAT is added on invoices</p>
+            {(watch('expectedAmount') ?? 0) > 0 && (watch('paymentType') === 'rent' || watch('paymentType') === 'installment' || watch('paymentType') === 'milestone') && (
+              <div className="rounded-md bg-muted/50 px-3 py-2 text-xs space-y-1">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>VAT (10%)</span>
+                  <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((watch('expectedAmount') ?? 0) * 0.1)}</span>
+                </div>
+                <div className="flex justify-between font-medium">
+                  <span>Total incl. VAT</span>
+                  <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((watch('expectedAmount') ?? 0) * 1.1)}</span>
+                </div>
+              </div>
+            )}
+            {(watch('expectedAmount') ?? 0) > 0 && watch('paymentType') !== 'rent' && watch('paymentType') !== 'installment' && watch('paymentType') !== 'milestone' && (
+              <p className="text-xs text-muted-foreground">VAT calculated at invoice generation based on category</p>
+            )}
             {errors.expectedAmount && (
               <p className="text-xs text-destructive">{errors.expectedAmount.message}</p>
             )}

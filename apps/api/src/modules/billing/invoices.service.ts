@@ -147,6 +147,153 @@ export class InvoicesService {
     return toInvoiceResponseDto(invoice);
   }
 
+  /**
+   * Supplement an existing invoice with missing line items (e.g. utility charges
+   * added after initial invoice generation). Only appends NEW items whose
+   * category+meterReadingId combo doesn't already exist on the invoice.
+   * Recalculates totals after appending.
+   *
+   * @returns the updated invoice, or `null` if nothing new was added.
+   */
+  async supplementInvoice(
+    invoiceId: string,
+    contractId: string,
+    billingPeriod: string,
+    categories?: string[],
+    actorId?: string,
+  ): Promise<InvoiceResponseDto | null> {
+    const invoice = await this.prisma.invoices.findUnique({
+      where: { id: invoiceId },
+      include: {
+        invoice_line_items: true,
+        contracts: {
+          include: {
+            apartments: { include: { buildings: true } },
+            users_contracts_tenant_idTousers: true,
+          },
+        },
+      },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
+    }
+
+    // Don't modify paid or cancelled invoices
+    if (invoice.status === 'paid' || invoice.status === 'cancelled') {
+      return null;
+    }
+
+    const contract = invoice.contracts;
+
+    // Recalculate what the full invoice SHOULD contain
+    const fullCalc = await this.calculator.calculateInvoice(
+      contractId,
+      contract.apartments.id,
+      contract.apartments.building_id,
+      billingPeriod,
+      Number(contract.rent_amount),
+      categories,
+      contract.contract_type,
+      contract.apartments.unit_number,
+    );
+
+    // Determine which line items are genuinely new:
+    // - For utility items: match by meter_reading_id
+    // - For non-utility items: match by category
+    const existingMeterReadingIds = new Set(
+      invoice.invoice_line_items
+        .filter((li) => li.meter_reading_id)
+        .map((li) => li.meter_reading_id),
+    );
+    const existingCategories = new Set(
+      invoice.invoice_line_items
+        .filter((li) => !li.meter_reading_id)
+        .map((li) => li.category),
+    );
+
+    const newItems = fullCalc.lineItems.filter((item) => {
+      if (item.meterReadingId) {
+        return !existingMeterReadingIds.has(item.meterReadingId);
+      }
+      return !existingCategories.has(item.category);
+    });
+
+    if (newItems.length === 0) {
+      return null; // nothing to add
+    }
+
+    // Append new line items and recalculate totals
+    const addedSubtotal = newItems.reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice, 0,
+    );
+    const addedTax = newItems.reduce(
+      (sum, item) => sum + item.vatAmount, 0,
+    );
+    const addedEnvFee = newItems.reduce(
+      (sum, item) => sum + item.environmentFee, 0,
+    );
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // Insert new line items
+      await tx.invoice_line_items.createMany({
+        data: newItems.map((item) => ({
+          invoice_id: invoiceId,
+          description: item.description,
+          category: item.category,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          amount: item.amount,
+          vat_rate: item.vatRate,
+          vat_amount: item.vatAmount,
+          environment_fee: item.environmentFee,
+          utility_type_id: item.utilityTypeId,
+          meter_reading_id: item.meterReadingId,
+          tier_breakdown: item.tierBreakdown as Prisma.InputJsonValue,
+        })),
+      });
+
+      // Recalculate totals
+      const newSubtotal = Number(invoice.subtotal) + addedSubtotal;
+      const newTax = Number(invoice.tax_amount) + addedTax;
+      const newTotal = newSubtotal + newTax + addedEnvFee
+        + invoice.invoice_line_items.reduce(
+          (sum, li) => sum + Number(li.environment_fee), 0,
+        );
+
+      return tx.invoices.update({
+        where: { id: invoiceId },
+        data: {
+          subtotal: newSubtotal,
+          tax_amount: newTax,
+          total_amount: newTotal,
+        },
+        include: {
+          invoice_line_items: true,
+          contracts: {
+            include: {
+              apartments: { include: { buildings: true } },
+              users_contracts_tenant_idTousers: true,
+            },
+          },
+        },
+      });
+    });
+
+    this.logger.log({
+      event: 'invoice_supplemented',
+      actorId,
+      invoiceId,
+      billingPeriod,
+      addedLineItems: newItems.length,
+      addedSubtotal,
+      addedTax,
+      newTotal: Number(updated.total_amount),
+    });
+
+    return toInvoiceResponseDto(updated);
+  }
+
   async findAll(
     filters: InvoiceFiltersDto,
     page = 1,

@@ -10,7 +10,7 @@ import { ContractType } from '@prisma/client';
 /** VAT rates by line item category (Vietnamese tax rules) */
 const VAT_RATES: Record<string, number> = {
   rent: 0.10,
-  installment: 0.10, // applied on interest portion only
+  installment: 0.10,
   milestone: 0.10,
   management_fee: 0.10,
   utility_electric: 0, // thu hộ - pass-through
@@ -203,7 +203,7 @@ export class InvoiceCalculatorService {
     const totalPayment = principalPayment + interestPayment;
 
     const vatRate = VAT_RATES['installment'];
-    const vatAmount = interestPayment * vatRate; // VAT on interest only
+    const vatAmount = totalPayment * vatRate;
 
     return {
       description: `Installment ${installmentNumber}/${totalMonths} - ${billingPeriod}`,

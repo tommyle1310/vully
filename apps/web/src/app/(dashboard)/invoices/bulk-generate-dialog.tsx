@@ -31,6 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 interface JobSummary {
   createdCount?: number;
   skippedCount?: number;
+  supplementedCount?: number;
   createdByType?: { rental?: number; purchase?: number; lease_to_own?: number };
   errors?: Array<{ contractId: string; error: string }>;
 }
@@ -97,6 +98,7 @@ export function BulkGenerateInvoicesDialog({ trigger }: BulkGenerateDialogProps)
   const jobSummary: JobSummary | null = job?.errorLog as JobSummary | null;
   const createdCount = jobSummary?.createdCount ?? 0;
   const skippedCount = jobSummary?.skippedCount ?? 0;
+  const supplementedCount = jobSummary?.supplementedCount ?? 0;
 
   // Combine base categories with utility types
   const allCategories = [
@@ -134,10 +136,14 @@ export function BulkGenerateInvoicesDialog({ trigger }: BulkGenerateDialogProps)
       // Invalidate invoices query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       
-      if (createdCount > 0) {
+      if (createdCount > 0 || supplementedCount > 0) {
+        const parts: string[] = [];
+        if (createdCount > 0) parts.push(`Created ${createdCount} new invoice(s)`);
+        if (supplementedCount > 0) parts.push(`Updated ${supplementedCount} existing invoice(s) with new charges`);
+        if (skippedCount > 0) parts.push(`${skippedCount} skipped`);
         toast({
           title: 'Invoices generated',
-          description: `Created ${createdCount} new invoice(s)${skippedCount > 0 ? `, ${skippedCount} skipped (already exist)` : ''}.`,
+          description: parts.join(', ') + '.',
         });
       } else if (skippedCount > 0) {
         toast({
@@ -159,7 +165,7 @@ export function BulkGenerateInvoicesDialog({ trigger }: BulkGenerateDialogProps)
         variant: 'destructive',
       });
     }
-  }, [job, createdCount, skippedCount, billingPeriod, toast, queryClient]);
+  }, [job, createdCount, skippedCount, supplementedCount, billingPeriod, toast, queryClient]);
 
   const handleCategoryToggle = (code: string, checked: boolean) => {
     if (checked) {
@@ -374,6 +380,12 @@ export function BulkGenerateInvoicesDialog({ trigger }: BulkGenerateDialogProps)
                         {createdCount} invoice(s) created
                       </p>
                     )}
+                    {supplementedCount > 0 && (
+                      <p className="text-blue-600 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        {supplementedCount} invoice(s) updated with new charges
+                      </p>
+                    )}
                     {/* Breakdown by contract type */}
                     {jobSummary?.createdByType && (
                       <div className="pl-4 space-y-0.5 text-muted-foreground">
@@ -391,7 +403,7 @@ export function BulkGenerateInvoicesDialog({ trigger }: BulkGenerateDialogProps)
                     {skippedCount > 0 && (
                       <p className="text-muted-foreground flex items-center gap-1">
                         <AlertTriangle className="h-3 w-3" />
-                        {skippedCount} skipped (already exist)
+                        {skippedCount} unchanged (already complete)
                       </p>
                     )}
                     {job && job.failedCount > 0 && (

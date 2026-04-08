@@ -30,7 +30,7 @@ export class BillingProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<GenerateMonthlyInvoicesPayload>): Promise<{ success: number; failed: number }> {
+  async process(job: Job<GenerateMonthlyInvoicesPayload>): Promise<{ success: number; supplemented: number; failed: number }> {
     const { billingPeriod, buildingId, triggeredById, billingJobId, categories } = job.data;
 
     this.logger.log({
@@ -81,6 +81,7 @@ export class BillingProcessor extends WorkerHost {
       let successCount = 0;
       let failedCount = 0;
       let skippedCount = 0;
+      let supplementedCount = 0;
       const createdByType: Record<string, number> = {};
       const errors: Array<{ contractId: string; error: string }> = [];
 
@@ -98,12 +99,41 @@ export class BillingProcessor extends WorkerHost {
           });
 
           if (existing) {
-            skippedCount++;
-            this.logger.debug({
-              event: 'invoice_skipped',
-              contractId: contract.id,
-              reason: 'already_exists',
-            });
+            // Invoice exists — try to supplement it with any missing line items
+            // (e.g. meter readings entered after initial invoice generation)
+            try {
+              const supplemented = await this.invoicesService.supplementInvoice(
+                existing.id,
+                contract.id,
+                billingPeriod,
+                categories,
+                triggeredById,
+              );
+
+              if (supplemented) {
+                supplementedCount++;
+                this.logger.debug({
+                  event: 'invoice_supplemented',
+                  contractId: contract.id,
+                  invoiceId: existing.id,
+                });
+              } else {
+                skippedCount++;
+                this.logger.debug({
+                  event: 'invoice_skipped',
+                  contractId: contract.id,
+                  reason: 'already_complete',
+                });
+              }
+            } catch (suppError) {
+              // Supplement failed — not critical, just skip
+              skippedCount++;
+              this.logger.debug({
+                event: 'invoice_supplement_skipped',
+                contractId: contract.id,
+                reason: suppError instanceof Error ? suppError.message : 'unknown',
+              });
+            }
             continue;
           }
 
@@ -168,10 +198,11 @@ export class BillingProcessor extends WorkerHost {
         });
       }
 
-      // Build summary for error_log (includes created/skipped counts)
+      // Build summary for error_log (includes created/skipped/supplemented counts)
       const jobSummary = {
         createdCount: successCount,
         skippedCount,
+        supplementedCount,
         createdByType,
         errors: errors.length > 0 ? errors : undefined,
       };
@@ -195,12 +226,13 @@ export class BillingProcessor extends WorkerHost {
         jobId: job.id,
         billingJobId,
         successCount,
+        supplementedCount,
         skippedCount,
         failedCount,
         totalContracts: contracts.length,
       });
 
-      return { success: successCount, failed: failedCount };
+      return { success: successCount, supplemented: supplementedCount, failed: failedCount };
     } catch (error) {
       // Update billing job as failed
       await this.prisma.billing_jobs.update({

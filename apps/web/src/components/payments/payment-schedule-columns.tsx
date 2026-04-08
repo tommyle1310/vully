@@ -104,15 +104,22 @@ export function usePaymentColumns(
         },
       }),
       columnHelper.accessor('expectedAmount', {
-        header: () => (
-          <span>
-            Expected
-            <span className="text-xs font-normal text-muted-foreground ml-1">(excl. VAT)</span>
-          </span>
-        ),
-        cell: (info) => (
-          <span className="font-medium">{formatCurrency(info.getValue())}</span>
-        ),
+        header: 'Expected',
+        cell: (info) => {
+          const amount = info.getValue();
+          const type = info.row.original.paymentType;
+          const showVat = type === 'rent' || type === 'installment';
+          return (
+            <div>
+              <span className="font-medium">{formatCurrency(amount)}</span>
+              {showVat && (
+                <span className="block text-xs text-muted-foreground">
+                  Incl. 10% VAT: {formatCurrency(amount * 1.1)}
+                </span>
+              )}
+            </div>
+          );
+        },
       }),
       columnHelper.accessor('receivedAmount', {
         header: 'Received',

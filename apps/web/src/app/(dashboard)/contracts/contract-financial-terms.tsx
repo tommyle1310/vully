@@ -36,6 +36,7 @@ export function ContractFinancialTerms({ form, contractType }: FinancialTermsPro
                   <FormControl>
                     <Input type="number" min={0} {...field} />
                   </FormControl>
+                  <FormDescription>Excl. 10% VAT — invoices will add VAT automatically.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -175,10 +176,11 @@ export function ContractFinancialTerms({ form, contractType }: FinancialTermsPro
               name="rentAmount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Monthly Rent (VND)</FormLabel>
+                  <FormLabel>Monthly Installment (VND)</FormLabel>
                   <FormControl>
                     <Input type="number" min={0} {...field} />
                   </FormControl>
+                  <FormDescription>Excl. 10% VAT — invoices will add VAT automatically.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

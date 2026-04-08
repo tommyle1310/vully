@@ -162,6 +162,18 @@ export function ReportPaymentDialog({
             <span className="text-muted-foreground">Expected Amount:</span>
             <span className="font-medium">{formatCurrency(schedule.expectedAmount)}</span>
           </div>
+          {(schedule.paymentType === 'rent' || schedule.paymentType === 'installment') && (
+            <>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">VAT (10%):</span>
+                <span className="font-medium">{formatCurrency(schedule.expectedAmount * 0.1)}</span>
+              </div>
+              <div className="flex justify-between text-sm border-t pt-1">
+                <span className="font-medium">Total incl. VAT:</span>
+                <span className="font-semibold">{formatCurrency(schedule.expectedAmount * 1.1)}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Already Paid:</span>
             <span className="text-green-600">{formatCurrency(schedule.receivedAmount)}</span>
