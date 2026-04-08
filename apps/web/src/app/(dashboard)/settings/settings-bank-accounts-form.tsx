@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, Plus, Pencil, Trash2, Check, Star, AlertCircle } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, Check, Star, AlertCircle, QrCode } from 'lucide-react';
 import { useBuildings } from '@/hooks/use-buildings';
 import {
   useBankAccounts,
@@ -58,6 +58,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
+/**
+ * Generate VietQR URL for display (no amount, just account info)
+ */
+function generateVietQRUrl(bankCode: string, accountNumber: string, accountName: string): string {
+  const template = 'compact';
+  const encodedName = encodeURIComponent(accountName);
+  return `https://img.vietqr.io/image/${bankCode}-${accountNumber}-${template}.png?accountName=${encodedName}`;
+}
+
 const bankAccountSchema = z.object({
   bankName: z.string().min(1, 'Bank name is required'),
   bankCode: z.string().min(1, 'Bank code is required'),
@@ -90,6 +99,8 @@ export function SettingsBankAccountsForm() {
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<BankAccount | null>(null);
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [qrAccount, setQrAccount] = useState<BankAccount | null>(null);
 
   const { data: accountsData, isLoading, error, refetch } = useBankAccounts();
   const { data: buildingsData } = useBuildings({ page: 1, limit: 100 });
@@ -194,6 +205,11 @@ export function SettingsBankAccountsForm() {
   const handleDeleteClick = (account: BankAccount) => {
     setAccountToDelete(account);
     setDeleteConfirmOpen(true);
+  };
+
+  const handleShowQR = (account: BankAccount) => {
+    setQrAccount(account);
+    setQrDialogOpen(true);
   };
 
   const handleConfirmDelete = async () => {
@@ -334,6 +350,14 @@ export function SettingsBankAccountsForm() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleShowQR(account)}
+                              title="View QR Code"
+                            >
+                              <QrCode className="h-4 w-4" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -506,6 +530,45 @@ export function SettingsBankAccountsForm() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              VietQR Code
+            </DialogTitle>
+            <DialogDescription>
+              Scan this QR code to transfer money to this account
+            </DialogDescription>
+          </DialogHeader>
+          {qrAccount && (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <img
+                src={generateVietQRUrl(qrAccount.bankCode, qrAccount.accountNumber, qrAccount.accountName)}
+                alt="VietQR Payment Code"
+                className="h-56 w-56 rounded-md bg-white"
+                loading="eager"
+              />
+              <div className="text-center space-y-1">
+                <p className="font-medium">{qrAccount.accountName}</p>
+                <p className="text-sm text-muted-foreground">
+                  {qrAccount.bankName}
+                </p>
+                <p className="font-mono text-sm bg-muted px-3 py-1 rounded">
+                  {qrAccount.accountNumber}
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQrDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

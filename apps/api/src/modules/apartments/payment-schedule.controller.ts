@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   ParseUUIDPipe,
   UseGuards,
   ForbiddenException,
@@ -15,6 +16,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { PaymentScheduleService } from './payment-schedule.service';
 import { PaymentGeneratorService } from './payment-generator.service';
@@ -201,6 +203,19 @@ export class PaymentScheduleController {
   @ApiResponse({ status: 200, description: 'Pending payments list', type: [PendingPaymentResponseDto] })
   async findPendingPayments(): Promise<{ data: PendingPaymentResponseDto[] }> {
     const payments = await this.paymentScheduleService.findPendingPayments();
+    return { data: payments };
+  }
+
+  @Get('payments/history')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Get payment history (confirmed/rejected in last N days)' })
+  @ApiQuery({ name: 'days', required: false, description: 'Number of days to look back (default: 30)' })
+  @ApiResponse({ status: 200, description: 'Payment history list', type: [PendingPaymentResponseDto] })
+  async findPaymentHistory(
+    @Query('days') days?: string,
+  ): Promise<{ data: PendingPaymentResponseDto[] }> {
+    const daysNum = days ? parseInt(days, 10) : 30;
+    const payments = await this.paymentScheduleService.findPaymentHistory(daysNum);
     return { data: payments };
   }
 

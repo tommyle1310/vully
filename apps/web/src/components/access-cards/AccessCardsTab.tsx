@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Table,
   TableBody,
@@ -38,7 +39,9 @@ import {
   getCardTypeLabel,
   getStatusVariant,
 } from '@/hooks/use-access-cards';
+import { useAuthStore } from '@/stores/authStore';
 import { IssueAccessCardDialog } from './IssueAccessCardDialog';
+import { RequestAccessCardDialog } from './RequestAccessCardDialog';
 import { DeactivateCardDialog } from './DeactivateCardDialog';
 import { EditAccessCardDialog } from './EditAccessCardDialog';
 import { ReactivateCardDialog } from './ReactivateCardDialog';
@@ -52,6 +55,8 @@ import {
   Edit,
   User,
   Building2,
+  Send,
+  Info,
 } from 'lucide-react';
 
 interface AccessCardsTabProps {
@@ -63,15 +68,18 @@ export function AccessCardsTab({
   apartmentId,
   buildingFloorCount = 20,
 }: AccessCardsTabProps) {
+  const { hasAnyRole } = useAuthStore();
+  const isAdmin = hasAnyRole(['admin', 'technician']);
   const [statusFilter, setStatusFilter] = useState<AccessCardStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<AccessCardType | 'all'>('all');
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState<AccessCard | null>(null);
   const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
 
-  const { data: cardsResponse, isLoading: cardsLoading } = useAccessCards(
+  const { data: cardsResponse, isLoading: cardsLoading, refetch } = useAccessCards(
     apartmentId,
     {
       status: statusFilter !== 'all' ? statusFilter : undefined,
@@ -123,13 +131,23 @@ export function AccessCardsTab({
         <div className="space-y-1">
           <h3 className="text-lg font-medium">Access Cards</h3>
           <p className="text-sm text-muted-foreground">
-            Manage building and parking access cards for this apartment
+            {isAdmin 
+              ? 'Manage building and parking access cards for this apartment'
+              : 'View your access cards for this apartment'
+            }
           </p>
         </div>
-        <Button onClick={() => setIssueDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Issue Card
-        </Button>
+        {isAdmin ? (
+          <Button onClick={() => setIssueDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Issue Card
+          </Button>
+        ) : (
+          <Button variant="outline" onClick={() => setRequestDialogOpen(true)}>
+            <Send className="mr-2 h-4 w-4" />
+            Request Card
+          </Button>
+        )}
       </div>
 
       {/* Stats cards */}
@@ -226,15 +244,29 @@ export function AccessCardsTab({
               <CreditCard className="mx-auto h-12 w-12 text-muted-foreground/50" />
               <h3 className="mt-4 text-lg font-medium">No access cards</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Issue access cards to enable building and parking access.
+                {isAdmin
+                  ? 'Issue access cards to enable building and parking access.'
+                  : 'No access cards have been issued for your apartment yet.'
+                }
               </p>
-              <Button
-                className="mt-4"
-                onClick={() => setIssueDialogOpen(true)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Issue First Card
-              </Button>
+              {isAdmin ? (
+                <Button
+                  className="mt-4"
+                  onClick={() => setIssueDialogOpen(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Issue First Card
+                </Button>
+              ) : (
+                <Button
+                  className="mt-4"
+                  variant="outline"
+                  onClick={() => setRequestDialogOpen(true)}
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  Request Access Card
+                </Button>
+              )}
             </div>
           ) : (
             <Table>
@@ -246,7 +278,7 @@ export function AccessCardsTab({
                   <TableHead>Holder</TableHead>
                   <TableHead>Access Zones</TableHead>
                   <TableHead>Issued</TableHead>
-                  <TableHead className="w-[70px]"></TableHead>
+                  {isAdmin && <TableHead className="w-[70px]"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -309,38 +341,40 @@ export function AccessCardsTab({
                       <TableCell className="text-muted-foreground">
                         {formatDate(card.issuedAt)}
                       </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(card)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {card.status === 'active' ? (
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => handleDeactivate(card)}
-                              >
-                                <Ban className="mr-2 h-4 w-4" />
-                                Deactivate
+                      {isAdmin && (
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(card)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
                               </DropdownMenuItem>
-                            ) : card.status !== 'expired' ? (
-                              <DropdownMenuItem
-                                onClick={() => handleReactivate(card)}
-                              >
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                                Reactivate
-                              </DropdownMenuItem>
-                            ) : null}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+                              <DropdownMenuSeparator />
+                              {card.status === 'active' ? (
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => handleDeactivate(card)}
+                                >
+                                  <Ban className="mr-2 h-4 w-4" />
+                                  Deactivate
+                                </DropdownMenuItem>
+                              ) : card.status !== 'expired' ? (
+                                <DropdownMenuItem
+                                  onClick={() => handleReactivate(card)}
+                                >
+                                  <RefreshCw className="mr-2 h-4 w-4" />
+                                  Reactivate
+                                </DropdownMenuItem>
+                              ) : null}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      )}
                     </motion.tr>
                   ))}
                 </AnimatePresence>
@@ -374,6 +408,12 @@ export function AccessCardsTab({
         open={reactivateDialogOpen}
         onOpenChange={setReactivateDialogOpen}
         card={selectedCard}
+      />
+      <RequestAccessCardDialog
+        open={requestDialogOpen}
+        onOpenChange={setRequestDialogOpen}
+        apartmentId={apartmentId}
+        onSuccess={() => refetch()}
       />
     </div>
   );

@@ -41,6 +41,7 @@ interface AuthResponse {
     lastName: string;
     role: string; // DEPRECATED - kept for backward compatibility
     roles: string[]; // New multi-role array
+    avatarUrl?: string; // User profile avatar
   };
   accessToken: string;
   refreshToken: string;
@@ -83,6 +84,7 @@ export function useLogin() {
         firstName: user.firstName,
         lastName: user.lastName,
         roles: (user.roles || [user.role]) as UserRole[], // Cast to UserRole[]
+        avatarUrl: user.avatarUrl,
       };
       
       // Store user + tokens in zustand

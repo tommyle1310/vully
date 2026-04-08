@@ -367,6 +367,17 @@ export function usePendingPayments() {
 }
 
 /**
+ * Get payment history (confirmed/rejected in last N days)
+ */
+export function usePaymentHistory(days: number = 30) {
+  return useQuery({
+    queryKey: ['payments', 'history', days],
+    queryFn: () => apiClient.get<PendingPaymentsResponse>(`/payments/history?days=${days}`),
+    staleTime: 60 * 1000, // 1 minute
+  });
+}
+
+/**
  * Verify or reject a reported payment
  */
 export function useVerifyPayment() {
@@ -378,6 +389,7 @@ export function useVerifyPayment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payments', 'pending'] });
+      queryClient.invalidateQueries({ queryKey: ['payments', 'history'] });
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['payment-schedules'] });
     },

@@ -1,5 +1,3 @@
-'use client';
-
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -12,19 +10,22 @@ import {
   CalendarClock,
   Wallet,
   Receipt,
+  Clock,
+  AlertCircle,
 } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 import { useMyContracts, useMyApartment } from '@/hooks/use-contracts';
 import { useIncidents } from '@/hooks/use-incidents';
 import { useInvoices } from '@/hooks/use-invoices';
 import { useAuthStore } from '@/stores/authStore';
-import { formatDistanceToNow, format } from 'date-fns';
+import { formatDistanceToNow, format, differenceInDays, isPast } from 'date-fns';
 
 const container = {
   hidden: { opacity: 0 },
@@ -85,6 +86,14 @@ export function ResidentDashboard() {
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
   const nextInvoice = payableInvoices[0];
   const totalOutstanding = payableInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+  
+  // Payment warning calculations
+  const overdueInvoices = payableInvoices.filter((inv) => inv.status === 'overdue');
+  const hasOverdue = overdueInvoices.length > 0;
+  const nextDueDate = nextInvoice ? new Date(nextInvoice.dueDate) : null;
+  const daysUntilDue = nextDueDate ? differenceInDays(nextDueDate, new Date()) : null;
+  const isDueSoon = daysUntilDue !== null && daysUntilDue >= 0 && daysUntilDue <= 7;
+  const isOverdue = daysUntilDue !== null && daysUntilDue < 0;
 
   return (
     <div className="space-y-6">
@@ -96,6 +105,61 @@ export function ResidentDashboard() {
           Everything important for your apartment and payments, in one place.
         </p>
       </div>
+
+      {/* Payment Warning Banner */}
+      {!isLoadingInvoices && (hasOverdue || isDueSoon) && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Alert variant={hasOverdue ? 'destructive' : 'default'} className={hasOverdue ? '' : 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20'}>
+            {hasOverdue ? (
+              <AlertCircle className="h-4 w-4" />
+            ) : (
+              <Clock className="h-4 w-4 text-yellow-600" />
+            )}
+            <AlertTitle className={hasOverdue ? '' : 'text-yellow-700 dark:text-yellow-500'}>
+              {hasOverdue 
+                ? `${overdueInvoices.length} Overdue Payment${overdueInvoices.length > 1 ? 's' : ''}!`
+                : 'Payment Due Soon'
+              }
+            </AlertTitle>
+            <AlertDescription className={hasOverdue ? '' : 'text-yellow-600 dark:text-yellow-400'}>
+              {hasOverdue ? (
+                <div className="flex items-center justify-between">
+                  <span>
+                    Total overdue: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
+                      overdueInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0)
+                    )}
+                  </span>
+                  <Link href="/invoices">
+                    <Button variant="destructive" size="sm">
+                      Pay Now
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <span>
+                    {daysUntilDue === 0 
+                      ? 'Payment is due today!' 
+                      : daysUntilDue === 1 
+                        ? 'Payment is due tomorrow!' 
+                        : `Payment due in ${daysUntilDue} days`
+                    } — {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(nextInvoice?.totalAmount || 0)}
+                  </span>
+                  <Link href="/invoices">
+                    <Button variant="outline" size="sm" className="border-yellow-500 text-yellow-700 hover:bg-yellow-100 dark:text-yellow-400 dark:hover:bg-yellow-950">
+                      View Invoice
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </AlertDescription>
+          </Alert>
+        </motion.div>
+      )}
 
       <motion.div
         variants={container}

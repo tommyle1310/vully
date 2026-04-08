@@ -35,12 +35,14 @@ interface JobSummary {
   errors?: Array<{ contractId: string; error: string }>;
 }
 
-// Predefined categories (rent + installment + milestone + management fee + utility types)
+// Predefined categories (rent + installment + milestone + management fee + parking + trash + utility types)
 const BASE_CATEGORIES = [
   { code: 'rent', name: 'Rent', description: 'Monthly rent (rental contracts)' },
   { code: 'installment', name: 'Installment', description: 'Monthly installment (lease-to-own contracts)' },
   { code: 'milestone', name: 'Milestone', description: 'Payment milestones (purchase contracts)' },
   { code: 'management_fee', name: 'Management Fee', description: 'Building management fee' },
+  { code: 'parking', name: 'Parking', description: 'Monthly parking fee' },
+  { code: 'trash', name: 'Trash Collection', description: 'Waste management fee' },
 ];
 
 function getCurrentBillingPeriod(): string {

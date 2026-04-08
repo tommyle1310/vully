@@ -235,6 +235,7 @@ export function SettingsProfileForm() {
         firstName: response.data.firstName,
         lastName: response.data.lastName,
         phone: response.data.phone,
+        avatarUrl: nextAvatarUrl || undefined,
       });
 
       setSelectedAvatarFile(null);

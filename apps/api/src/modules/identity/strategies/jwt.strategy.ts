@@ -3,7 +3,8 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
-import { JwtPayload, AuthUser } from '../interfaces/auth.interface';
+import { JwtPayload } from '../interfaces/auth.interface';
+import { AuthUser } from '../../../common/interfaces/auth-user.interface';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -34,10 +35,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
 
     // Return AuthUser with roles from JWT payload (no extra DB query needed)
+    // Include `role` (singular) for backward compatibility with controllers using user.role
     return {
       id: payload.sub,
       email: payload.email,
       roles: payload.roles, // Multi-role support
+      role: payload.roles[0], // Legacy: first role for backwards compatibility
     };
   }
 }

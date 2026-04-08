@@ -142,6 +142,7 @@ export class AuthService {
         lastName: user.last_name,
         role: user.role, // DEPRECATED, kept for backward compatibility
         roles, // New multi-role array
+        avatarUrl: (user.profile_data as Record<string, unknown>)?.avatarUrl as string | undefined,
       },
     };
   }

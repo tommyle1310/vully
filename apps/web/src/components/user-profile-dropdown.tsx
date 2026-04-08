@@ -2,7 +2,7 @@
 
 import { LogOut, Settings, User } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +30,7 @@ export function UserProfileDropdown() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
+            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={displayName} />}
             <AvatarFallback className="bg-primary text-primary-foreground">
               {initials}
             </AvatarFallback>

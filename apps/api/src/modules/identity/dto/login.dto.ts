@@ -31,6 +31,7 @@ export class LoginResponseDto {
     lastName: string;
     role: string; // DEPRECATED
     roles: UserRole[]; // Multi-role support
+    avatarUrl?: string; // User profile avatar
   };
 }
 

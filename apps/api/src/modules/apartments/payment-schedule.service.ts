@@ -503,6 +503,74 @@ export class PaymentScheduleService {
     }));
   }
 
+  // =========================================================================
+  // Payment History (Confirmed/Rejected - for Admin history tab)
+  // =========================================================================
+
+  async findPaymentHistory(days: number = 30): Promise<PendingPaymentResponseDto[]> {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+
+    const payments = await this.payments.findMany({
+      where: {
+        status: { in: ['confirmed', 'rejected'] },
+        verified_at: { gte: since },
+      },
+      include: {
+        users: {
+          select: { id: true, email: true, first_name: true, last_name: true },
+        },
+        reporter: {
+          select: { id: true, email: true, first_name: true, last_name: true },
+        },
+        verifier: {
+          select: { id: true, email: true, first_name: true, last_name: true },
+        },
+        schedule: {
+          select: {
+            id: true,
+            period_label: true,
+            expected_amount: true,
+            due_date: true,
+            contract_id: true,
+            contracts: {
+              select: {
+                id: true,
+                apartment_id: true,
+                tenant_id: true,
+                users_contracts_tenant_idTousers: {
+                  select: { first_name: true, last_name: true },
+                },
+                apartments: {
+                  select: { apartment_code: true },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { verified_at: 'desc' },
+    });
+
+    return payments.map((p) => ({
+      ...toPaymentResponseDto(p),
+      schedule: {
+        id: p.schedule.id,
+        periodLabel: p.schedule.period_label,
+        expectedAmount: Number(p.schedule.expected_amount),
+        dueDate: p.schedule.due_date,
+        contractId: p.schedule.contract_id,
+      },
+      contract: {
+        id: p.schedule.contracts.id,
+        apartmentId: p.schedule.contracts.apartment_id,
+        tenantId: p.schedule.contracts.tenant_id,
+        tenantName: `${p.schedule.contracts.users_contracts_tenant_idTousers.first_name} ${p.schedule.contracts.users_contracts_tenant_idTousers.last_name}`,
+        apartmentCode: p.schedule.contracts.apartments.apartment_code ?? 'N/A',
+      },
+    }));
+  }
+
   async findPaymentsByContract(contractId: string): Promise<PaymentResponseDto[]> {
     const payments = await this.payments.findMany({
       where: {

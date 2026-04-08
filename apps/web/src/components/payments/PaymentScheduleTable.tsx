@@ -36,6 +36,7 @@ import {
 import { RecordPaymentDialog } from './RecordPaymentDialog';
 import { ReportPaymentDialog } from './ReportPaymentDialog';
 import { EditPaymentScheduleDialog } from './EditPaymentScheduleDialog';
+import { AddPaymentScheduleDialog } from './AddPaymentScheduleDialog';
 import { usePaymentColumns, PaymentTableSkeleton } from './payment-schedule-columns';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
@@ -57,6 +58,7 @@ export function PaymentScheduleTable({
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [reportPaymentOpen, setReportPaymentOpen] = useState(false);
   const [editScheduleOpen, setEditScheduleOpen] = useState(false);
+  const [addScheduleOpen, setAddScheduleOpen] = useState(false);
   const { hasRole, hasAnyRole } = useAuthStore();
   const isAdmin = hasRole('admin') || hasRole('technician');
   const isResident = hasRole('resident') && !hasAnyRole(['admin', 'technician']);
@@ -184,7 +186,7 @@ export function PaymentScheduleTable({
               </Button>
             )}
             {isAdmin && (
-              <Button size="sm" disabled>
+              <Button size="sm" onClick={() => setAddScheduleOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Entry
               </Button>
@@ -279,6 +281,14 @@ export function PaymentScheduleTable({
         open={editScheduleOpen}
         onOpenChange={setEditScheduleOpen}
         schedule={selectedSchedule}
+        onSuccess={() => refetch()}
+      />
+
+      <AddPaymentScheduleDialog
+        open={addScheduleOpen}
+        onOpenChange={setAddScheduleOpen}
+        contractId={contractId}
+        existingCount={schedules.length}
         onSuccess={() => refetch()}
       />
     </>
