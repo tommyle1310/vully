@@ -51,6 +51,7 @@ interface AddPaymentScheduleDialogProps {
   onOpenChange: (open: boolean) => void;
   contractId: string;
   existingCount: number;
+  rentAmount?: number;
   onSuccess?: () => void;
 }
 
@@ -59,6 +60,7 @@ export function AddPaymentScheduleDialog({
   onOpenChange,
   contractId,
   existingCount,
+  rentAmount = 0,
   onSuccess,
 }: AddPaymentScheduleDialogProps) {
   const { toast } = useToast();
@@ -82,7 +84,7 @@ export function AddPaymentScheduleDialog({
       periodLabel: `Rent ${defaultPeriodLabel}`,
       paymentType: 'rent',
       dueDate: defaultDueDate,
-      expectedAmount: 0,
+      expectedAmount: rentAmount, // Auto-fill with contract rent amount
       notes: '',
     },
   });
@@ -123,6 +125,14 @@ export function AddPaymentScheduleDialog({
     // Update period label based on type
     const typeLabel = paymentTypeLabels[type as PaymentType] || type;
     setValue('periodLabel', `${typeLabel} ${defaultPeriodLabel}`);
+    
+    // Auto-fill amount based on type
+    if (type === 'rent' && rentAmount > 0) {
+      setValue('expectedAmount', rentAmount);
+    } else if (type === 'deposit' && rentAmount > 0) {
+      // Default deposit is typically 2 months rent
+      setValue('expectedAmount', rentAmount * 2);
+    }
   };
 
   return (

@@ -149,7 +149,7 @@ export function VerifyPaymentDialog({
               <div>
                 <span className="text-muted-foreground">Reported At:</span>
                 <p className="font-medium">
-                  {payment.reportedAt ? formatDate(new Date(payment.reportedAt), true) : 'N/A'}
+                  {payment.reportedAt ? formatDate(new Date(payment.reportedAt).toISOString(), { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
                 </p>
               </div>
             </div>
@@ -171,12 +171,44 @@ export function VerifyPaymentDialog({
                 <p className="font-medium">{formatCurrency(payment.schedule.expectedAmount)}</p>
               </div>
               <div>
-                <span className="text-muted-foreground">Reported Amount:</span>
-                <p className="font-medium text-blue-600">{formatCurrency(payment.amount)}</p>
+                <span className="text-muted-foreground">Already Paid:</span>
+                <p className="font-medium text-green-600">{formatCurrency(payment.schedule.receivedAmount)}</p>
               </div>
               <div>
+                <span className="text-muted-foreground">This Payment:</span>
+                <p className="font-medium text-blue-600">{formatCurrency(payment.amount)}</p>
+              </div>
+            </div>
+
+            {/* Payment Summary */}
+            <div className="rounded-md bg-muted/50 p-3 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">After confirmation:</span>
+                <span className="font-medium">
+                  {formatCurrency(payment.schedule.receivedAmount + payment.amount)} / {formatCurrency(payment.schedule.expectedAmount)}
+                </span>
+              </div>
+              {(() => {
+                const remaining = payment.schedule.expectedAmount - payment.schedule.receivedAmount - payment.amount;
+                if (remaining <= 0) {
+                  return (
+                    <p className="text-xs text-green-600 font-medium">
+                      ✓ This will complete the payment for this period
+                    </p>
+                  );
+                }
+                return (
+                  <p className="text-xs text-amber-600">
+                    Remaining balance: {formatCurrency(remaining)}
+                  </p>
+                );
+              })()}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
                 <span className="text-muted-foreground">Transfer Date:</span>
-                <p className="font-medium">{formatDate(new Date(payment.paymentDate))}</p>
+                <p className="font-medium">{formatDate(new Date(payment.paymentDate).toISOString())}</p>
               </div>
               {payment.paymentMethod && (
                 <div>

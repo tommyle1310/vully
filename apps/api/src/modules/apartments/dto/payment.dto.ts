@@ -322,8 +322,11 @@ export class ContractFinancialSummaryDto {
   @ApiProperty({ example: 3000000000, description: 'Total contract value' })
   totalContractValue: number;
 
-  @ApiProperty({ example: 520000000, description: 'Total amount paid' })
+  @ApiProperty({ example: 520000000, description: 'Total amount paid (confirmed payments)' })
   totalPaid: number;
+
+  @ApiProperty({ example: 16000000, description: 'Amount reported but pending verification' })
+  reportedPending: number;
 
   @ApiProperty({ example: 17.3, description: 'Percentage paid' })
   paidPercent: number;
@@ -336,6 +339,9 @@ export class ContractFinancialSummaryDto {
 
   @ApiPropertyOptional({ type: () => PaymentScheduleResponseDto })
   nextDue?: PaymentScheduleResponseDto;
+
+  @ApiPropertyOptional({ type: () => [PaymentResponseDto], description: 'Recent payment transactions (last 10)' })
+  recentPayments?: PaymentResponseDto[];
 }
 
 // ============================================================================
@@ -495,6 +501,7 @@ export class PendingPaymentResponseDto extends PaymentResponseDto {
     id: string;
     periodLabel: string;
     expectedAmount: number;
+    receivedAmount: number;
     dueDate: Date;
     contractId: string;
   };

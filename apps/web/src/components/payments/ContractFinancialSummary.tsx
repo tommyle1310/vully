@@ -5,10 +5,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Progress } from '@/components/ui/progress';
-import { useContractFinancialSummary } from '@/hooks/use-payments';
-import { AlertCircle, Calendar, TrendingUp, QrCode } from 'lucide-react';
+import { useContractFinancialSummary, Payment } from '@/hooks/use-payments';
+import { AlertCircle, Calendar, TrendingUp, QrCode, Clock, CheckCircle2, XCircle, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
+import { ChevronDown } from 'lucide-react';
+import { useState } from 'react';
 
 interface ContractFinancialSummaryCardProps {
   contractId: string;
@@ -28,6 +36,19 @@ function getStatusBadge(status: string) {
       return <Badge variant="outline">Waived</Badge>;
     default:
       return <Badge variant="default">{status}</Badge>;
+  }
+}
+
+function getPaymentStatusBadge(status: string) {
+  switch (status) {
+    case 'confirmed':
+      return <Badge variant="success" className="text-xs"><CheckCircle2 className="mr-1 h-3 w-3" />Confirmed</Badge>;
+    case 'reported':
+      return <Badge variant="secondary" className="text-xs"><Clock className="mr-1 h-3 w-3" />Pending</Badge>;
+    case 'rejected':
+      return <Badge variant="destructive" className="text-xs"><XCircle className="mr-1 h-3 w-3" />Rejected</Badge>;
+    default:
+      return <Badge variant="default" className="text-xs">{status}</Badge>;
   }
 }
 
@@ -58,6 +79,7 @@ function SummarySkeleton() {
 
 export function ContractFinancialSummaryCard({ contractId }: ContractFinancialSummaryCardProps) {
   const { data, isLoading, error } = useContractFinancialSummary(contractId);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   if (isLoading) {
     return <SummarySkeleton />;
@@ -85,6 +107,9 @@ export function ContractFinancialSummaryCard({ contractId }: ContractFinancialSu
     );
   }
 
+  const hasReportedPending = summary.reportedPending > 0;
+  const recentPayments = summary.recentPayments || [];
+
   return (
     <Card>
       <CardHeader>
@@ -109,6 +134,21 @@ export function ContractFinancialSummaryCard({ contractId }: ContractFinancialSu
             <span>Total: {formatCurrency(summary.totalContractValue)}</span>
           </div>
         </div>
+
+        {/* Reported Pending Alert */}
+        {hasReportedPending && (
+          <div className="rounded-lg border-l-4 border-l-amber-500 bg-amber-50 dark:bg-amber-950/20 p-3">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-amber-600" />
+              <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                Pending Verification
+              </span>
+            </div>
+            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+              {formatCurrency(summary.reportedPending)} reported - awaiting admin confirmation
+            </p>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -166,8 +206,53 @@ export function ContractFinancialSummaryCard({ contractId }: ContractFinancialSu
             )}
           </div>
         )}
+
+        {/* Payment History */}
+        {recentPayments.length > 0 && (
+          <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between px-0 hover:bg-transparent">
+                <div className="flex items-center gap-2">
+                  <History className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Payment History</span>
+                  <Badge variant="outline" className="text-xs">{recentPayments.length}</Badge>
+                </div>
+                <ChevronDown className={cn("h-4 w-4 transition-transform", historyOpen && "rotate-180")} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {recentPayments.map((payment) => (
+                  <PaymentHistoryItem key={payment.id} payment={payment} />
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+function PaymentHistoryItem({ payment }: { payment: Payment }) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border p-3 text-sm">
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{formatCurrency(payment.amount)}</span>
+          {getPaymentStatusBadge(payment.status)}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {formatDate(payment.paymentDate)} • {payment.paymentMethod?.replace('_', ' ') || 'Bank Transfer'}
+          {payment.referenceNumber && <span className="ml-1">• Ref: {payment.referenceNumber}</span>}
+        </p>
+        {payment.reportedByUser && (
+          <p className="text-xs text-muted-foreground">
+            Reported by {payment.reportedByUser.firstName} {payment.reportedByUser.lastName}
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 

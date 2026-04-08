@@ -61,6 +61,7 @@ export interface PendingPayment extends Payment {
     id: string;
     periodLabel: string;
     expectedAmount: number;
+    receivedAmount: number;
     dueDate: string;
     contractId: string;
   };
@@ -76,10 +77,12 @@ export interface PendingPayment extends Payment {
 export interface ContractFinancialSummary {
   totalContractValue: number;
   totalPaid: number;
+  reportedPending: number;
   paidPercent: number;
   outstanding: number;
   remainingBalance: number;
   nextDue?: PaymentSchedule;
+  recentPayments?: Payment[];
 }
 
 export interface CreatePaymentScheduleInput {
@@ -392,6 +395,8 @@ export function useVerifyPayment() {
       queryClient.invalidateQueries({ queryKey: ['payments', 'history'] });
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       queryClient.invalidateQueries({ queryKey: ['payment-schedules'] });
+      // Also invalidate invoices since payment confirmation now syncs invoice status
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
     },
   });
 }

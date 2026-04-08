@@ -75,6 +75,7 @@ export default function InvoicesPage() {
     apartmentId: parseAsString.withDefault(''),
     contractId: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
+    invoiceId: parseAsString.withDefault(''),
   });
   
   // Apartment filter state with debounce
@@ -112,6 +113,18 @@ export default function InvoicesPage() {
 
   const invoices = data?.data || [];
   const meta = data?.meta;
+
+  // Auto-open invoice detail sheet when invoiceId is in URL
+  useEffect(() => {
+    if (urlFilters.invoiceId && invoices.length > 0) {
+      const targetInvoice = invoices.find((inv) => inv.id === urlFilters.invoiceId);
+      if (targetInvoice) {
+        setSelectedInvoice(targetInvoice);
+        // Clear the URL parameter after opening
+        setUrlFilters({ invoiceId: '' });
+      }
+    }
+  }, [urlFilters.invoiceId, invoices, setUrlFilters]);
 
   const table = useReactTable({
     data: invoices,

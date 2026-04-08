@@ -19,8 +19,9 @@ import {
   ContractPaymentStatus,
   PendingPaymentResponseDto,
 } from './dto/payment.dto';
-import { isPast } from 'date-fns';
+import { isPast, format } from 'date-fns';
 import { toScheduleResponseDto, toPaymentResponseDto } from './payment-schedule.mapper';
+import { InvoiceStatus } from '@prisma/client';
 
 @Injectable()
 export class PaymentScheduleService {
@@ -399,6 +400,59 @@ export class PaymentScheduleService {
             updated_at: new Date(),
           },
         });
+
+        // =====================================================================
+        // SYNC INVOICE: Update related invoice when rent payment is confirmed
+        // =====================================================================
+        const billingPeriod = format(payment.schedule.due_date, 'yyyy-MM');
+        const contractId = payment.schedule.contract_id;
+
+        const relatedInvoice = await tx.invoices.findFirst({
+          where: {
+            contract_id: contractId,
+            billing_period: billingPeriod,
+          },
+          include: {
+            invoice_line_items: true,
+          },
+        });
+
+        if (relatedInvoice) {
+          const newPaidAmount = Number(relatedInvoice.paid_amount) + finalAmount;
+          const totalAmount = Number(relatedInvoice.total_amount);
+
+          // Determine new invoice status
+          let invoiceStatus: InvoiceStatus;
+          if (newPaidAmount >= totalAmount) {
+            invoiceStatus = InvoiceStatus.paid;
+          } else if (newPaidAmount > 0) {
+            // Partial payment - keep as pending (a partial status would be better but isn't in enum)
+            invoiceStatus = relatedInvoice.status === InvoiceStatus.overdue
+              ? InvoiceStatus.overdue
+              : InvoiceStatus.pending;
+          } else {
+            invoiceStatus = relatedInvoice.status;
+          }
+
+          await tx.invoices.update({
+            where: { id: relatedInvoice.id },
+            data: {
+              paid_amount: newPaidAmount,
+              status: invoiceStatus,
+              paid_at: invoiceStatus === InvoiceStatus.paid ? new Date() : relatedInvoice.paid_at,
+              updated_at: new Date(),
+            },
+          });
+
+          this.logger.log({
+            event: 'invoice_synced_from_payment',
+            invoiceId: relatedInvoice.id,
+            contractId,
+            billingPeriod,
+            paidAmount: newPaidAmount,
+            newStatus: invoiceStatus,
+          });
+        }
       } else if (dto.status === ContractPaymentStatus.rejected) {
         // Payment rejected - revert schedule to pending/overdue
         const pendingPayments = await tx.contract_payments.count({
@@ -463,6 +517,7 @@ export class PaymentScheduleService {
             id: true,
             period_label: true,
             expected_amount: true,
+            received_amount: true,
             due_date: true,
             contract_id: true,
             contracts: {
@@ -490,6 +545,7 @@ export class PaymentScheduleService {
         id: p.schedule.id,
         periodLabel: p.schedule.period_label,
         expectedAmount: Number(p.schedule.expected_amount),
+        receivedAmount: Number(p.schedule.received_amount),
         dueDate: p.schedule.due_date,
         contractId: p.schedule.contract_id,
       },
@@ -531,6 +587,7 @@ export class PaymentScheduleService {
             id: true,
             period_label: true,
             expected_amount: true,
+            received_amount: true,
             due_date: true,
             contract_id: true,
             contracts: {
@@ -558,6 +615,7 @@ export class PaymentScheduleService {
         id: p.schedule.id,
         periodLabel: p.schedule.period_label,
         expectedAmount: Number(p.schedule.expected_amount),
+        receivedAmount: Number(p.schedule.received_amount),
         dueDate: p.schedule.due_date,
         contractId: p.schedule.contract_id,
       },
@@ -668,6 +726,19 @@ export class PaymentScheduleService {
     const schedules = await this.schedules.findMany({
       where: { contract_id: contractId },
       orderBy: { due_date: 'asc' },
+      include: {
+        payments: {
+          include: {
+            users: {
+              select: { id: true, email: true, first_name: true, last_name: true },
+            },
+            reporter: {
+              select: { id: true, email: true, first_name: true, last_name: true },
+            },
+          },
+          orderBy: { recorded_at: 'desc' },
+        },
+      },
     });
 
     const totalExpected = schedules.reduce(
@@ -678,6 +749,13 @@ export class PaymentScheduleService {
       (sum, s) => sum + Number(s.received_amount),
       0,
     );
+    
+    // Calculate reported but pending verification payments
+    const reportedPending = schedules.reduce((sum, s) => {
+      const pendingPayments = s.payments?.filter((p) => p.status === 'reported') || [];
+      return sum + pendingPayments.reduce((pSum, p) => pSum + Number(p.amount), 0);
+    }, 0);
+
     const outstanding = schedules
       .filter((s) => s.status === 'overdue' || s.status === 'partial')
       .reduce((sum, s) => sum + (Number(s.expected_amount) - Number(s.received_amount)), 0);
@@ -685,6 +763,12 @@ export class PaymentScheduleService {
     const nextDue = schedules.find(
       (s) => s.status === 'pending' && !isPast(s.due_date),
     );
+
+    // Collect all payments and sort by date descending, take last 10
+    const allPayments = schedules
+      .flatMap((s) => s.payments || [])
+      .sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime())
+      .slice(0, 10);
 
     let totalContractValue: number;
     if (contractData.contract_type === 'purchase') {
@@ -698,10 +782,12 @@ export class PaymentScheduleService {
     return {
       totalContractValue,
       totalPaid: totalReceived,
+      reportedPending,
       paidPercent: totalExpected > 0 ? (totalReceived / totalExpected) * 100 : 0,
       outstanding,
       remainingBalance: totalExpected - totalReceived,
       nextDue: nextDue ? toScheduleResponseDto(nextDue) : undefined,
+      recentPayments: allPayments.map(toPaymentResponseDto),
     };
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
@@ -19,6 +19,7 @@ import {
   Wrench,
   Landmark,
   Receipt,
+  QrCode,
 } from 'lucide-react';
 import { Invoice, InvoiceLineItem, useMarkInvoicePaid } from '@/hooks/use-invoices';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,8 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthStore } from '@/stores/authStore';
+import { VietQRDisplay } from '@/components/payments/VietQRDisplay';
 
 interface InvoiceDetailSheetProps {
   invoice: Invoice | null;
@@ -368,23 +371,65 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetai
                 </Card>
               )}
 
-              {/* Actions */}
+              {/* QR Code Payment - for pending/overdue invoices */}
               {(invoice.status === 'pending' || invoice.status === 'overdue') && (
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    className="flex-1"
-                    onClick={handleMarkAsPaid}
-                    disabled={isPending}
-                  >
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    {isPending ? 'Processing...' : 'Mark as Paid'}
-                  </Button>
-                </div>
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <QrCode className="h-4 w-4" />
+                      Pay with VietQR
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-2">
+                    <VietQRDisplay
+                      invoiceId={invoice.id}
+                      amount={invoice.totalAmount - invoice.paidAmount}
+                      reference={invoice.paymentReference}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Actions - Admin only */}
+              {(invoice.status === 'pending' || invoice.status === 'overdue') && (
+                <AdminInvoiceActions
+                  invoice={invoice}
+                  onMarkAsPaid={handleMarkAsPaid}
+                  isPending={isPending}
+                />
               )}
             </div>
           </motion.div>
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function AdminInvoiceActions({
+  invoice,
+  onMarkAsPaid,
+  isPending,
+}: {
+  invoice: Invoice;
+  onMarkAsPaid: () => void;
+  isPending: boolean;
+}) {
+  const { hasAnyRole } = useAuthStore();
+  const isAdmin = hasAnyRole(['admin', 'technician']);
+
+  if (!isAdmin) return null;
+
+  return (
+    <div className="flex gap-3 pt-4">
+      <Button
+        className="flex-1"
+        onClick={onMarkAsPaid}
+        disabled={isPending}
+      >
+        <CreditCard className="mr-2 h-4 w-4" />
+        {isPending ? 'Processing...' : 'Mark as Paid'}
+      </Button>
+    </div>
   );
 }

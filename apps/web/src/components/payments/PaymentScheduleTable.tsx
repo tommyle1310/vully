@@ -50,7 +50,7 @@ interface PaymentScheduleTableProps {
 export function PaymentScheduleTable({
   contractId,
   contractType = 'rental',
-  rentAmount: _rentAmount,
+  rentAmount = 0,
 }: PaymentScheduleTableProps) {
   const { toast } = useToast();
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -289,6 +289,7 @@ export function PaymentScheduleTable({
         onOpenChange={setAddScheduleOpen}
         contractId={contractId}
         existingCount={schedules.length}
+        rentAmount={rentAmount}
         onSuccess={() => refetch()}
       />
     </>

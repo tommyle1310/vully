@@ -133,7 +133,7 @@ export function ResidentDashboard() {
                       overdueInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0)
                     )}
                   </span>
-                  <Link href="/invoices">
+                  <Link href={overdueInvoices.length === 1 ? `/invoices?invoiceId=${overdueInvoices[0].id}` : '/invoices?status=overdue'}>
                     <Button variant="destructive" size="sm">
                       Pay Now
                     </Button>
@@ -149,7 +149,7 @@ export function ResidentDashboard() {
                         : `Payment due in ${daysUntilDue} days`
                     } — {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(nextInvoice?.totalAmount || 0)}
                   </span>
-                  <Link href="/invoices">
+                  <Link href={nextInvoice ? `/invoices?invoiceId=${nextInvoice.id}` : '/invoices'}>
                     <Button variant="outline" size="sm" className="border-yellow-500 text-yellow-700 hover:bg-yellow-100 dark:text-yellow-400 dark:hover:bg-yellow-950">
                       View Invoice
                     </Button>
@@ -274,6 +274,14 @@ export function ResidentDashboard() {
                   View Invoices
                 </Button>
               </Link>
+              {activeContract && (
+                <Link href={`/contracts/${activeContract.id}`} className="block">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Receipt className="mr-2 h-4 w-4" />
+                    Payment Schedule
+                  </Button>
+                </Link>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -301,23 +309,28 @@ export function ResidentDashboard() {
               {isLoadingInvoices ? (
                 <Skeleton className="h-20 w-full" />
               ) : nextInvoice ? (
-                <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Invoice {nextInvoice.invoice_number}</p>
-                      <p className="text-xl font-semibold">
-                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(nextInvoice.totalAmount)}
-                      </p>
+                <Link href={`/invoices?invoiceId=${nextInvoice.id}`} className="block">
+                  <div className="rounded-xl border border-border/60 bg-muted/30 p-4 hover:bg-muted/50 transition-colors cursor-pointer">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Invoice {nextInvoice.invoice_number}</p>
+                        <p className="text-xl font-semibold">
+                          {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(nextInvoice.totalAmount)}
+                        </p>
+                      </div>
+                      <Badge variant={nextInvoice.status === 'overdue' ? 'destructive' : 'outline'}>
+                        {nextInvoice.status}
+                      </Badge>
                     </div>
-                    <Badge variant={nextInvoice.status === 'overdue' ? 'destructive' : 'outline'}>
-                      {nextInvoice.status}
-                    </Badge>
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CalendarClock className="h-3.5 w-3.5" />
+                        Due {format(new Date(nextInvoice.dueDate), 'MMM dd, yyyy')}
+                      </div>
+                      <span className="text-xs text-primary font-medium">View & Pay →</span>
+                    </div>
                   </div>
-                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                    <CalendarClock className="h-3.5 w-3.5" />
-                    Due {format(new Date(nextInvoice.dueDate), 'MMM dd, yyyy')}
-                  </div>
-                </div>
+                </Link>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
