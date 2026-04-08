@@ -88,6 +88,7 @@ model apartments {
   meter_readings         meter_readings[]
   parking_slots          parking_slots[]
   access_cards           access_cards[]
+  access_card_requests   access_card_requests[]
 
   @@unique([building_id, unit_number])
   @@index([building_id])
@@ -292,11 +293,37 @@ model access_cards {
   apartments          apartments     @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
   holder              users?         @relation("access_card_holder", fields: [holder_id], references: [id])
   deactivated_by_user users?         @relation("access_card_deactivator", fields: [deactivated_by], references: [id])
+  approved_request    access_card_requests? @relation("issued_access_card")
   parking_slot        parking_slots?
 
   @@index([apartment_id])
   @@index([status])
   @@index([card_type])
+}
+
+model access_card_requests {
+  id             String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apartment_id   String                  @db.Uuid
+  requested_by   String                  @db.Uuid
+  card_type      AccessCardType
+  reason         String
+  status         AccessCardRequestStatus @default(pending)
+  reviewed_by    String?                 @db.Uuid
+  reviewed_at    DateTime?               @db.Timestamptz(6)
+  review_note    String?
+  issued_card_id String?                 @unique @db.Uuid
+  created_at     DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime                @db.Timestamptz(6)
+
+  apartments        apartments   @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
+  requester         users        @relation("access_card_request_requester", fields: [requested_by], references: [id], onDelete: Cascade)
+  reviewer          users?       @relation("access_card_request_reviewer", fields: [reviewed_by], references: [id])
+  issued_access_card access_cards? @relation("issued_access_card", fields: [issued_card_id], references: [id])
+
+  @@index([apartment_id])
+  @@index([requested_by])
+  @@index([status])
+  @@index([created_at])
 }
 
 model chat_queries {
@@ -606,6 +633,8 @@ model users {
   payments_verified                      contract_payments[]     @relation("payment_verified_by")
   access_cards_as_holder                 access_cards[]          @relation("access_card_holder")
   access_cards_as_deactivator            access_cards[]          @relation("access_card_deactivator")
+  access_card_requests_as_requester      access_card_requests[]  @relation("access_card_request_requester")
+  access_card_requests_as_reviewer       access_card_requests[]  @relation("access_card_request_reviewer")
   bank_accounts                          bank_accounts[]
 }
 
@@ -886,4 +915,10 @@ enum AccessCardStatus {
   lost
   deactivated
   expired
+}
+
+enum AccessCardRequestStatus {
+  pending
+  approved
+  rejected
 }

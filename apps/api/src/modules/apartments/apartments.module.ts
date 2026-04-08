@@ -20,6 +20,8 @@ import { AccessCardsController } from './access-cards.controller';
 import { AccessCardsService } from './access-cards.service';
 import { AccessCardsHelpersService } from './access-cards-helpers.service';
 import { AccessCardsLifecycleService } from './access-cards-lifecycle.service';
+import { AccessCardRequestsController } from './access-card-requests.controller';
+import { AccessCardRequestsService } from './access-card-requests.service';
 import { BankAccountsController } from './bank-accounts.controller';
 import { BankAccountsService } from './bank-accounts.service';
 
@@ -32,6 +34,7 @@ import { BankAccountsService } from './bank-accounts.service';
     BuildingPoliciesController,
     ParkingController,
     AccessCardsController,
+    AccessCardRequestsController,
     BankAccountsController,
   ],
   providers: [
@@ -49,6 +52,7 @@ import { BankAccountsService } from './bank-accounts.service';
     AccessCardsService,
     AccessCardsHelpersService,
     AccessCardsLifecycleService,
+    AccessCardRequestsService,
     BankAccountsService,
   ],
   exports: [
@@ -66,6 +70,7 @@ import { BankAccountsService } from './bank-accounts.service';
     AccessCardsService,
     AccessCardsHelpersService,
     AccessCardsLifecycleService,
+    AccessCardRequestsService,
     BankAccountsService,
   ],
 })

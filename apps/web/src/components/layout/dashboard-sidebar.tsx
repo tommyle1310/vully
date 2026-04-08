@@ -16,6 +16,7 @@ import {
   Gauge,
   Zap,
   Clock,
+  CreditCard,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -40,6 +41,7 @@ const navItems: NavItem[] = [
   { href: '/users', label: 'Users', icon: Users, roles: [UserRole.admin] },
   { href: '/invoices', label: 'Invoices', icon: FileText },
   { href: '/payments/pending', label: 'Pending Payments', icon: Clock, roles: [UserRole.admin] },
+  { href: '/access-card-requests', label: 'Card Requests', icon: CreditCard, roles: [UserRole.admin] },
   { href: '/meter-readings', label: 'Meter Readings', icon: Gauge },
   { href: '/utility-types', label: 'Utility Types', icon: Zap, roles: [UserRole.admin] },
   { href: '/incidents', label: 'Incidents', icon: AlertTriangle },

@@ -104,7 +104,12 @@ export function usePaymentColumns(
         },
       }),
       columnHelper.accessor('expectedAmount', {
-        header: 'Expected',
+        header: () => (
+          <span>
+            Expected
+            <span className="text-xs font-normal text-muted-foreground ml-1">(excl. VAT)</span>
+          </span>
+        ),
         cell: (info) => (
           <span className="font-medium">{formatCurrency(info.getValue())}</span>
         ),

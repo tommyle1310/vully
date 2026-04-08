@@ -18,6 +18,16 @@ export interface InvoiceLineItem {
   tierBreakdown?: Record<string, unknown>;
 }
 
+export interface ReportedPaymentSnapshot {
+  amount: number;
+  paymentDate: string;
+  paymentMethod?: string;
+  referenceNumber?: string;
+  notes?: string;
+  reportedBy: string;
+  reportedAt: string;
+}
+
 export interface Invoice {
   id: string;
   contractId: string;
@@ -36,6 +46,11 @@ export interface Invoice {
   lineItems: InvoiceLineItem[];
   created_at: string;
   updatedAt: string;
+  // Reported payment info (from price_snapshot)
+  priceSnapshot?: {
+    reportedPayment?: ReportedPaymentSnapshot;
+    [key: string]: unknown;
+  };
   contract?: {
     id: string;
     apartments: {
@@ -164,10 +179,13 @@ export function useMarkInvoicePaid() {
 
   return useMutation({
     mutationFn: (id: string): Promise<InvoiceResponse> =>
-      apiClient.post<InvoiceResponse>(`/invoices/${id}/mark-paid`, {}),
+      apiClient.patch<InvoiceResponse>(`/invoices/${id}/pay`, {}),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoices', id] });
+      // Also invalidate contract payment queries since mark-paid syncs to schedule
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
     },
   });
 }
@@ -179,5 +197,81 @@ export function useOverdueInvoices() {
     queryFn: (): Promise<{ data: Invoice[] }> =>
       apiClient.get<{ data: Invoice[] }>('/invoices/overdue'),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+// Report invoice payment (resident)
+export interface ReportInvoicePaymentInput {
+  amount: number;
+  paymentDate: string;
+  paymentMethod?: 'bank_transfer' | 'cash' | 'check' | 'card' | 'other';
+  referenceNumber?: string;
+  notes?: string;
+}
+
+export function useReportInvoicePayment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      invoiceId,
+      data,
+    }: {
+      invoiceId: string;
+      data: ReportInvoicePaymentInput;
+    }): Promise<InvoiceResponse & { message: string }> =>
+      apiClient.post<InvoiceResponse & { message: string }>(
+        `/invoices/${invoiceId}/report-payment`,
+        data,
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices', variables.invoiceId] });
+      // Also notify admin pending payments view
+      queryClient.invalidateQueries({ queryKey: ['invoices', 'reported-payments'] });
+    },
+  });
+}
+
+// Get invoices with reported payments (admin)
+export function useReportedInvoicePayments() {
+  return useQuery({
+    queryKey: ['invoices', 'reported-payments'],
+    queryFn: (): Promise<{ data: Invoice[] }> =>
+      apiClient.get<{ data: Invoice[] }>('/invoices/payments/reported'),
+    staleTime: 30 * 1000, // 30 seconds - needs to be fresher for admin review
+  });
+}
+
+// Verify or reject a reported invoice payment (admin)
+export interface VerifyInvoicePaymentInput {
+  status: 'confirmed' | 'rejected';
+  actualAmount?: number;
+  notes?: string;
+}
+
+export function useVerifyInvoicePayment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      invoiceId,
+      data,
+    }: {
+      invoiceId: string;
+      data: VerifyInvoicePaymentInput;
+    }): Promise<InvoiceResponse & { message: string }> =>
+      apiClient.patch<InvoiceResponse & { message: string }>(
+        `/invoices/${invoiceId}/verify-payment`,
+        data,
+      ),
+    onSuccess: () => {
+      // Invalidate invoice queries
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices', 'reported-payments'] });
+      // Also invalidate contract payment queries since invoice payment syncs to schedule
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+    },
   });
 }

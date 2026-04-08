@@ -11,9 +11,10 @@ import {
   SortingState,
   createColumnHelper,
 } from '@tanstack/react-table';
-import { Search, Clock, CheckCircle2, XCircle, AlertCircle, RefreshCw, ArrowUpDown, History } from 'lucide-react';
+import { Search, Clock, CheckCircle2, XCircle, AlertCircle, RefreshCw, ArrowUpDown, History, FileText } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { usePendingPayments, usePaymentHistory, PendingPayment } from '@/hooks/use-payments';
+import { useReportedInvoicePayments, Invoice, ReportedPaymentSnapshot } from '@/hooks/use-invoices';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,8 +31,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { VerifyPaymentDialog } from '@/components/payments/VerifyPaymentDialog';
+import { VerifyInvoicePaymentDialog } from '@/components/payments/VerifyInvoicePaymentDialog';
 
 const columnHelper = createColumnHelper<PendingPayment>();
+const invoiceColumnHelper = createColumnHelper<Invoice>();
 
 function PageSkeleton() {
   return (
@@ -54,17 +57,21 @@ export default function PendingPaymentsPage() {
   const { hasRole } = useAuthStore();
   const isAdmin = hasRole('admin');
 
-  const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'invoices' | 'history'>('pending');
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<PendingPayment | null>(null);
   const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [verifyInvoiceDialogOpen, setVerifyInvoiceDialogOpen] = useState(false);
 
   const { data: pendingData, isLoading: pendingLoading, error: pendingError, refetch: refetchPending } = usePendingPayments();
   const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = usePaymentHistory(30);
+  const { data: invoiceData, isLoading: invoiceLoading, refetch: refetchInvoices } = useReportedInvoicePayments();
   
   const pendingPayments = pendingData?.data || [];
   const historyPayments = historyData?.data || [];
+  const reportedInvoices = invoiceData?.data || [];
   const payments = activeTab === 'pending' ? pendingPayments : historyPayments;
 
   const pendingColumns = useMemo(
@@ -248,6 +255,109 @@ export default function PendingPaymentsPage() {
     []
   );
 
+  // Invoice columns for reported invoice payments
+  const invoiceColumns = useMemo(
+    () => [
+      invoiceColumnHelper.accessor((row) => row.priceSnapshot?.reportedPayment?.reportedAt, {
+        id: 'reportedAt',
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-3 h-8"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Reported
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        ),
+        cell: (info) => {
+          const reportedAt = info.getValue() as string | undefined;
+          return (
+            <div className="space-y-1">
+              <div className="font-medium">{reportedAt ? formatDate(reportedAt) : '-'}</div>
+              <div className="text-xs text-muted-foreground">
+                {info.row.original.contract?.tenant
+                  ? `${info.row.original.contract.tenant.firstName} ${info.row.original.contract.tenant.lastName}`
+                  : 'Unknown'}
+              </div>
+            </div>
+          );
+        },
+        sortingFn: 'datetime',
+      }),
+      invoiceColumnHelper.accessor('invoice_number', {
+        header: 'Invoice',
+        cell: (info) => {
+          const invoice = info.row.original;
+          return (
+            <div className="space-y-1">
+              <div className="font-medium flex items-center gap-1">
+                <FileText className="h-3 w-3" />
+                {invoice.invoice_number}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {invoice.contract?.apartments?.unit_number || 'Unknown'} · {invoice.billingPeriod}
+              </div>
+            </div>
+          );
+        },
+      }),
+      invoiceColumnHelper.accessor((row) => row.priceSnapshot?.reportedPayment?.amount, {
+        id: 'amount',
+        header: 'Amount',
+        cell: (info) => {
+          const amount = info.getValue() as number | undefined;
+          const invoice = info.row.original;
+          return (
+            <div className="space-y-1">
+              <div className="font-semibold text-green-600">{amount ? formatCurrency(amount) : '-'}</div>
+              <div className="text-xs text-muted-foreground">
+                Invoice: {formatCurrency(invoice.totalAmount)}
+              </div>
+            </div>
+          );
+        },
+      }),
+      invoiceColumnHelper.accessor((row) => row.priceSnapshot?.reportedPayment?.paymentMethod, {
+        id: 'paymentMethod',
+        header: 'Method',
+        cell: (info) => {
+          const method = info.getValue() as string | undefined;
+          return (
+            <Badge variant="outline" className="capitalize">
+              {method?.replace('_', ' ') || 'Unknown'}
+            </Badge>
+          );
+        },
+      }),
+      invoiceColumnHelper.accessor((row) => row.priceSnapshot?.reportedPayment?.referenceNumber, {
+        id: 'referenceNumber',
+        header: 'Reference',
+        cell: (info) => {
+          const ref = info.getValue() as string | undefined;
+          return <span className="font-mono text-xs">{ref || '-'}</span>;
+        },
+      }),
+      invoiceColumnHelper.display({
+        id: 'actions',
+        cell: (info) => (
+          <Button
+            size="sm"
+            onClick={() => {
+              setSelectedInvoice(info.row.original);
+              setVerifyInvoiceDialogOpen(true);
+            }}
+          >
+            Review
+          </Button>
+        ),
+        size: 100,
+      }),
+    ],
+    []
+  );
+
   const columns = activeTab === 'pending' ? pendingColumns : historyColumns;
 
   const table = useReactTable({
@@ -261,9 +371,21 @@ export default function PendingPaymentsPage() {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
+  const invoiceTable = useReactTable({
+    data: reportedInvoices,
+    columns: invoiceColumns,
+    state: { sorting, globalFilter },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
+
   const refetch = () => {
     refetchPending();
     refetchHistory();
+    refetchInvoices();
   };
 
   // Access denied for non-admins
@@ -277,7 +399,7 @@ export default function PendingPaymentsPage() {
     );
   }
 
-  if (pendingLoading && historyLoading) {
+  if (pendingLoading && historyLoading && invoiceLoading) {
     return <PageSkeleton />;
   }
 
@@ -328,8 +450,10 @@ export default function PendingPaymentsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pendingPayments.length}</div>
-            <p className="text-xs text-muted-foreground">Awaiting verification</p>
+            <div className="text-2xl font-bold">{pendingPayments.length + reportedInvoices.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {pendingPayments.length} contracts · {reportedInvoices.length} invoices
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -383,14 +507,21 @@ export default function PendingPaymentsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'pending' | 'history')}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'pending' | 'invoices' | 'history')}>
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="pending" className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              Pending
+              Contracts
               {pendingPayments.length > 0 && (
                 <Badge variant="secondary" className="ml-1">{pendingPayments.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="invoices" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Invoices
+              {reportedInvoices.length > 0 && (
+                <Badge variant="secondary" className="ml-1">{reportedInvoices.length}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-2">
@@ -418,7 +549,7 @@ export default function PendingPaymentsPage() {
                 <CheckCircle2 className="h-12 w-12 text-green-600 mb-4" />
                 <h3 className="text-lg font-semibold mb-2">All caught up!</h3>
                 <p className="text-muted-foreground text-center">
-                  There are no pending payments to review.
+                  There are no pending contract payments to review.
                 </p>
               </CardContent>
             </Card>
@@ -441,6 +572,59 @@ export default function PendingPaymentsPage() {
                 <TableBody>
                   <AnimatePresence mode="popLayout">
                     {table.getRowModel().rows.map((row) => (
+                      <motion.tr
+                        key={row.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="border-b transition-colors hover:bg-muted/50"
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
+                      </motion.tr>
+                    ))}
+                  </AnimatePresence>
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="invoices" className="mt-4">
+          {invoiceLoading ? (
+            <Skeleton className="h-96" />
+          ) : reportedInvoices.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-16">
+                <CheckCircle2 className="h-12 w-12 text-green-600 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">All caught up!</h3>
+                <p className="text-muted-foreground text-center">
+                  There are no pending invoice payments to review.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  {invoiceTable.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(header.column.columnDef.header, header.getContext())}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  <AnimatePresence mode="popLayout">
+                    {invoiceTable.getRowModel().rows.map((row) => (
                       <motion.tr
                         key={row.id}
                         initial={{ opacity: 0 }}
@@ -521,6 +705,15 @@ export default function PendingPaymentsPage() {
         open={verifyDialogOpen}
         onOpenChange={setVerifyDialogOpen}
         payment={selectedPayment}
+        onSuccess={() => refetch()}
+      />
+
+      {/* Verify Invoice Payment Dialog */}
+      <VerifyInvoicePaymentDialog
+        open={verifyInvoiceDialogOpen}
+        onOpenChange={setVerifyInvoiceDialogOpen}
+        invoice={selectedInvoice}
+        reportedPayment={selectedInvoice?.priceSnapshot?.reportedPayment as ReportedPaymentSnapshot | null}
         onSuccess={() => refetch()}
       />
     </motion.div>

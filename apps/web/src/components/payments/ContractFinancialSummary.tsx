@@ -185,7 +185,10 @@ export function ContractFinancialSummaryCard({ contractId }: ContractFinancialSu
                   <span className="text-sm font-medium">Next Payment Due</span>
                 </div>
                 <p className="text-sm text-muted-foreground">{summary.nextDue.periodLabel}</p>
-                <p className="text-lg font-semibold">{formatCurrency(summary.nextDue.expectedAmount)}</p>
+                <p className="text-lg font-semibold">
+                  {formatCurrency(summary.nextDue.expectedAmount)}
+                  <span className="text-xs font-normal text-muted-foreground ml-1">(excl. VAT)</span>
+                </p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Due Date</p>

@@ -194,7 +194,7 @@ export function ContractDetailSheet({
             <Card>
               <CardContent className="pt-4 space-y-3">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Financial</h3>
-                <InfoRow icon={DollarSign} label="Monthly Rent" value={`${new Intl.NumberFormat('vi-VN').format(contract.rentAmount)} VND`} />
+                <InfoRow icon={DollarSign} label="Monthly Rent" value={<span>{new Intl.NumberFormat('vi-VN').format(contract.rentAmount)} VND <span className="text-xs text-muted-foreground">(excl. VAT)</span></span>} />
                 <InfoRow icon={DollarSign} label="Deposit Months" value={`${contract.depositMonths} month(s)`} />
                 {contract.depositAmount && (
                   <InfoRow icon={DollarSign} label="Deposit Amount" value={`${new Intl.NumberFormat('vi-VN').format(contract.depositAmount)} VND`} />

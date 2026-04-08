@@ -168,6 +168,9 @@ export class InvoiceResponseDto {
   @ApiPropertyOptional()
   paymentReference?: string;
 
+  @ApiPropertyOptional({ description: 'Price snapshot including reported payment info' })
+  priceSnapshot?: Record<string, unknown>;
+
   @ApiProperty({ type: [InvoiceLineItemDto] })
   lineItems: InvoiceLineItemDto[];
 
@@ -196,6 +199,32 @@ export class InvoiceResponseDto {
       email: string;
     };
   };
+}
+
+export class ReportInvoicePaymentDto {
+  @ApiProperty({ description: 'Amount transferred' })
+  @IsNumber()
+  @Min(0)
+  amount: number;
+
+  @ApiProperty({ example: '2026-04-08', description: 'Date of transfer' })
+  @IsDateString()
+  paymentDate: string;
+
+  @ApiPropertyOptional({ enum: ['bank_transfer', 'cash', 'check', 'card', 'other'] })
+  @IsOptional()
+  @IsEnum(['bank_transfer', 'cash', 'check', 'card', 'other'])
+  paymentMethod?: string;
+
+  @ApiPropertyOptional({ description: 'Bank transfer reference number' })
+  @IsOptional()
+  @IsString()
+  referenceNumber?: string;
+
+  @ApiPropertyOptional({ description: 'Notes' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class BulkGenerateInvoicesDto {
@@ -228,4 +257,21 @@ export class BulkGenerateResponseDto {
 
   @ApiProperty()
   totalContracts: number;
+}
+
+export class VerifyInvoicePaymentDto {
+  @ApiProperty({ enum: ['confirmed', 'rejected'], description: 'Verification decision' })
+  @IsEnum(['confirmed', 'rejected'])
+  status: 'confirmed' | 'rejected';
+
+  @ApiPropertyOptional({ description: 'The actual amount verified (if different from reported)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  actualAmount?: number;
+
+  @ApiPropertyOptional({ description: 'Verification notes' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

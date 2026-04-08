@@ -20,6 +20,7 @@ import {
   Landmark,
   Receipt,
   QrCode,
+  Send,
 } from 'lucide-react';
 import { Invoice, InvoiceLineItem, useMarkInvoicePaid } from '@/hooks/use-invoices';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { VietQRDisplay } from '@/components/payments/VietQRDisplay';
+import { ReportInvoicePaymentDialog } from '@/components/payments/ReportInvoicePaymentDialog';
 
 interface InvoiceDetailSheetProps {
   invoice: Invoice | null;
@@ -88,6 +90,10 @@ function groupLineItemsByCategory(lineItems: InvoiceLineItem[]) {
 export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetailSheetProps) {
   const { toast } = useToast();
   const { mutate: markAsPaid, isPending } = useMarkInvoicePaid();
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+
+  // Check if there's a reported payment pending verification
+  const reportedPayment = invoice?.priceSnapshot?.reportedPayment;
 
   const groupedItems = useMemo(
     () => (invoice ? groupLineItemsByCategory(invoice.lineItems) : {}),
@@ -371,8 +377,36 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetai
                 </Card>
               )}
 
+              {/* Reported Payment Pending Verification Notice */}
+              {reportedPayment && (
+                <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+                  <CardContent className="py-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+                      <div className="flex-1 space-y-2">
+                        <p className="font-medium text-amber-800 dark:text-amber-200">
+                          Payment Pending Verification
+                        </p>
+                        <p className="text-sm text-amber-700 dark:text-amber-300">
+                          You reported a payment of{' '}
+                          <span className="font-semibold">
+                            {formatCurrency(reportedPayment.amount)}
+                          </span>{' '}
+                          on {formatDate(reportedPayment.reportedAt)}. An admin will verify your transfer shortly.
+                        </p>
+                        {reportedPayment.referenceNumber && (
+                          <p className="text-xs text-amber-600">
+                            Reference: {reportedPayment.referenceNumber}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* QR Code Payment - for pending/overdue invoices */}
-              {(invoice.status === 'pending' || invoice.status === 'overdue') && (
+              {(invoice.status === 'pending' || invoice.status === 'overdue') && !reportedPayment && (
                 <Card>
                   <CardHeader className="py-3">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -380,15 +414,34 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetai
                       Pay with VietQR
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="py-2">
+                  <CardContent className="py-2 space-y-4">
                     <VietQRDisplay
                       invoiceId={invoice.id}
                       amount={invoice.totalAmount - invoice.paidAmount}
                       reference={invoice.paymentReference}
                     />
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      onClick={() => setReportDialogOpen(true)}
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      Report Payment Transfer
+                    </Button>
+                    <p className="text-xs text-center text-muted-foreground">
+                      After transferring, click above to notify admin for verification
+                    </p>
                   </CardContent>
                 </Card>
               )}
+
+              {/* Report Payment Dialog */}
+              <ReportInvoicePaymentDialog
+                open={reportDialogOpen}
+                onOpenChange={setReportDialogOpen}
+                invoice={invoice}
+                onSuccess={() => onOpenChange(false)}
+              />
 
               {/* Actions - Admin only */}
               {(invoice.status === 'pending' || invoice.status === 'overdue') && (

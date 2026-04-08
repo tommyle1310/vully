@@ -194,13 +194,14 @@ export function AddPaymentScheduleDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="expectedAmount">Expected Amount (VND)</Label>
+            <Label htmlFor="expectedAmount">Expected Amount (excl. VAT)</Label>
             <Input
               id="expectedAmount"
               type="number"
               {...register('expectedAmount')}
               placeholder="Enter amount"
             />
+            <p className="text-xs text-muted-foreground">Base amount before 10% VAT is added on invoices</p>
             {errors.expectedAmount && (
               <p className="text-xs text-destructive">{errors.expectedAmount.message}</p>
             )}

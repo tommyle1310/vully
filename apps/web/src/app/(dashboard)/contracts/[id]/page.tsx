@@ -195,7 +195,12 @@ export default function ContractDetailPage({ params }: PageProps) {
               <InfoRow
                 icon={DollarSign}
                 label="Monthly Rent"
-                value={formatCurrency(contract.rentAmount)}
+                value={
+                  <span>
+                    {formatCurrency(contract.rentAmount)}
+                    <span className="text-xs text-muted-foreground ml-1">(excl. VAT)</span>
+                  </span>
+                }
               />
               <InfoRow
                 icon={DollarSign}

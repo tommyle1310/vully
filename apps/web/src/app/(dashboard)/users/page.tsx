@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Plus, Search, Edit, Shield } from 'lucide-react';
+import { Plus, Search, Edit, Shield, User as UserIcon } from 'lucide-react';
 import { parseAsString, parseAsInteger, useQueryStates } from 'nuqs';
 import { apiClient } from '@/lib/api-client';
 import {
@@ -39,6 +39,7 @@ import { UserRole } from '@vully/shared-types';
 import { CreateUserDialog } from '@/components/users/create-user-dialog';
 import { EditUserDialog } from '@/components/users/edit-user-dialog';
 import { ManageRolesDialog } from '@/components/users/manage-roles-dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface User {
   id: string;
@@ -47,6 +48,10 @@ interface User {
   lastName: string;
   roles: UserRole[];
   phone?: string;
+  profileData?: {
+    avatarUrl?: string;
+    [key: string]: unknown;
+  };
   isActive: boolean;
   created_at: string;
   updatedAt: string;
@@ -84,19 +89,29 @@ export default function UsersPage() {
   const columns = useMemo<ColumnDef<User>[]>(
     () => [
       {
-        accessorKey: 'email',
-        header: 'Email',
-        cell: ({ row }) => (
-          <div className="font-medium">{row.getValue('email')}</div>
-        ),
-      },
-      {
-        accessorKey: 'firstName',
-        header: 'First Name',
-      },
-      {
-        accessorKey: 'lastName',
-        header: 'Last Name',
+        id: 'user',
+        header: 'User',
+        cell: ({ row }) => {
+          const user = row.original;
+          const avatarUrl = user.profileData?.avatarUrl;
+          const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
+          return (
+            <div className="flex items-center gap-3">
+              <Avatar className="h-8 w-8">
+                {avatarUrl ? (
+                  <AvatarImage src={avatarUrl} alt={`${user.firstName} ${user.lastName}`} />
+                ) : null}
+                <AvatarFallback className="text-xs">
+                  {initials || <UserIcon className="h-4 w-4" />}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col">
+                <span className="font-medium">{user.firstName} {user.lastName}</span>
+                <span className="text-sm text-muted-foreground">{user.email}</span>
+              </div>
+            </div>
+          );
+        },
       },
       {
         accessorKey: 'roles',

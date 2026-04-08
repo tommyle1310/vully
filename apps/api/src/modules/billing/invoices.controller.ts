@@ -25,6 +25,8 @@ import {
   UpdateInvoiceDto,
   InvoiceResponseDto,
   InvoiceFiltersDto,
+  ReportInvoicePaymentDto,
+  VerifyInvoicePaymentDto,
 } from './dto/invoice.dto';
 import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -192,5 +194,52 @@ export class InvoicesController {
       String(reference),
     );
     return { data: qr };
+  }
+
+  @Post(':id/report-payment')
+  @Roles('resident')
+  @ApiOperation({ summary: 'Report a payment transfer for an invoice (resident)' })
+  @ApiResponse({ status: 200, description: 'Payment reported, awaiting verification' })
+  @ApiResponse({ status: 400, description: 'Invoice already paid or cancelled' })
+  @ApiResponse({ status: 403, description: 'Only the invoice tenant can report' })
+  async reportPayment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReportInvoicePaymentDto,
+    @CurrentUser() user: AuthUser,
+  ): Promise<{ data: InvoiceResponseDto; message: string }> {
+    const invoice = await this.invoicesService.reportPayment(id, dto, user.id);
+    return {
+      data: invoice,
+      message: 'Payment reported. Admin will verify your transfer shortly.',
+    };
+  }
+
+  @Get('payments/reported')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Get invoices with reported payments awaiting verification (admin)' })
+  @ApiResponse({ status: 200, description: 'List of invoices with reported payments' })
+  async getReportedPayments(): Promise<{ data: InvoiceResponseDto[] }> {
+    const invoices = await this.invoicesService.getReportedPayments();
+    return { data: invoices };
+  }
+
+  @Patch(':id/verify-payment')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Verify or reject a reported invoice payment (admin)' })
+  @ApiResponse({ status: 200, description: 'Payment verified/rejected' })
+  @ApiResponse({ status: 400, description: 'No reported payment to verify' })
+  @ApiResponse({ status: 404, description: 'Invoice not found' })
+  async verifyPayment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: VerifyInvoicePaymentDto,
+    @CurrentUser() user: AuthUser,
+  ): Promise<{ data: InvoiceResponseDto; message: string }> {
+    const invoice = await this.invoicesService.verifyPayment(id, dto, user.id);
+    return {
+      data: invoice,
+      message: dto.status === 'confirmed'
+        ? 'Payment confirmed successfully.'
+        : 'Payment rejected.',
+    };
   }
 }

@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { useCreateIncident } from '@/hooks/use-incidents';
+import { useCreateAccessCardRequest } from '@/hooks/use-access-cards';
 import { Loader2, Send, CheckCircle2, Info } from 'lucide-react';
 
 const requestCardSchema = z.object({
@@ -48,7 +48,7 @@ export function RequestAccessCardDialog({
   onSuccess,
 }: RequestAccessCardDialogProps) {
   const { toast } = useToast();
-  const createIncident = useCreateIncident();
+  const createRequest = useCreateAccessCardRequest();
   const [submitted, setSubmitted] = useState(false);
 
   const {
@@ -69,14 +69,11 @@ export function RequestAccessCardDialog({
   const watchedCardType = watch('cardType');
 
   const onSubmit = (data: RequestCardForm) => {
-    // Create an incident as access card request
-    createIncident.mutate(
+    createRequest.mutate(
       {
         apartmentId,
-        title: `Access Card Request: ${data.cardType === 'building' ? 'Building' : 'Parking'} Card`,
-        description: `Request Type: ${data.cardType === 'building' ? 'Building Access Card' : 'Parking Access Card'}\n\nReason:\n${data.reason}`,
-        category: 'security', // Access card requests are security-related
-        priority: 'low',
+        cardType: data.cardType,
+        reason: data.reason,
       },
       {
         onSuccess: () => {
@@ -169,12 +166,12 @@ export function RequestAccessCardDialog({
                 type="button"
                 variant="outline"
                 onClick={handleClose}
-                disabled={createIncident.isPending}
+                disabled={createRequest.isPending}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createIncident.isPending}>
-                {createIncident.isPending && (
+              <Button type="submit" disabled={createRequest.isPending}>
+                {createRequest.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
                 Submit Request

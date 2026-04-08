@@ -7,6 +7,7 @@ import { apiClient } from '@/lib/api-client';
 
 export type AccessCardType = 'building' | 'parking';
 export type AccessCardStatus = 'active' | 'lost' | 'deactivated' | 'expired';
+export type AccessCardRequestStatus = 'pending' | 'approved' | 'rejected';
 export type DeactivationReason = 'lost' | 'stolen' | 'resident_left' | 'admin_action';
 
 export interface AccessCardHolder {
@@ -52,6 +53,43 @@ export interface AccessCardStats {
   available: number;
 }
 
+export interface AccessCardRequestApartment {
+  id: string;
+  unitNumber: string;
+  buildingName?: string;
+}
+
+export interface AccessCardRequestUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+}
+
+export interface AccessCardRequestIssuedCard {
+  id: string;
+  cardNumber: string;
+}
+
+export interface AccessCardRequest {
+  id: string;
+  apartmentId: string;
+  requestedBy: string;
+  cardType: AccessCardType;
+  reason: string;
+  status: AccessCardRequestStatus;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  reviewNote?: string | null;
+  issuedCardId?: string | null;
+  apartment?: AccessCardRequestApartment;
+  requester?: AccessCardRequestUser;
+  reviewer?: AccessCardRequestUser | null;
+  issuedCard?: AccessCardRequestIssuedCard | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CreateAccessCardInput {
   apartmentId: string;
   holderId?: string;
@@ -79,6 +117,30 @@ export interface AccessCardQueryParams {
   cardType?: AccessCardType;
 }
 
+export interface AccessCardRequestQueryParams {
+  status?: AccessCardRequestStatus;
+}
+
+export interface CreateAccessCardRequestInput {
+  apartmentId: string;
+  cardType: AccessCardType;
+  reason: string;
+}
+
+export interface ApproveAccessCardRequestInput {
+  id: string;
+  reviewNote?: string;
+  accessZones?: string[];
+  floorAccess?: number[];
+  expiresAt?: string;
+  cardNotes?: string;
+}
+
+export interface RejectAccessCardRequestInput {
+  id: string;
+  reviewNote: string;
+}
+
 // =====================
 // Response Types
 // =====================
@@ -98,6 +160,15 @@ interface AccessCardStatsResponse {
   data: AccessCardStats;
 }
 
+interface AccessCardRequestResponse {
+  data: AccessCardRequest;
+}
+
+interface AccessCardRequestListResponse {
+  data: AccessCardRequest[];
+  total: number;
+}
+
 // =====================
 // Query Keys
 // =====================
@@ -115,6 +186,10 @@ export const accessCardKeys = {
   detail: (id: string) => [...accessCardKeys.details(), id] as const,
   stats: (apartmentId: string) =>
     [...accessCardKeys.all, 'stats', apartmentId] as const,
+  requests: ['access-card-requests'] as const,
+  requestLists: () => [...accessCardKeys.requests, 'list'] as const,
+  requestList: (params?: AccessCardRequestQueryParams) =>
+    [...accessCardKeys.requestLists(), params] as const,
 };
 
 // =====================
@@ -172,6 +247,25 @@ export function useAccessCard(id: string) {
   });
 }
 
+/**
+ * Get access card requests (admin view)
+ */
+export function useAccessCardRequests(params?: AccessCardRequestQueryParams) {
+  return useQuery({
+    queryKey: accessCardKeys.requestList(params),
+    queryFn: () => {
+      const searchParams = new URLSearchParams();
+      if (params?.status) searchParams.append('status', params.status);
+
+      const query = searchParams.toString();
+      const url = `/access-card-requests${query ? `?${query}` : ''}`;
+
+      return apiClient.get<AccessCardRequestListResponse>(url);
+    },
+    staleTime: 60 * 1000,
+  });
+}
+
 // =====================
 // Mutation Hooks
 // =====================
@@ -193,6 +287,70 @@ export function useIssueAccessCard() {
       queryClient.invalidateQueries({
         queryKey: accessCardKeys.stats(variables.apartmentId),
       });
+    },
+  });
+}
+
+/**
+ * Create a new access card request (resident flow)
+ */
+export function useCreateAccessCardRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateAccessCardRequestInput) =>
+      apiClient.post<AccessCardRequestResponse>(
+        `/apartments/${data.apartmentId}/access-card-requests`,
+        {
+          cardType: data.cardType,
+          reason: data.reason,
+        },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accessCardKeys.requestLists() });
+    },
+  });
+}
+
+/**
+ * Approve an access card request and issue card
+ */
+export function useApproveAccessCardRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, ...data }: ApproveAccessCardRequestInput) =>
+      apiClient.post<AccessCardRequestResponse>(
+        `/access-card-requests/${id}/approve`,
+        data,
+      ),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: accessCardKeys.requestLists() });
+      const apartmentId = result.data.apartmentId;
+      queryClient.invalidateQueries({
+        queryKey: accessCardKeys.listsByApartment(apartmentId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: accessCardKeys.stats(apartmentId),
+      });
+    },
+  });
+}
+
+/**
+ * Reject an access card request
+ */
+export function useRejectAccessCardRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, reviewNote }: RejectAccessCardRequestInput) =>
+      apiClient.post<AccessCardRequestResponse>(
+        `/access-card-requests/${id}/reject`,
+        { reviewNote },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accessCardKeys.requestLists() });
     },
   });
 }
