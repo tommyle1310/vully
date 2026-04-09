@@ -17,8 +17,6 @@ interface PolicyHistoryProps {
 }
 
 export function PolicyHistory({ policies }: PolicyHistoryProps) {
-  if (policies.length === 0) return null;
-
   return (
     <Card>
       <CardHeader>
@@ -31,6 +29,11 @@ export function PolicyHistory({ policies }: PolicyHistoryProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {policies.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">
+            No previous policy versions yet.
+          </p>
+        ) : (
         <Accordion type="single" collapsible className="w-full">
           {policies.map((policy, index) => (
             <AccordionItem key={policy.id} value={policy.id}>
@@ -73,6 +76,7 @@ export function PolicyHistory({ policies }: PolicyHistoryProps) {
             </AccordionItem>
           ))}
         </Accordion>
+        )}
       </CardContent>
     </Card>
   );

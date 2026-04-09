@@ -343,7 +343,7 @@ export default function BuildingDetailPage() {
 
         {/* Building Policies Tab */}
         <TabsContent value="policies" className="space-y-0">
-          <BuildingPoliciesTab buildingId={buildingId} />
+          <BuildingPoliciesTab buildingId={buildingId} readOnly={!canEditBuilding} />
         </TabsContent>
 
         {/* Parking Management Tab */}

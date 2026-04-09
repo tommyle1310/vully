@@ -590,10 +590,61 @@ export class InvoicesService {
     const invoices = await this.prisma.invoices.findMany({
       where: {
         status: { in: ['pending', 'overdue'] },
-        price_snapshot: {
-          path: ['reportedPayment'],
-          not: Prisma.DbNull,
+        AND: [
+          {
+            price_snapshot: {
+              path: ['reportedPayment'],
+              not: Prisma.DbNull,
+            },
+          },
+          {
+            price_snapshot: {
+              path: ['reportedPayment'],
+              not: Prisma.JsonNull,
+            },
+          },
+        ],
+      },
+      include: {
+        invoice_line_items: true,
+        contracts: {
+          include: {
+            apartments: { include: { buildings: true } },
+            users_contracts_tenant_idTousers: true,
+          },
         },
+      },
+      orderBy: { updated_at: 'desc' },
+    });
+
+    return invoices.map((i) => toInvoiceResponseDto(i));
+  }
+
+  /**
+   * Get invoices with verified or rejected payments (history).
+   * Shows confirmed/rejected payment decisions within the last N days.
+   */
+  async getPaymentHistory(days: number = 30): Promise<InvoiceResponseDto[]> {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+
+    const invoices = await this.prisma.invoices.findMany({
+      where: {
+        updated_at: { gte: since },
+        OR: [
+          {
+            price_snapshot: {
+              path: ['verifiedPayment'],
+              not: Prisma.DbNull,
+            },
+          },
+          {
+            price_snapshot: {
+              path: ['rejectedPayment'],
+              not: Prisma.DbNull,
+            },
+          },
+        ],
       },
       include: {
         invoice_line_items: true,

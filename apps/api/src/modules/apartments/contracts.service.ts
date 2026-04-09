@@ -14,12 +14,16 @@ import {
   ContractResponseDto,
 } from './dto/contract.dto';
 import { toContractResponseDto } from './contracts.mapper';
+import { PaymentGeneratorService } from './payment-generator.service';
 
 @Injectable()
 export class ContractsService {
   private readonly logger = new Logger(ContractsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly paymentGenerator: PaymentGeneratorService,
+  ) {}
 
   async create(dto: CreateContractDto, createdById: string): Promise<ContractResponseDto> {
     const apartment = await this.prisma.apartments.findUnique({
@@ -98,7 +102,51 @@ export class ContractsService {
       actorId: createdById,
     });
 
+    // Auto-generate payment schedules based on contract type
+    await this.generateInitialPaymentSchedules(contract.id, dto);
+
     return toContractResponseDto(contract);
+  }
+
+  private async generateInitialPaymentSchedules(
+    contractId: string,
+    dto: CreateContractDto,
+  ): Promise<void> {
+    try {
+      const contractType = dto.contractType || 'rental';
+      const paymentDueDay = dto.paymentDueDay;
+
+      switch (contractType) {
+        case 'rental':
+          await this.paymentGenerator.generateRentSchedules(contractId, {
+            months: 12,
+            paymentDueDay,
+          });
+          break;
+        case 'lease_to_own':
+          await this.paymentGenerator.generateLeaseToOwnSchedules(contractId, {
+            months: 12,
+            paymentDueDay,
+          });
+          break;
+        case 'purchase':
+          await this.paymentGenerator.generatePurchaseMilestones(contractId, {});
+          break;
+      }
+
+      this.logger.log({
+        event: 'payment_schedules_auto_generated',
+        contractId,
+        contractType,
+      });
+    } catch (error) {
+      // Log but don't fail contract creation - schedules can be generated manually
+      this.logger.error({
+        event: 'payment_schedule_auto_generation_failed',
+        contractId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   }
 
   async findAll(

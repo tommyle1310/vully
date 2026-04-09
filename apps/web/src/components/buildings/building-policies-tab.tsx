@@ -19,9 +19,10 @@ import { PolicyHistory } from './policy-history';
 
 interface BuildingPoliciesTabProps {
   buildingId: string;
+  readOnly?: boolean;
 }
 
-export function BuildingPoliciesTab({ buildingId }: BuildingPoliciesTabProps) {
+export function BuildingPoliciesTab({ buildingId, readOnly = false }: BuildingPoliciesTabProps) {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [effectiveDate, setEffectiveDate] = useState<Date | undefined>(new Date());
@@ -123,17 +124,19 @@ export function BuildingPoliciesTab({ buildingId }: BuildingPoliciesTabProps) {
               }
             </CardDescription>
           </div>
-          <PolicyFormDialog
-            open={dialogOpen}
-            onOpenChange={setDialogOpen}
-            currentPolicy={currentPolicy}
-            effectiveDate={effectiveDate}
-            onEffectiveDateChange={setEffectiveDate}
-            formData={formData}
-            onFormDataChange={(update) => setFormData(prev => ({ ...prev, ...update }))}
-            onSubmit={handleCreatePolicy}
-            isSubmitting={createPolicy.isPending}
-          />
+          {!readOnly && (
+            <PolicyFormDialog
+              open={dialogOpen}
+              onOpenChange={setDialogOpen}
+              currentPolicy={currentPolicy}
+              effectiveDate={effectiveDate}
+              onEffectiveDateChange={setEffectiveDate}
+              formData={formData}
+              onFormDataChange={(update) => setFormData(prev => ({ ...prev, ...update }))}
+              onSubmit={handleCreatePolicy}
+              isSubmitting={createPolicy.isPending}
+            />
+          )}
         </CardHeader>
         <CardContent>
           <PolicyCurrentDisplay policy={currentPolicy} />

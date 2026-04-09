@@ -243,6 +243,16 @@ export function useReportedInvoicePayments() {
   });
 }
 
+// Get invoice payment verification history (admin)
+export function useInvoicePaymentHistory(days: number = 30) {
+  return useQuery({
+    queryKey: ['invoices', 'payment-history', days],
+    queryFn: (): Promise<{ data: Invoice[] }> =>
+      apiClient.get<{ data: Invoice[] }>(`/invoices/payments/history?days=${days}`),
+    staleTime: 60 * 1000,
+  });
+}
+
 // Verify or reject a reported invoice payment (admin)
 export interface VerifyInvoicePaymentInput {
   status: 'confirmed' | 'rejected';

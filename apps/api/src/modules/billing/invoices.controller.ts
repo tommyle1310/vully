@@ -223,6 +223,16 @@ export class InvoicesController {
     return { data: invoices };
   }
 
+  @Get('payments/history')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Get invoice payment verification history (admin)' })
+  @ApiQuery({ name: 'days', required: false, type: Number, description: 'Number of days to look back (default: 30)' })
+  @ApiResponse({ status: 200, description: 'List of invoices with verified/rejected payments' })
+  async getPaymentHistory(@Query('days') days?: string): Promise<{ data: InvoiceResponseDto[] }> {
+    const invoices = await this.invoicesService.getPaymentHistory(days ? parseInt(days, 10) : 30);
+    return { data: invoices };
+  }
+
   @Patch(':id/verify-payment')
   @Roles('admin')
   @ApiOperation({ summary: 'Verify or reject a reported invoice payment (admin)' })

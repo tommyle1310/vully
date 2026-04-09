@@ -13,6 +13,8 @@ const VAT_RATES: Record<string, number> = {
   installment: 0.10,
   milestone: 0.10,
   management_fee: 0.10,
+  trash: 0.10,
+  parking: 0.10,
   utility_electric: 0, // thu hộ - pass-through
   utility_water: 0, // thu hộ - pass-through
   utility_gas: 0.08,
@@ -92,6 +94,24 @@ export class InvoiceCalculatorService {
         billingPeriod,
       );
       if (mgmtItem) lineItems.push(mgmtItem);
+    }
+
+    // 4. Trash collection fee
+    if (includeAll || normalizedCategories?.includes('trash')) {
+      const trashItem = await this.buildTrashLineItem(
+        buildingId,
+        billingPeriod,
+      );
+      if (trashItem) lineItems.push(trashItem);
+    }
+
+    // 5. Parking fees (per assigned slot)
+    if (includeAll || normalizedCategories?.includes('parking')) {
+      const parkingItems = await this.buildParkingLineItems(
+        apartmentId,
+        billingPeriod,
+      );
+      lineItems.push(...parkingItems);
     }
 
     // Calculate totals with proper tax separation
@@ -287,7 +307,7 @@ export class InvoiceCalculatorService {
     let utilityTypeFilter: { id: { in: string[] } } | undefined;
     if (!includeAll && normalizedCategories) {
       const utilityCodes = normalizedCategories.filter(
-        (c) => !['rent', 'installment', 'milestone', 'management_fee'].includes(c),
+        (c) => !['rent', 'installment', 'milestone', 'management_fee', 'trash', 'parking'].includes(c),
       );
       if (utilityCodes.length === 0) return [];
 
@@ -405,6 +425,88 @@ export class InvoiceCalculatorService {
       vatAmount,
       environmentFee: 0,
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Trash Collection Fee
+  // ---------------------------------------------------------------------------
+  private async buildTrashLineItem(
+    buildingId: string,
+    billingPeriod: string,
+  ): Promise<InvoiceLineItemCalc | null> {
+    const [year, month] = billingPeriod.split('-').map(Number);
+    const periodDate = new Date(year, month - 1, 15);
+
+    const policy = await this.prisma.building_policies.findFirst({
+      where: {
+        building_id: buildingId,
+        effective_from: { lte: periodDate },
+        OR: [
+          { effective_to: null },
+          { effective_to: { gte: periodDate } },
+        ],
+      },
+      orderBy: { effective_from: 'desc' },
+    });
+
+    const trashFee = Number(policy?.trash_fee_per_month ?? 0);
+    if (trashFee <= 0) return null;
+
+    const vatRate = VAT_RATES['trash'];
+    const vatAmount = trashFee * vatRate;
+
+    return {
+      description: `Trash Collection Fee - ${billingPeriod}`,
+      category: 'trash',
+      quantity: 1,
+      unitPrice: trashFee,
+      amount: trashFee + vatAmount,
+      vatRate,
+      vatAmount,
+      environmentFee: 0,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Parking Fees (per assigned slot)
+  // ---------------------------------------------------------------------------
+  private async buildParkingLineItems(
+    apartmentId: string,
+    billingPeriod: string,
+  ): Promise<InvoiceLineItemCalc[]> {
+    const slots = await this.prisma.parking_slots.findMany({
+      where: {
+        assigned_apt_id: apartmentId,
+        status: 'assigned',
+      },
+      include: { parking_zones: true },
+    });
+
+    const lineItems: InvoiceLineItemCalc[] = [];
+
+    for (const slot of slots) {
+      const monthlyFee = Number(
+        slot.fee_override ?? slot.parking_zones.fee_per_month ?? 0,
+      );
+      if (monthlyFee <= 0) continue;
+
+      const slotType = slot.parking_zones.slot_type; // car | motorcycle | bicycle
+      const vatRate = VAT_RATES['parking'];
+      const vatAmount = monthlyFee * vatRate;
+
+      lineItems.push({
+        description: `Parking Fee - ${slot.full_code} (${slotType})`,
+        category: `parking_${slotType}`,
+        quantity: 1,
+        unitPrice: monthlyFee,
+        amount: monthlyFee + vatAmount,
+        vatRate,
+        vatAmount,
+        environmentFee: 0,
+      });
+    }
+
+    return lineItems;
   }
 
   // ---------------------------------------------------------------------------

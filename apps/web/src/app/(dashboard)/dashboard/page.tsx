@@ -1,12 +1,13 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Building, Users, FileText, AlertTriangle } from 'lucide-react';
+import { Building, Users, FileText, AlertTriangle, Clock } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthStore } from '@/stores/authStore';
 import { useDashboardStats } from '@/hooks/use-stats';
+import { usePendingPaymentCount } from '@/hooks/use-pending-payment-count';
 import { ResidentDashboard } from '@/components/dashboard/resident-dashboard';
 
 // Lazy load chart components for better performance
@@ -125,6 +126,7 @@ export default function DashboardPage() {
   const isAdmin = hasAnyRole(['admin', 'technician']);
   const { data: statsResponse, isLoading } = useDashboardStats({ enabled: isAdmin });
   const stats = statsResponse?.data;
+  const { total: pendingPaymentCount, contractCount, invoiceCount, isLoading: pendingLoading } = usePendingPaymentCount();
 
   // Show resident dashboard for non-admin users
   if (!isAdmin) {
@@ -146,7 +148,7 @@ export default function DashboardPage() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-4 md:grid-cols-2 lg:grid-cols-5"
       >
         <motion.div variants={item}>
           <StatCard
@@ -182,6 +184,15 @@ export default function DashboardPage() {
             subtitle={`${stats?.incidents.inProgress ?? 0} in progress`}
             icon={AlertTriangle}
             isLoading={isLoading}
+          />
+        </motion.div>
+        <motion.div variants={item}>
+          <StatCard
+            title="Pending Payments"
+            value={pendingPaymentCount}
+            subtitle={`${contractCount} contracts · ${invoiceCount} invoices`}
+            icon={Clock}
+            isLoading={pendingLoading}
           />
         </motion.div>
       </motion.div>

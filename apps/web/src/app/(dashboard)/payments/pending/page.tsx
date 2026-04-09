@@ -11,10 +11,10 @@ import {
   SortingState,
   createColumnHelper,
 } from '@tanstack/react-table';
-import { Search, Clock, CheckCircle2, XCircle, AlertCircle, RefreshCw, ArrowUpDown, History, FileText } from 'lucide-react';
+import { Search, Clock, CheckCircle2, XCircle, AlertCircle, RefreshCw, ArrowUpDown, History, FileText, FileSignature } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { usePendingPayments, usePaymentHistory, PendingPayment } from '@/hooks/use-payments';
-import { useReportedInvoicePayments, Invoice, ReportedPaymentSnapshot } from '@/hooks/use-invoices';
+import { useReportedInvoicePayments, useInvoicePaymentHistory, Invoice, ReportedPaymentSnapshot } from '@/hooks/use-invoices';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,10 +68,12 @@ export default function PendingPaymentsPage() {
   const { data: pendingData, isLoading: pendingLoading, error: pendingError, refetch: refetchPending } = usePendingPayments();
   const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = usePaymentHistory(30);
   const { data: invoiceData, isLoading: invoiceLoading, refetch: refetchInvoices } = useReportedInvoicePayments();
+  const { data: invoiceHistoryData, isLoading: invoiceHistoryLoading, refetch: refetchInvoiceHistory } = useInvoicePaymentHistory(30);
   
   const pendingPayments = pendingData?.data || [];
   const historyPayments = historyData?.data || [];
   const reportedInvoices = invoiceData?.data || [];
+  const invoiceHistory = invoiceHistoryData?.data || [];
   const payments = activeTab === 'pending' ? pendingPayments : historyPayments;
 
   const pendingColumns = useMemo(
@@ -358,6 +360,116 @@ export default function PendingPaymentsPage() {
     []
   );
 
+  // Invoice history columns for verified/rejected invoice payments
+  const invoiceHistoryColumns = useMemo(
+    () => [
+      invoiceColumnHelper.accessor((row) => {
+        const snapshot = row.priceSnapshot as Record<string, unknown> | undefined;
+        const verified = snapshot?.verifiedPayment as Record<string, unknown> | undefined;
+        const rejected = snapshot?.rejectedPayment as Record<string, unknown> | undefined;
+        return (verified?.verifiedAt || rejected?.rejectedAt) as string | undefined;
+      }, {
+        id: 'processedAt',
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-3 h-8"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Processed
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        ),
+        cell: (info) => {
+          const date = info.getValue() as string | undefined;
+          return <div className="font-medium">{date ? formatDate(date) : '-'}</div>;
+        },
+        sortingFn: 'datetime',
+      }),
+      invoiceColumnHelper.accessor('invoice_number', {
+        header: 'Invoice',
+        cell: (info) => {
+          const invoice = info.row.original;
+          return (
+            <div className="space-y-1">
+              <div className="font-medium flex items-center gap-1">
+                <FileText className="h-3 w-3" />
+                {invoice.invoice_number}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {invoice.contract?.apartments?.unit_number || 'Unknown'} · {invoice.billingPeriod}
+              </div>
+            </div>
+          );
+        },
+      }),
+      invoiceColumnHelper.accessor((row) => {
+        const snapshot = row.priceSnapshot as Record<string, unknown> | undefined;
+        const verified = snapshot?.verifiedPayment as Record<string, unknown> | undefined;
+        const rejected = snapshot?.rejectedPayment as Record<string, unknown> | undefined;
+        return (verified?.verifiedAmount || rejected?.amount) as number | undefined;
+      }, {
+        id: 'amount',
+        header: 'Amount',
+        cell: (info) => {
+          const amount = info.getValue() as number | undefined;
+          return <span className="font-semibold">{amount ? formatCurrency(amount) : '-'}</span>;
+        },
+      }),
+      invoiceColumnHelper.accessor((row) => {
+        const snapshot = row.priceSnapshot as Record<string, unknown> | undefined;
+        return snapshot?.verifiedPayment ? 'confirmed' : 'rejected';
+      }, {
+        id: 'status',
+        header: 'Status',
+        cell: (info) => {
+          const status = info.getValue() as string;
+          return (
+            <Badge variant={status === 'confirmed' ? 'success' : 'destructive'}>
+              {status === 'confirmed' ? (
+                <><CheckCircle2 className="h-3 w-3 mr-1" />Confirmed</>
+              ) : (
+                <><XCircle className="h-3 w-3 mr-1" />Rejected</>
+              )}
+            </Badge>
+          );
+        },
+      }),
+      invoiceColumnHelper.accessor((row) => {
+        const snapshot = row.priceSnapshot as Record<string, unknown> | undefined;
+        const verified = snapshot?.verifiedPayment as Record<string, unknown> | undefined;
+        const rejected = snapshot?.rejectedPayment as Record<string, unknown> | undefined;
+        return (verified?.paymentMethod || rejected?.paymentMethod) as string | undefined;
+      }, {
+        id: 'paymentMethod',
+        header: 'Method',
+        cell: (info) => {
+          const method = info.getValue() as string | undefined;
+          return (
+            <Badge variant="outline" className="capitalize">
+              {method?.replace('_', ' ') || 'Unknown'}
+            </Badge>
+          );
+        },
+      }),
+      invoiceColumnHelper.accessor((row) => {
+        const snapshot = row.priceSnapshot as Record<string, unknown> | undefined;
+        const verified = snapshot?.verifiedPayment as Record<string, unknown> | undefined;
+        const rejected = snapshot?.rejectedPayment as Record<string, unknown> | undefined;
+        return (verified?.referenceNumber || rejected?.referenceNumber) as string | undefined;
+      }, {
+        id: 'referenceNumber',
+        header: 'Reference',
+        cell: (info) => {
+          const ref = info.getValue() as string | undefined;
+          return <span className="font-mono text-xs">{ref || '-'}</span>;
+        },
+      }),
+    ],
+    []
+  );
+
   const columns = activeTab === 'pending' ? pendingColumns : historyColumns;
 
   const table = useReactTable({
@@ -382,10 +494,22 @@ export default function PendingPaymentsPage() {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
+  const invoiceHistoryTable = useReactTable({
+    data: invoiceHistory,
+    columns: invoiceHistoryColumns,
+    state: { sorting, globalFilter },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
+
   const refetch = () => {
     refetchPending();
     refetchHistory();
     refetchInvoices();
+    refetchInvoiceHistory();
   };
 
   // Access denied for non-admins
@@ -399,7 +523,7 @@ export default function PendingPaymentsPage() {
     );
   }
 
-  if (pendingLoading && historyLoading && invoiceLoading) {
+  if (pendingLoading && historyLoading && invoiceLoading && invoiceHistoryLoading) {
     return <PageSkeleton />;
   }
 
@@ -419,6 +543,14 @@ export default function PendingPaymentsPage() {
 
   const confirmedPayments = historyPayments.filter(p => p.status === 'confirmed');
   const rejectedPayments = historyPayments.filter(p => p.status === 'rejected');
+  const confirmedInvoices = invoiceHistory.filter(i => {
+    const snapshot = i.priceSnapshot as Record<string, unknown> | undefined;
+    return !!snapshot?.verifiedPayment;
+  });
+  const rejectedInvoices = invoiceHistory.filter(i => {
+    const snapshot = i.priceSnapshot as Record<string, unknown> | undefined;
+    return !!snapshot?.rejectedPayment && !snapshot?.verifiedPayment;
+  });
 
   return (
     <motion.div
@@ -464,9 +596,9 @@ export default function PendingPaymentsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{confirmedPayments.length}</div>
+            <div className="text-2xl font-bold text-green-600">{confirmedPayments.length + confirmedInvoices.length}</div>
             <p className="text-xs text-muted-foreground">
-              {formatCurrency(confirmedPayments.reduce((sum, p) => sum + p.amount, 0))}
+              {confirmedPayments.length} contracts · {confirmedInvoices.length} invoices
             </p>
           </CardContent>
         </Card>
@@ -478,8 +610,10 @@ export default function PendingPaymentsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{rejectedPayments.length}</div>
-            <p className="text-xs text-muted-foreground">Invalid reports</p>
+            <div className="text-2xl font-bold text-red-600">{rejectedPayments.length + rejectedInvoices.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {rejectedPayments.length} contracts · {rejectedInvoices.length} invoices
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -646,57 +780,118 @@ export default function PendingPaymentsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="history" className="mt-4">
-          {historyLoading ? (
-            <Skeleton className="h-96" />
-          ) : historyPayments.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-16">
-                <History className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No payment history</h3>
-                <p className="text-muted-foreground text-center">
-                  No payments have been processed in the last 30 days.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(header.column.columnDef.header, header.getContext())}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  <AnimatePresence mode="popLayout">
-                    {table.getRowModel().rows.map((row) => (
-                      <motion.tr
-                        key={row.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="border-b transition-colors hover:bg-muted/50"
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id}>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
+        <TabsContent value="history" className="mt-4 space-y-6">
+          {/* Contract Payment History */}
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+              <FileSignature className="h-4 w-4" />
+              Contract Payments
+              <Badge variant="outline" className="ml-1">{historyPayments.length}</Badge>
+            </h3>
+            {historyLoading ? (
+              <Skeleton className="h-48" />
+            ) : historyPayments.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-10">
+                  <History className="h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">No contract payments processed in the last 30 days.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(header.column.columnDef.header, header.getContext())}
+                          </TableHead>
                         ))}
-                      </motion.tr>
+                      </TableRow>
                     ))}
-                  </AnimatePresence>
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                  </TableHeader>
+                  <TableBody>
+                    <AnimatePresence mode="popLayout">
+                      {table.getRowModel().rows.map((row) => (
+                        <motion.tr
+                          key={row.id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="border-b transition-colors hover:bg-muted/50"
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </motion.tr>
+                      ))}
+                    </AnimatePresence>
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          {/* Invoice Payment History */}
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Invoice Payments
+              <Badge variant="outline" className="ml-1">{invoiceHistory.length}</Badge>
+            </h3>
+            {invoiceHistoryLoading ? (
+              <Skeleton className="h-48" />
+            ) : invoiceHistory.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-10">
+                  <History className="h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">No invoice payments processed in the last 30 days.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    {invoiceHistoryTable.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(header.column.columnDef.header, header.getContext())}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    <AnimatePresence mode="popLayout">
+                      {invoiceHistoryTable.getRowModel().rows.map((row) => (
+                        <motion.tr
+                          key={row.id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="border-b transition-colors hover:bg-muted/50"
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </motion.tr>
+                      ))}
+                    </AnimatePresence>
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 
