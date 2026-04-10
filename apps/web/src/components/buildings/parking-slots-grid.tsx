@@ -166,7 +166,7 @@ export function ParkingSlotsGrid({
                 <span>Available</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-blue-100 border border-blue-300" />
+                <div className="w-4 h-4 rounded bg-red-100 border border-red-300" />
                 <span>Assigned</span>
               </div>
               <div className="flex items-center gap-2">

@@ -43,7 +43,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
-import { VietQRDisplay } from '@/components/payments/VietQRDisplay';
+import { ScheduleQRDisplay } from '@/components/payments/ScheduleQRDisplay';
 import { ReportInvoicePaymentDialog } from '@/components/payments/ReportInvoicePaymentDialog';
 
 interface InvoiceDetailSheetProps {
@@ -406,7 +406,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetai
               )}
 
               {/* QR Code Payment - for pending/overdue invoices */}
-              {(invoice.status === 'pending' || invoice.status === 'overdue') && !reportedPayment && (
+              {(invoice.status === 'pending' || invoice.status === 'overdue') && !reportedPayment && invoice.contract?.apartments?.buildings?.id && (
                 <Card>
                   <CardHeader className="py-3">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -415,10 +415,11 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetai
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="py-2 space-y-4">
-                    <VietQRDisplay
-                      invoiceId={invoice.id}
+                    <ScheduleQRDisplay
+                      buildingId={invoice.contract.apartments.buildings.id}
                       amount={invoice.totalAmount - invoice.paidAmount}
-                      reference={invoice.paymentReference}
+                      reference={invoice.paymentReference || `INV_${invoice.invoice_number}`}
+                      isRentPayment={true}
                     />
                     <Button
                       className="w-full"

@@ -33,7 +33,7 @@ export function BuildingPoliciesTab({ buildingId, readOnly = false }: BuildingPo
 
   const currentPolicy = currentPolicyData?.data;
   const allPolicies = policiesData?.data || [];
-  const historicalPolicies = allPolicies.filter(p => !p.isCurrent);
+  const historicalPolicies = allPolicies.filter(p => p.id !== currentPolicy?.id);
 
   const [formData, setFormData] = useState<Partial<CreateBuildingPolicyInput>>({
     defaultMaxResidents: currentPolicy?.defaultMaxResidents ?? undefined,

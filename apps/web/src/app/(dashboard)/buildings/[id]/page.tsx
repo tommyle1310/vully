@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useParams } from 'next/navigation';
-import { Building, MapPin, Layers, ArrowLeft, Upload, Pencil, Box, Home, ChevronDown, ChevronRight, Settings, Car } from 'lucide-react';
+import { Building, MapPin, Layers, ArrowLeft, Upload, Pencil, Box, Home, Search, Eye, Settings, Car } from 'lucide-react';
 import { useBuilding } from '@/hooks/use-buildings';
 import { useApartments } from '@/hooks/use-apartments';
 import { useAuthStore } from '@/stores/authStore';
@@ -11,7 +11,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { FloorPlan } from '@/components/maps/floor-plan';
 import { ApartmentDetailPanel } from '@/components/maps/apartment-detail-panel';
 import { MapControls } from '@/components/maps/map-controls';
@@ -19,6 +28,7 @@ import { SvgUploadDialog } from '@/components/maps/svg-upload-dialog';
 import { SvgBuilderDialog } from '@/components/maps/svg-builder-dialog';
 import { Building3D, Building3DLegend } from '@/components/3d';
 import { BuildingPoliciesTab, BuildingParkingTab } from '@/components/buildings';
+import { FloorUnitsDialog } from '@/components/buildings/floor-units-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,7 +47,11 @@ export default function BuildingDetailPage() {
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
   const [svgUploadOpen, setSvgUploadOpen] = useState(false);
   const [svgBuilderOpen, setSvgBuilderOpen] = useState(false);
-  const [expandedFloors, setExpandedFloors] = useState<Set<number>>(new Set());
+  const [floorDialogOpen, setFloorDialogOpen] = useState(false);
+  const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
+  const [floorSearch, setFloorSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('floor-asc');
 
   // Role-based access control
   const { hasAnyRole } = useAuthStore();
@@ -65,23 +79,71 @@ export default function BuildingDetailPage() {
       }
       grouped.get(floor)!.push(apt);
     });
-    // Sort each floor's apartments by unit number
     grouped.forEach((apts) => {
       apts.sort((a, b) => a.unit_number.localeCompare(b.unit_number, undefined, { numeric: true }));
     });
     return grouped;
   }, [apartments]);
 
-  const toggleFloor = (floor: number) => {
-    setExpandedFloors(prev => {
-      const next = new Set(prev);
-      if (next.has(floor)) {
-        next.delete(floor);
-      } else {
-        next.add(floor);
-      }
-      return next;
+  // Build floor stats for the grid
+  const floorStats = useMemo(() => {
+    return Array.from({ length: building?.floorCount ?? 0 }, (_, i) => i + 1).map((floor) => {
+      const apts = apartmentsByFloor.get(floor) || [];
+      const occupied = apts.filter(a => a.status === 'occupied').length;
+      const vacant = apts.filter(a => a.status === 'vacant').length;
+      const maintenance = apts.filter(a => a.status === 'maintenance').length;
+      const total = apts.length;
+      const occupancyPct = total > 0 ? Math.round((occupied / total) * 100) : 0;
+      return { floor, total, occupied, vacant, maintenance, occupancyPct };
     });
+  }, [apartmentsByFloor, building?.floorCount]);
+
+  // Filtered + sorted floor stats
+  const filteredFloorStats = useMemo(() => {
+    let result = floorStats;
+
+    // Search by floor number or unit number
+    if (floorSearch.trim()) {
+      const q = floorSearch.trim().toLowerCase();
+      result = result.filter(fs => {
+        if (String(fs.floor).includes(q)) return true;
+        const apts = apartmentsByFloor.get(fs.floor) || [];
+        return apts.some(a => a.unit_number.toLowerCase().includes(q));
+      });
+    }
+
+    // Filter by status
+    if (statusFilter !== 'all') {
+      result = result.filter(fs => {
+        const apts = apartmentsByFloor.get(fs.floor) || [];
+        return apts.some(a => a.status === statusFilter);
+      });
+    }
+
+    // Sort
+    const sorted = [...result];
+    switch (sortBy) {
+      case 'floor-desc':
+        sorted.sort((a, b) => b.floor - a.floor);
+        break;
+      case 'occupancy-desc':
+        sorted.sort((a, b) => b.occupancyPct - a.occupancyPct);
+        break;
+      case 'occupancy-asc':
+        sorted.sort((a, b) => a.occupancyPct - b.occupancyPct);
+        break;
+      case 'vacant-desc':
+        sorted.sort((a, b) => b.vacant - a.vacant);
+        break;
+      default: // floor-asc
+        sorted.sort((a, b) => a.floor - b.floor);
+    }
+    return sorted;
+  }, [floorStats, floorSearch, statusFilter, sortBy, apartmentsByFloor]);
+
+  const handleViewFloorUnits = (floor: number) => {
+    setSelectedFloor(floor);
+    setFloorDialogOpen(true);
   };
 
   // Calculate apartment counts by status
@@ -352,116 +414,129 @@ export default function BuildingDetailPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Floor-based Apartment List */}
+      {/* Floor Grid */}
       {apartments.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
+          className="space-y-4"
         >
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Home className="h-5 w-5" />
-                Apartments by Floor
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {Array.from({ length: building.floorCount }, (_, i) => i + 1).map((floor) => {
-                const floorApartments = apartmentsByFloor.get(floor) || [];
-                const isExpanded = expandedFloors.has(floor);
-                const occupiedCount = floorApartments.filter(a => a.status === 'occupied').length;
-                const vacantCount = floorApartments.filter(a => a.status === 'vacant').length;
+          {/* Section Header + Filters */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Home className="h-5 w-5" />
+              Apartments by Floor
+            </h2>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px] max-w-xs">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search floor or unit..."
+                value={floorSearch}
+                onChange={(e) => setFloorSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="occupied">Occupied</SelectItem>
+                <SelectItem value="vacant">Vacant</SelectItem>
+                <SelectItem value="maintenance">Maintenance</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="floor-asc">Floor ↑</SelectItem>
+                <SelectItem value="floor-desc">Floor ↓</SelectItem>
+                <SelectItem value="occupancy-desc">Occupancy ↓</SelectItem>
+                <SelectItem value="occupancy-asc">Occupancy ↑</SelectItem>
+                <SelectItem value="vacant-desc">Most vacant</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Floor Cards Grid */}
+          {filteredFloorStats.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No floors match your search.</p>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredFloorStats.map((fs) => {
+                const occupancyColor =
+                  fs.occupancyPct >= 90 ? 'text-red-500' :
+                  fs.occupancyPct >= 70 ? 'text-yellow-500' :
+                  'text-green-500';
 
                 return (
-                  <div key={floor} className="border rounded-lg overflow-hidden">
-                    <button
-                      onClick={() => toggleFloor(floor)}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        {isExpanded ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        <Layers className="h-4 w-4" />
-                        <span className="font-medium">Floor {floor}</span>
-                        <Badge variant="secondary" className="ml-1">
-                          {floorApartments.length} unit{floorApartments.length !== 1 ? 's' : ''}
-                        </Badge>
+                  <Card key={fs.floor} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-4 space-y-3">
+                      {/* Floor number + total */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Layers className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-xl font-bold">F{fs.floor}</span>
+                        </div>
+                        <Badge variant="secondary">{fs.total} units</Badge>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {occupiedCount > 0 && (
-                          <Badge variant="default" className="text-xs">
-                            {occupiedCount} occupied
-                          </Badge>
+
+                      {/* Occupancy bar */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Occupancy</span>
+                          <span className={`font-semibold ${occupancyColor}`}>{fs.occupancyPct}%</span>
+                        </div>
+                        <Progress value={fs.occupancyPct} className="h-2" />
+                      </div>
+
+                      {/* Status breakdown */}
+                      <div className="flex items-center gap-2 text-xs">
+                        {fs.occupied > 0 && (
+                          <Badge variant="default" className="text-[10px] px-1.5 py-0">{fs.occupied} occ</Badge>
                         )}
-                        {vacantCount > 0 && (
-                          <Badge variant="outline" className="text-xs text-green-600 border-green-300">
-                            {vacantCount} vacant
-                          </Badge>
+                        {fs.vacant > 0 && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-green-600 border-green-300">{fs.vacant} vac</Badge>
+                        )}
+                        {fs.maintenance > 0 && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-yellow-600">{fs.maintenance} mnt</Badge>
                         )}
                       </div>
-                    </button>
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="border-t px-4 py-2 space-y-1">
-                            {floorApartments.length === 0 ? (
-                              <p className="text-sm text-muted-foreground py-2">No apartments on this floor</p>
-                            ) : (
-                              floorApartments.map((apt) => (
-                                <button
-                                  key={apt.id}
-                                  onClick={() => handleApartmentClick(apt.id)}
-                                  className="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-muted/50 transition-colors text-left"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <Home className="h-4 w-4 text-muted-foreground" />
-                                    <span className="font-medium text-sm">Unit {apt.unit_number}</span>
-                                    {apt.grossArea && (
-                                      <span className="text-xs text-muted-foreground">
-                                        {Number(apt.grossArea).toFixed(0)}m²
-                                      </span>
-                                    )}
-                                    <span className="text-xs text-muted-foreground">
-                                      {apt.bedroomCount}BR / {apt.bathroomCount}BA
-                                    </span>
-                                  </div>
-                                  <Badge
-                                    variant={
-                                      apt.status === 'vacant' ? 'outline' :
-                                      apt.status === 'occupied' ? 'default' :
-                                      apt.status === 'maintenance' ? 'secondary' : 'outline'
-                                    }
-                                    className={
-                                      apt.status === 'vacant' ? 'text-green-600 border-green-300' :
-                                      apt.status === 'maintenance' ? 'text-yellow-600' : ''
-                                    }
-                                  >
-                                    {apt.status.charAt(0).toUpperCase() + apt.status.slice(1)}
-                                  </Badge>
-                                </button>
-                              ))
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+
+                      {/* View button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => handleViewFloorUnits(fs.floor)}
+                      >
+                        <Eye className="h-3.5 w-3.5 mr-1.5" />
+                        View {fs.total} unit{fs.total !== 1 ? 's' : ''}
+                      </Button>
+                    </CardContent>
+                  </Card>
                 );
               })}
-            </CardContent>
-          </Card>
+            </div>
+          )}
         </motion.div>
       )}
+
+      {/* Floor Units Dialog */}
+      <FloorUnitsDialog
+        open={floorDialogOpen}
+        onOpenChange={setFloorDialogOpen}
+        floor={selectedFloor ?? 0}
+        apartments={selectedFloor ? (apartmentsByFloor.get(selectedFloor) || []) : []}
+        onApartmentClick={handleApartmentClick}
+      />
 
 
       {/* SVG Upload Dialog */}

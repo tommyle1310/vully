@@ -28,7 +28,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { DatePicker } from '@/components/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { Invoice, useReportInvoicePayment } from '@/hooks/use-invoices';
-import { VietQRDisplay } from './VietQRDisplay';
+import { ScheduleQRDisplay } from './ScheduleQRDisplay';
 import { Loader2, Send, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -165,11 +165,12 @@ export function ReportInvoicePaymentDialog({
         </div>
 
         {/* VietQR Display for bank transfers */}
-        {watchedMethod === 'bank_transfer' && (
-          <VietQRDisplay
-            invoiceId={invoice.id}
+        {watchedMethod === 'bank_transfer' && invoice.contract?.apartments?.buildings?.id && (
+          <ScheduleQRDisplay
+            buildingId={invoice.contract.apartments.buildings.id}
             amount={watchedAmount > 0 ? watchedAmount : balance}
             reference={invoice.paymentReference || `INV_${invoice.invoice_number}`}
+            isRentPayment={true}
           />
         )}
 

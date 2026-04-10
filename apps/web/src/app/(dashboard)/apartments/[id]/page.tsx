@@ -31,7 +31,7 @@ import {
   DollarSign,
   AlertCircle,
 } from 'lucide-react';
-import { useApartment, useUpdateApartmentStatus } from '@/hooks/use-apartments';
+import { useApartment, useUpdateApartmentStatus, useApartmentParkingSlots } from '@/hooks/use-apartments';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -138,6 +138,8 @@ export default function ApartmentDetailPage() {
   const updateStatus = useUpdateApartmentStatus();
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const { data: cardStats } = useAccessCardStats(apartmentId);
+  const { data: parkingSlotsData } = useApartmentParkingSlots(apartmentId);
+  const parkingSlots = parkingSlotsData?.data || [];
 
   const apartment = apartmentData?.data;
   // Building floor count for floor access selection (fallback to 20)
@@ -414,8 +416,33 @@ export default function ApartmentDetailPage() {
 
         {/* Parking & Assets */}
         <SectionCard title="Parking & Assets" icon={Car}>
-          <DetailRow label="Car Slot" value={apartment.assignedCarSlot} icon={Car} />
-          <DetailRow label="Moto Slot" value={apartment.assignedMotoSlot} icon={Bike} />
+          {parkingSlots.filter(s => s.type === 'car').map(slot => (
+            <DetailRow
+              key={slot.id}
+              label="Car Slot"
+              value={`${slot.fullCode} · ${slot.zone.name} · ${slot.monthlyFee.toLocaleString()}₫/mo`}
+              icon={Car}
+            />
+          ))}
+          {parkingSlots.filter(s => s.type === 'motorcycle').map(slot => (
+            <DetailRow
+              key={slot.id}
+              label="Moto Slot"
+              value={`${slot.fullCode} · ${slot.zone.name} · ${slot.monthlyFee.toLocaleString()}₫/mo`}
+              icon={Bike}
+            />
+          ))}
+          {parkingSlots.filter(s => s.type === 'bicycle').map(slot => (
+            <DetailRow
+              key={slot.id}
+              label="Bicycle Slot"
+              value={`${slot.fullCode} · ${slot.zone.name} · ${slot.monthlyFee.toLocaleString()}₫/mo`}
+              icon={Bike}
+            />
+          ))}
+          {parkingSlots.length === 0 && (
+            <p className="text-sm text-muted-foreground py-2">No parking slots assigned</p>
+          )}
           <DetailRow label="Mailbox" value={apartment.mailboxNumber} icon={Mail} />
           <DetailRow label="Storage Unit" value={apartment.storageUnitId} icon={Package} />
         </SectionCard>

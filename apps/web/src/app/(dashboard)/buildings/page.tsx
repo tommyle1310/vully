@@ -31,6 +31,10 @@ import {
 } from '@/components/ui/table';
 import { BuildingFormDialog } from './building-form-dialog';
 import { BuildingDetailSheet } from './building-detail-sheet';
+import { ResizeHandle } from '@/components/ui/resize-handle';
+import { useResizableColumns } from '@/hooks/use-resizable-columns';
+
+const DEFAULT_COLUMN_WIDTHS = [180, 140, 220, 100, 200, 100, 100] as const;
 
 const columnHelper = createColumnHelper<Building>();
 
@@ -158,6 +162,7 @@ export default function BuildingsPage() {
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [editingBuilding, setEditingBuilding] = useState<Building | null>(null);
   const [includeInactive, setIncludeInactive] = useState(false);
+  const { widths, startResize } = useResizableColumns(DEFAULT_COLUMN_WIDTHS);
 
   const handleCreateBuilding = () => {
     setEditingBuilding(null);
@@ -275,20 +280,22 @@ export default function BuildingsPage() {
 
       {/* Table */}
       <div className="rounded-md border">
-        <Table>
+        <Table style={{ tableLayout: 'fixed' }}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
+                {headerGroup.headers.map((header, idx) => (
                   <TableHead
                     key={header.id}
-                    className="cursor-pointer select-none"
+                    className="relative cursor-pointer select-none overflow-hidden"
+                    style={{ width: widths[idx] }}
                     onClick={header.column.getToggleSortingHandler()}
                   >
                     {flexRender(
                       header.column.columnDef.header,
                       header.getContext()
                     )}
+                    <ResizeHandle onMouseDown={startResize(idx)} />
                   </TableHead>
                 ))}
               </TableRow>
@@ -316,8 +323,12 @@ export default function BuildingsPage() {
                     className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
                     onClick={() => setSelectedBuilding(row.original)}
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                    {row.getVisibleCells().map((cell, idx) => (
+                      <TableCell
+                        key={cell.id}
+                        className="overflow-hidden text-ellipsis"
+                        style={{ width: widths[idx] }}
+                      >
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()

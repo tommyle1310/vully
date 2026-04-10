@@ -11,8 +11,8 @@ const columnHelper = createColumnHelper<Apartment>();
 
 export const statusVariants: Record<string, 'default' | 'success' | 'warning' | 'destructive'> = {
   vacant: 'success',
-  occupied: 'default',
-  maintenance: 'warning',
+  occupied: 'warning',
+  maintenance: 'destructive',
   reserved: 'default',
 };
 

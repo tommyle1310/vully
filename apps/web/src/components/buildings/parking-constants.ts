@@ -18,7 +18,7 @@ export const PARKING_TYPE_LABELS = {
 
 export const STATUS_COLORS = {
   available: 'bg-green-100 hover:bg-green-200 border-green-300 text-green-800',
-  assigned: 'bg-blue-100 hover:bg-blue-200 border-blue-300 text-blue-800',
+  assigned: 'bg-red-100 hover:bg-red-200 border-red-300 text-red-800',
   reserved: 'bg-yellow-100 hover:bg-yellow-200 border-yellow-300 text-yellow-800',
   maintenance: 'bg-gray-100 hover:bg-gray-200 border-gray-300 text-gray-600',
 };
