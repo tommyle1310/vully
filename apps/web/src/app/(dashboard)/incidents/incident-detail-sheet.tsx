@@ -20,6 +20,7 @@ import {
   useIncidentComments,
   useCreateComment,
   useUpdateIncidentStatus,
+  useAssignTechnician,
   useIncidentDetailRealTime,
 } from '@/hooks/use-incidents';
 import { useAuthStore } from '@/stores/authStore';
@@ -43,6 +44,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { TechnicianSelector } from '@/components/incidents/technician-selector';
+import { IncidentTimeline } from '@/components/incidents/incident-timeline';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/format';
 
@@ -122,6 +125,7 @@ export function IncidentDetailSheet({
 
   const createComment = useCreateComment();
   const updateStatus = useUpdateIncidentStatus();
+  const assignTechnician = useAssignTechnician();
 
   const currentIncident = incidentData?.data ?? incident;
   const comments = commentsData?.data ?? [];
@@ -309,6 +313,45 @@ export function IncidentDetailSheet({
                   </SelectContent>
                 </Select>
               </div>
+            )}
+
+            {/* Assign Technician (Admin only) */}
+            {isAdmin && currentIncident && (
+              <div>
+                <h4 className="text-sm font-medium mb-2">Assign Technician</h4>
+                <TechnicianSelector
+                  value={currentIncident.assignedToId ?? undefined}
+                  onChange={(technicianId) => {
+                    assignTechnician.mutate(
+                      { incidentId: currentIncident.id, data: { technicianId } },
+                      {
+                        onSuccess: () => {
+                          toast({
+                            title: 'Technician assigned',
+                            description: 'Technician has been assigned to this incident.',
+                          });
+                        },
+                        onError: () => {
+                          toast({
+                            title: 'Error',
+                            description: 'Failed to assign technician.',
+                            variant: 'destructive',
+                          });
+                        },
+                      },
+                    );
+                  }}
+                  disabled={assignTechnician.isPending}
+                />
+              </div>
+            )}
+
+            {/* Incident Timeline */}
+            {currentIncident && comments.length > 0 && (
+              <IncidentTimeline
+                comments={comments}
+                incident={currentIncident}
+              />
             )}
 
             <Separator />

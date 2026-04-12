@@ -26,6 +26,8 @@ import {
   UserResponseDto,
   ChangePasswordDto,
   UpdateProfileDto,
+  UpdateTechnicianProfileDto,
+  TechnicianListItemDto,
 } from './dto/user.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -116,6 +118,15 @@ export class UsersController {
     return { data: updatedUser };
   }
 
+  @Get('technicians')
+  @Roles(UserRole.admin)
+  @ApiOperation({ summary: 'List all technicians with workload summary (admin only)' })
+  @ApiResponse({ status: 200, description: 'Technician list with workload', type: [TechnicianListItemDto] })
+  async listTechnicians(): Promise<{ data: TechnicianListItemDto[] }> {
+    const technicians = await this.usersService.listTechnicians();
+    return { data: technicians };
+  }
+
   @Get(':id')
   @Roles(UserRole.admin)
   @ApiOperation({ summary: 'Get user by ID (admin only)' })
@@ -139,6 +150,20 @@ export class UsersController {
     @CurrentUser() actor: AuthUser,
   ): Promise<{ data: UserResponseDto }> {
     const user = await this.usersService.update(id, dto, actor.id, actor.roles);
+    return { data: user };
+  }
+
+  @Patch(':id/technician-profile')
+  @ApiOperation({ summary: 'Update technician profile (admin or self, technician only)' })
+  @ApiResponse({ status: 200, description: 'Technician profile updated', type: UserResponseDto })
+  @ApiResponse({ status: 403, description: 'Not a technician or unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async updateTechnicianProfile(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateTechnicianProfileDto,
+    @CurrentUser() actor: AuthUser,
+  ): Promise<{ data: UserResponseDto }> {
+    const user = await this.usersService.updateTechnicianProfile(id, dto, actor.id, actor.roles);
     return { data: user };
   }
 

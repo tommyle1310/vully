@@ -1,13 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   useReactTable,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
-  flexRender,
   SortingState,
 } from '@tanstack/react-table';
 import { FileSignature, Search, Plus, ChevronLeft, ChevronRight, Home } from 'lucide-react';
@@ -23,14 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { DataTable } from '@/components/ui/data-table';
 import { ContractDetailSheet } from './contract-detail-sheet';
 import { ContractFormDialog } from './contract-form-dialog';
 import { columns, ContractTableSkeleton } from './contract-columns';
@@ -61,9 +53,12 @@ export default function ContractsPage() {
     page: urlFilters.page,
     limit: urlFilters.limit,
     status: urlFilters.status !== 'all' ? urlFilters.status : undefined,
-    contractType: urlFilters.contractType !== 'all' ? urlFilters.contractType as 'rental' | 'purchase' | 'lease_to_own' : undefined,
+    contractType:
+      urlFilters.contractType !== 'all'
+        ? (urlFilters.contractType as 'rental' | 'purchase' | 'lease_to_own')
+        : undefined,
   });
-  
+
   const myContractsQuery = useMyContracts({
     status: urlFilters.status !== 'all' ? urlFilters.status : undefined,
   });
@@ -72,8 +67,8 @@ export default function ContractsPage() {
   const { data, isLoading, error } = isResidentOnly ? myContractsQuery : adminQuery;
 
   const contracts = data?.data || [];
-  const meta = isResidentOnly 
-    ? { total: data?.meta?.total || 0, limit: contracts.length, page: 1 } 
+  const meta = isResidentOnly
+    ? { total: data?.meta?.total || 0, limit: contracts.length, page: 1 }
     : adminQuery.data?.meta;
   const totalPages = meta ? Math.ceil(meta.total / meta.limit) : 1;
 
@@ -113,10 +108,9 @@ export default function ContractsPage() {
             {isResidentOnly ? 'My Contracts' : 'Contracts'}
           </h1>
           <p className="text-muted-foreground">
-            {isResidentOnly 
-              ? 'View your rental contracts and lease agreements.' 
-              : 'Manage tenant lease contracts and apartment assignments.'
-            }
+            {isResidentOnly
+              ? 'View your rental contracts and lease agreements.'
+              : 'Manage tenant lease contracts and apartment assignments.'}
           </p>
         </div>
         <ContractTableSkeleton />
@@ -129,9 +123,7 @@ export default function ContractsPage() {
       <div className="flex h-64 items-center justify-center">
         <div className="text-center">
           <FileSignature className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h2 className="mt-4 text-lg font-semibold">
-            Failed to load contracts
-          </h2>
+          <h2 className="mt-4 text-lg font-semibold">Failed to load contracts</h2>
           <p className="text-muted-foreground">{error.message}</p>
         </div>
       </div>
@@ -149,10 +141,9 @@ export default function ContractsPage() {
           {isResidentOnly ? 'My Contracts' : 'Contracts'}
         </h1>
         <p className="text-muted-foreground">
-          {isResidentOnly 
-            ? 'View your rental contracts and lease agreements.' 
-            : 'Manage tenant lease contracts and apartment assignments.'
-          }
+          {isResidentOnly
+            ? 'View your rental contracts and lease agreements.'
+            : 'Manage tenant lease contracts and apartment assignments.'}
         </p>
       </div>
 
@@ -166,9 +157,9 @@ export default function ContractsPage() {
             <div>
               <p className="font-medium">Your Active Residence</p>
               <p className="text-sm text-muted-foreground">
-                {contracts.find(c => c.status === 'active')?.apartment?.building?.name || 'N/A'} 
+                {contracts.find((c) => c.status === 'active')?.apartment?.building?.name || 'N/A'}
                 {' - Unit '}
-                {contracts.find(c => c.status === 'active')?.apartment?.unit_number || 'N/A'}
+                {contracts.find((c) => c.status === 'active')?.apartment?.unit_number || 'N/A'}
               </p>
             </div>
           </div>
@@ -206,7 +197,7 @@ export default function ContractsPage() {
               <SelectItem value="terminated">Terminated</SelectItem>
             </SelectContent>
           </Select>
-          
+
           {/* Contract Type Filter */}
           {!isResidentOnly && (
             <Select
@@ -226,8 +217,6 @@ export default function ContractsPage() {
               </SelectContent>
             </Select>
           )}
-          
-
         </div>
         {isAdmin && (
           <Button onClick={handleCreate}>
@@ -238,63 +227,12 @@ export default function ContractsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className="cursor-pointer select-none"
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            <AnimatePresence mode="popLayout">
-              {table.getRowModel().rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
-                    No contracts found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <motion.tr
-                    key={row.id}
-                    layout
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
-                    onClick={() => setSelectedContract(row.original)}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </TableCell>
-                    ))}
-                  </motion.tr>
-                ))
-              )}
-            </AnimatePresence>
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        table={table}
+        defaultColumnWidths={[100, 100, 160, 100, 140, 200, 200]}
+        onRowClick={setSelectedContract}
+        emptyMessage="No contracts found."
+      />
 
       {/* Pagination */}
       {meta && (

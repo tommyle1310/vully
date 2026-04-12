@@ -290,9 +290,9 @@ model access_cards {
   updated_at     DateTime         @db.Timestamptz(6)
 
   // Relations
-  apartments          apartments     @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
-  holder              users?         @relation("access_card_holder", fields: [holder_id], references: [id])
-  deactivated_by_user users?         @relation("access_card_deactivator", fields: [deactivated_by], references: [id])
+  apartments          apartments            @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
+  holder              users?                @relation("access_card_holder", fields: [holder_id], references: [id])
+  deactivated_by_user users?                @relation("access_card_deactivator", fields: [deactivated_by], references: [id])
   approved_request    access_card_requests? @relation("issued_access_card")
   parking_slot        parking_slots?
 
@@ -315,9 +315,9 @@ model access_card_requests {
   created_at     DateTime                @default(now()) @db.Timestamptz(6)
   updated_at     DateTime                @db.Timestamptz(6)
 
-  apartments        apartments   @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
-  requester         users        @relation("access_card_request_requester", fields: [requested_by], references: [id], onDelete: Cascade)
-  reviewer          users?       @relation("access_card_request_reviewer", fields: [reviewed_by], references: [id])
+  apartments         apartments    @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
+  requester          users         @relation("access_card_request_requester", fields: [requested_by], references: [id], onDelete: Cascade)
+  reviewer           users?        @relation("access_card_request_reviewer", fields: [reviewed_by], references: [id])
   issued_access_card access_cards? @relation("issued_access_card", fields: [issued_card_id], references: [id])
 
   @@index([apartment_id])
@@ -483,6 +483,7 @@ model invoices {
   paid_amount        Decimal              @default(0) @db.Decimal(15, 2)
   paid_at            DateTime?            @db.Timestamptz(6)
   notes              String?
+  invoice_stream     InvoiceStream        @default(operational)
   price_snapshot     Json?
   created_at         DateTime             @default(now()) @db.Timestamptz(6)
   updated_at         DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
@@ -493,6 +494,7 @@ model invoices {
   @@index([contract_id])
   @@index([due_date])
   @@index([status])
+  @@index([invoice_stream])
 }
 
 model management_fee_configs {
@@ -722,8 +724,9 @@ model contract_payments {
   verified_at DateTime? @db.Timestamptz(6)
 
   // Evidence
-  receipt_url String? // Receipt/proof uploaded by resident
-  notes       String?
+  receipt_url      String? // Receipt/proof uploaded by resident
+  notes            String?
+  rejection_reason PaymentRejectionReason?
 
   // Relations
   schedule contract_payment_schedules @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
@@ -798,12 +801,26 @@ enum IncidentStatus {
   closed
 }
 
+enum InvoiceStream {
+  operational
+  property
+}
+
 enum InvoiceStatus {
   draft
   pending
   paid
   overdue
   cancelled
+}
+
+enum PaymentRejectionReason {
+  insufficient_amount
+  wrong_reference
+  blurry_receipt
+  duplicate_payment
+  expired_receipt
+  other
 }
 
 enum Orientation {

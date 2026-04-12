@@ -196,21 +196,41 @@ export class PaymentGeneratorService {
 
     const downPaymentAmount = Number(contract.down_payment) || (purchasePrice * downPaymentPercent / 100);
     const remaining = purchasePrice - downPaymentAmount;
-    const progressAmount = Math.floor(remaining / (progressPaymentCount + 1));
-    const finalAmount = remaining - (progressAmount * progressPaymentCount);
 
     const startDate = new Date(contract.start_date);
-    const transferDate = contract.transfer_date
+    const rawTransferDate = contract.transfer_date
       ? new Date(contract.transfer_date)
-      : contract.end_date
-        ? new Date(contract.end_date)
-        : addMonths(startDate, 12);
+      : null;
+    const rawEndDate = contract.end_date
+      ? new Date(contract.end_date)
+      : null;
+
+    // Use the later of transfer_date and end_date as the payment deadline.
+    // This prevents schedules from being crammed into an unreasonably short
+    // window when transfer_date is close to start_date but end_date is far out.
+    const deadline = rawTransferDate && rawEndDate
+      ? (rawEndDate.getTime() > rawTransferDate.getTime() ? rawEndDate : rawTransferDate)
+      : rawTransferDate || rawEndDate || addMonths(startDate, 12);
 
     const totalMonths = Math.max(
       1,
-      Math.floor((transferDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)),
+      Math.round((deadline.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)),
     );
-    const interval = Math.max(1, Math.floor(totalMonths / (progressPaymentCount + 1)));
+
+    // Reduce progress payments if the timeline is too short to fit them all
+    const effectiveProgressCount = Math.min(
+      progressPaymentCount,
+      Math.max(0, totalMonths - 1),
+    );
+    const interval = effectiveProgressCount > 0
+      ? Math.floor(totalMonths / (effectiveProgressCount + 1))
+      : totalMonths;
+
+    // Recalculate amounts based on effective progress count
+    const progressAmount = effectiveProgressCount > 0
+      ? Math.floor(remaining / (effectiveProgressCount + 1))
+      : 0;
+    const finalAmount = remaining - (progressAmount * effectiveProgressCount);
 
     const schedules: Array<{
       contract_id: string;
@@ -236,8 +256,10 @@ export class PaymentGeneratorService {
       updated_at: new Date(),
     });
 
-    for (let i = 0; i < progressPaymentCount; i++) {
+    for (let i = 0; i < effectiveProgressCount; i++) {
       const dueDate = addMonths(startDate, (i + 1) * interval);
+      // Safety: ensure progress payment is before the deadline
+      if (dueDate >= deadline) break;
       schedules.push({
         contract_id: contractId,
         period_label: `Progress Payment ${i + 1}`,
@@ -251,15 +273,19 @@ export class PaymentGeneratorService {
       });
     }
 
+    // Recalculate final amount to absorb any skipped progress payments
+    const actualProgressCount = schedules.length - 1; // minus the down payment
+    const actualFinalAmount = remaining - (progressAmount * actualProgressCount);
+
     schedules.push({
       contract_id: contractId,
       period_label: 'Final Payment - Property Transfer',
       payment_type: PaymentType.installment,
-      sequence_number: progressPaymentCount + 2,
-      due_date: transferDate,
-      expected_amount: finalAmount,
+      sequence_number: actualProgressCount + 2,
+      due_date: deadline,
+      expected_amount: actualFinalAmount,
       received_amount: 0,
-      status: isPast(transferDate) ? PaymentStatus.overdue : PaymentStatus.pending,
+      status: isPast(deadline) ? PaymentStatus.overdue : PaymentStatus.pending,
       updated_at: new Date(),
     });
 
@@ -271,7 +297,7 @@ export class PaymentGeneratorService {
       count: schedules.length,
       purchasePrice,
       downPaymentAmount,
-      progressPaymentCount,
+      progressPaymentCount: actualProgressCount,
     });
 
     return this.findAllByContract(contractId);

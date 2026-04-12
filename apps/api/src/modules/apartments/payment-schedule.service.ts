@@ -367,6 +367,7 @@ export class PaymentScheduleService {
           recorded_by: verifiedById, // Update to verifying admin
           recorded_at: new Date(),
           notes: dto.notes ? `${payment.notes ?? ''}\n[Admin]: ${dto.notes}` : payment.notes,
+          rejection_reason: dto.status === ContractPaymentStatus.rejected ? dto.rejectionReason : null,
         },
         include: {
           users: {

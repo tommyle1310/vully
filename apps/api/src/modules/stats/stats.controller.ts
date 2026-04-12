@@ -1,14 +1,18 @@
 import { Controller, Get, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthUser } from '../identity/interfaces/auth.interface';
+import { UserRole } from '@vully/shared-types';
 import { StatsService } from './stats.service';
 import { StatsAnalyticsService } from './stats-analytics.service';
 import { DashboardStats, AdminStats } from '../../common/types/service-types';
 
 @ApiTags('Statistics')
 @Controller('stats')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class StatsController {
   constructor(
@@ -94,5 +98,16 @@ export class StatsController {
   ): Promise<{ data: any }> {
     const activity = await this.statsAnalyticsService.getRecentActivity(limit ? parseInt(String(limit)) : 10);
     return { data: activity };
+  }
+
+  @Get('technician-dashboard')
+  @Roles(UserRole.technician, UserRole.admin)
+  @ApiOperation({ summary: 'Get technician dashboard stats (assigned to current user)' })
+  @ApiResponse({ status: 200, description: 'Technician dashboard statistics' })
+  async getTechnicianDashboardStats(
+    @CurrentUser() user: AuthUser,
+  ): Promise<{ data: any }> {
+    const stats = await this.statsService.getTechnicianDashboardStats(user.id);
+    return { data: stats };
   }
 }

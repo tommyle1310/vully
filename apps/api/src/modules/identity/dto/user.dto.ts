@@ -10,6 +10,7 @@ import {
   IsArray,
   ArrayMinSize,
   ArrayMaxSize,
+  Matches,
 } from 'class-validator';
 import { UserRole } from '@vully/shared-types';
 
@@ -192,4 +193,118 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   phone?: string;
+}
+
+// =============================================================================
+// Technician Profile DTOs
+// =============================================================================
+
+const INCIDENT_CATEGORIES = [
+  'plumbing', 'electrical', 'hvac', 'structural',
+  'appliance', 'pest', 'noise', 'security', 'other',
+] as const;
+
+const AVAILABILITY_STATUSES = ['available', 'busy', 'off_duty'] as const;
+
+const DAY_ABBREVIATIONS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+
+export class ShiftPreferencesDto {
+  @ApiPropertyOptional({
+    description: 'Preferred working days',
+    example: ['mon', 'tue', 'wed', 'thu', 'fri'],
+    enum: DAY_ABBREVIATIONS,
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(DAY_ABBREVIATIONS, { each: true })
+  preferredDays?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Preferred working hours (HH:mm-HH:mm)',
+    example: '08:00-17:00',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{2}:\d{2}-\d{2}:\d{2}$/, { message: 'Must be in HH:mm-HH:mm format' })
+  preferredHours?: string;
+}
+
+export class UpdateTechnicianProfileDto {
+  @ApiPropertyOptional({
+    description: 'Technician specialties (incident categories)',
+    example: ['plumbing', 'electrical'],
+    enum: INCIDENT_CATEGORIES,
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(INCIDENT_CATEGORIES, { each: true })
+  specialties?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Availability status',
+    example: 'available',
+    enum: AVAILABILITY_STATUSES,
+  })
+  @IsOptional()
+  @IsEnum(AVAILABILITY_STATUSES)
+  availabilityStatus?: string;
+
+  @ApiPropertyOptional({
+    description: 'Shift preferences',
+    type: ShiftPreferencesDto,
+  })
+  @IsOptional()
+  @IsObject()
+  shiftPreferences?: ShiftPreferencesDto;
+}
+
+export class TechnicianListItemDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  firstName: string;
+
+  @ApiProperty()
+  lastName: string;
+
+  @ApiProperty()
+  email: string;
+
+  @ApiPropertyOptional()
+  profileData?: {
+    avatarUrl?: string;
+    specialties?: string[];
+    availabilityStatus?: string;
+  };
+
+  @ApiProperty()
+  workload: {
+    assigned: number;
+    inProgress: number;
+    pendingReview: number;
+    total: number;
+  };
+}
+
+export class TechnicianDashboardStatsDto {
+  @ApiProperty()
+  assignedCount: number;
+
+  @ApiProperty()
+  inProgressCount: number;
+
+  @ApiProperty()
+  pendingReviewCount: number;
+
+  @ApiProperty()
+  resolvedThisMonth: number;
+
+  @ApiProperty()
+  avgResolutionHours: number;
+
+  @ApiProperty()
+  urgentCount: number;
 }

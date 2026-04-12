@@ -36,11 +36,10 @@ interface JobSummary {
   errors?: Array<{ contractId: string; error: string }>;
 }
 
-// Predefined categories (rent + installment + milestone + management fee + parking + trash + utility types)
+// Predefined categories for operational invoices (rent + management fee + parking + trash + utility types)
+// Note: milestone/installment are property payments managed via contract payment schedules, not bulk generated
 const BASE_CATEGORIES = [
   { code: 'rent', name: 'Rent', description: 'Monthly rent (rental contracts)' },
-  { code: 'installment', name: 'Installment', description: 'Monthly installment (lease-to-own contracts)' },
-  { code: 'milestone', name: 'Milestone', description: 'Payment milestones (purchase contracts)' },
   { code: 'management_fee', name: 'Management Fee', description: 'Building management fee' },
   { code: 'parking', name: 'Parking', description: 'Monthly parking fee' },
   { code: 'trash', name: 'Trash Collection', description: 'Waste management fee' },
@@ -234,7 +233,7 @@ export function BulkGenerateInvoicesDialog({ trigger }: BulkGenerateDialogProps)
         <SheetHeader>
           <SheetTitle>Generate Monthly Invoices</SheetTitle>
           <SheetDescription>
-            Generate invoices for all active contracts in the selected period.
+            Generate operational invoices (rent, utilities, management fees) for all active contracts. Property payments (milestones, installments) are managed separately via contract schedules.
           </SheetDescription>
         </SheetHeader>
         

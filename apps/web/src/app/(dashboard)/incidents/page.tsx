@@ -1,14 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   useReactTable,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  flexRender,
   SortingState,
   ColumnFiltersState,
 } from '@tanstack/react-table';
@@ -24,14 +23,7 @@ import { useIncidents, Incident, useIncidentRealTime } from '@/hooks/use-inciden
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { DataTable } from '@/components/ui/data-table';
 import {
   Select,
   SelectContent,
@@ -203,83 +195,29 @@ export default function IncidentsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
+      {isLoading ? (
+        <div className="rounded-md border">
+          <div className="p-4 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
             ))}
-          </TableHeader>
-          <TableBody>
-            <AnimatePresence>
-              {isLoading ? (
-                // Loading skeleton
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={`skeleton-${i}`}>
-                    {columns.map((_, j) => (
-                      <TableCell key={j}>
-                        <Skeleton className="h-4 w-full" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : isError ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <AlertTriangle className="h-8 w-8" />
-                      <p>Failed to load incidents</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : table.getRowModel().rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center text-muted-foreground"
-                  >
-                    No incidents found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <motion.tr
-                    key={row.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors border-b"
-                    onClick={() => handleRowClick(row.original)}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </motion.tr>
-                ))
-              )}
-            </AnimatePresence>
-          </TableBody>
-        </Table>
-      </div>
+          </div>
+        </div>
+      ) : isError ? (
+        <div className="rounded-md border">
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <AlertTriangle className="h-8 w-8 mb-2" />
+            <p>Failed to load incidents</p>
+          </div>
+        </div>
+      ) : (
+        <DataTable
+          table={table}
+          onRowClick={handleRowClick}
+          defaultColumnWidths={[100, 140, 100, 120, 100, 100,100]}
+          emptyMessage="No incidents found"
+        />
+      )}
 
       {/* Pagination */}
       {data?.meta && (

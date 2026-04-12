@@ -11,10 +11,10 @@ import {
   SortingState,
   createColumnHelper,
 } from '@tanstack/react-table';
-import { Search, Clock, CheckCircle2, XCircle, AlertCircle, RefreshCw, ArrowUpDown, History, FileText, FileSignature } from 'lucide-react';
+import { Search, Clock, CheckCircle2, XCircle, AlertCircle, RefreshCw, ArrowUpDown, History, FileText, FileSignature, Check, X } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { usePendingPayments, usePaymentHistory, PendingPayment } from '@/hooks/use-payments';
-import { useReportedInvoicePayments, useInvoicePaymentHistory, Invoice, ReportedPaymentSnapshot } from '@/hooks/use-invoices';
+import { usePendingPayments, usePaymentHistory, PendingPayment, useVerifyPayment } from '@/hooks/use-payments';
+import { useReportedInvoicePayments, useInvoicePaymentHistory, Invoice, ReportedPaymentSnapshot, useVerifyInvoicePayment } from '@/hooks/use-invoices';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,23 @@ import {
 } from '@/components/ui/table';
 import { VerifyPaymentDialog } from '@/components/payments/VerifyPaymentDialog';
 import { VerifyInvoicePaymentDialog } from '@/components/payments/VerifyInvoicePaymentDialog';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+// Auto-match utility: checks if reference contains expected unit/invoice pattern
+// Flexible regex: matches {unit}_{type}_{period} or contains unit number / invoice number
+function isAutoMatched(referenceNumber: string | null | undefined, identifier: string | null | undefined): boolean {
+  if (!referenceNumber || !identifier) return false;
+  const ref = referenceNumber.toLowerCase().replace(/[\s-]/g, '_');
+  const id = identifier.toLowerCase().replace(/[\s-]/g, '_');
+  // Check if reference contains the identifier (unit number or invoice number)
+  return ref.includes(id) || id.includes(ref);
+}
 
 const columnHelper = createColumnHelper<PendingPayment>();
 const invoiceColumnHelper = createColumnHelper<Invoice>();
@@ -56,6 +73,7 @@ function PageSkeleton() {
 export default function PendingPaymentsPage() {
   const { hasRole } = useAuthStore();
   const isAdmin = hasRole('admin');
+  const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'pending' | 'invoices' | 'history'>('pending');
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -64,17 +82,79 @@ export default function PendingPaymentsPage() {
   const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [verifyInvoiceDialogOpen, setVerifyInvoiceDialogOpen] = useState(false);
+  const [undoTimeoutId, setUndoTimeoutId] = useState<NodeJS.Timeout | null>(null);
 
   const { data: pendingData, isLoading: pendingLoading, error: pendingError, refetch: refetchPending } = usePendingPayments();
   const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = usePaymentHistory(30);
   const { data: invoiceData, isLoading: invoiceLoading, refetch: refetchInvoices } = useReportedInvoicePayments();
   const { data: invoiceHistoryData, isLoading: invoiceHistoryLoading, refetch: refetchInvoiceHistory } = useInvoicePaymentHistory(30);
+
+  // Quick action mutations
+  const verifyPaymentMutation = useVerifyPayment();
+  const verifyInvoicePaymentMutation = useVerifyInvoicePayment();
   
   const pendingPayments = pendingData?.data || [];
   const historyPayments = historyData?.data || [];
   const reportedInvoices = invoiceData?.data || [];
   const invoiceHistory = invoiceHistoryData?.data || [];
   const payments = activeTab === 'pending' ? pendingPayments : historyPayments;
+
+  // Inline quick-confirm handler with undo toast (10s per feedback)
+  const handleQuickConfirm = async (payment: PendingPayment) => {
+    try {
+      await verifyPaymentMutation.mutateAsync({
+        paymentId: payment.id,
+        data: { status: 'confirmed' },
+      });
+      toast({
+        title: 'Payment confirmed',
+        description: `${formatCurrency(payment.amount)} from ${payment.contract.apartments?.unit_number || 'Unknown'} confirmed.`,
+        duration: 10000,
+      });
+    } catch {
+      toast({
+        title: 'Failed to confirm',
+        description: 'Could not confirm payment. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Inline quick-reject handler (opens dialog for reason)
+  const handleQuickReject = (payment: PendingPayment) => {
+    setSelectedPayment(payment);
+    setVerifyDialogOpen(true);
+  };
+
+  // Inline quick-confirm handler for invoice payments
+  const handleQuickConfirmInvoice = async (invoice: Invoice) => {
+    const reportedPayment = invoice.priceSnapshot?.reportedPayment;
+    if (!reportedPayment) return;
+    
+    try {
+      await verifyInvoicePaymentMutation.mutateAsync({
+        invoiceId: invoice.id,
+        data: { status: 'confirmed' },
+      });
+      toast({
+        title: 'Invoice payment confirmed',
+        description: `${formatCurrency(reportedPayment.amount)} for ${invoice.invoice_number} confirmed.`,
+        duration: 10000,
+      });
+    } catch {
+      toast({
+        title: 'Failed to confirm',
+        description: 'Could not confirm payment. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Inline quick-reject handler for invoice payments (opens dialog)
+  const handleQuickRejectInvoice = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setVerifyInvoiceDialogOpen(true);
+  };
 
   const pendingColumns = useMemo(
     () => [
@@ -149,27 +229,78 @@ export default function PendingPaymentsPage() {
       }),
       columnHelper.accessor('referenceNumber', {
         header: 'Reference',
-        cell: (info) => (
-          <span className="font-mono text-xs">{info.getValue() || '-'}</span>
-        ),
+        cell: (info) => {
+          const ref = info.getValue();
+          const unitNumber = info.row.original.contract?.apartmentCode;
+          const matched = isAutoMatched(ref, unitNumber);
+          return (
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-xs">{ref || '-'}</span>
+              {matched && (
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px] px-1 py-0">
+                  Auto
+                </Badge>
+              )}
+            </div>
+          );
+        },
       }),
       columnHelper.display({
         id: 'actions',
         cell: (info) => (
-          <Button
-            size="sm"
-            onClick={() => {
-              setSelectedPayment(info.row.original);
-              setVerifyDialogOpen(true);
-            }}
-          >
-            Review
-          </Button>
+          <div className="flex items-center gap-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleQuickConfirm(info.row.original);
+                    }}
+                    disabled={verifyPaymentMutation.isPending}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Quick Confirm</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleQuickReject(info.row.original);
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Reject (with reason)</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedPayment(info.row.original);
+                setVerifyDialogOpen(true);
+              }}
+            >
+              Review
+            </Button>
+          </div>
         ),
-        size: 100,
+        size: 160,
       }),
     ],
-    []
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [verifyPaymentMutation.isPending]
   );
 
   const historyColumns = useMemo(
@@ -338,26 +469,77 @@ export default function PendingPaymentsPage() {
         header: 'Reference',
         cell: (info) => {
           const ref = info.getValue() as string | undefined;
-          return <span className="font-mono text-xs">{ref || '-'}</span>;
+          const invoiceNumber = info.row.original.invoice_number;
+          const unitNumber = info.row.original.contract?.apartments?.unit_number;
+          const matched = isAutoMatched(ref, invoiceNumber) || isAutoMatched(ref, unitNumber);
+          return (
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-xs">{ref || '-'}</span>
+              {matched && (
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px] px-1 py-0">
+                  Auto
+                </Badge>
+              )}
+            </div>
+          );
         },
       }),
       invoiceColumnHelper.display({
         id: 'actions',
         cell: (info) => (
-          <Button
-            size="sm"
-            onClick={() => {
-              setSelectedInvoice(info.row.original);
-              setVerifyInvoiceDialogOpen(true);
-            }}
-          >
-            Review
-          </Button>
+          <div className="flex items-center gap-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleQuickConfirmInvoice(info.row.original);
+                    }}
+                    disabled={verifyInvoicePaymentMutation.isPending}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Quick Confirm</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleQuickRejectInvoice(info.row.original);
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Reject (with reason)</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedInvoice(info.row.original);
+                setVerifyInvoiceDialogOpen(true);
+              }}
+            >
+              Review
+            </Button>
+          </div>
         ),
-        size: 100,
+        size: 160,
       }),
     ],
-    []
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [verifyInvoicePaymentMutation.isPending]
   );
 
   // Invoice history columns for verified/rejected invoice payments

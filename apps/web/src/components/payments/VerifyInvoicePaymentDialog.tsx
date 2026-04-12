@@ -27,13 +27,24 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Invoice, useVerifyInvoicePayment } from '@/hooks/use-invoices';
-import { Loader2, CheckCircle, XCircle, Eye, User, Calendar, Banknote, FileText } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Eye, User, Calendar, Banknote, FileText, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// Structured rejection reasons
+const REJECTION_REASONS = [
+  { value: 'insufficient_amount', label: 'Insufficient Amount' },
+  { value: 'wrong_reference', label: 'Wrong Reference Number' },
+  { value: 'blurry_receipt', label: 'Blurry/Unreadable Receipt' },
+  { value: 'duplicate_payment', label: 'Duplicate Payment' },
+  { value: 'expired_receipt', label: 'Expired Receipt' },
+  { value: 'other', label: 'Other (Specify in Notes)' },
+] as const;
 
 const verifyInvoicePaymentSchema = z.object({
   status: z.enum(['confirmed', 'rejected']),
   notes: z.string().optional(),
   actualAmount: z.coerce.number().positive().optional(),
+  rejectionReason: z.enum(['insufficient_amount', 'wrong_reference', 'blurry_receipt', 'duplicate_payment', 'expired_receipt', 'other']).optional(),
 });
 
 type VerifyInvoicePaymentForm = z.infer<typeof verifyInvoicePaymentSchema>;
@@ -83,6 +94,7 @@ export function VerifyInvoicePaymentDialog({
 
   const watchedStatus = watch('status');
   const watchedAmount = watch('actualAmount');
+  const watchedRejectionReason = watch('rejectionReason');
 
   const onSubmit = (data: VerifyInvoicePaymentForm) => {
     if (!invoice || !reportedPayment) return;
@@ -96,6 +108,7 @@ export function VerifyInvoicePaymentDialog({
           actualAmount: data.status === 'confirmed' && data.actualAmount !== reportedPayment.amount 
             ? data.actualAmount 
             : undefined,
+          rejectionReason: data.status === 'rejected' ? data.rejectionReason : undefined,
         },
       },
       {
@@ -127,6 +140,10 @@ export function VerifyInvoicePaymentDialog({
     // Reset amount to reported amount when switching to confirmed
     if (value === 'confirmed' && reportedPayment) {
       setValue('actualAmount', reportedPayment.amount);
+    }
+    // Reset rejection reason when switching to confirmed
+    if (value === 'confirmed') {
+      setValue('rejectionReason', undefined);
     }
   };
 
@@ -285,16 +302,42 @@ export function VerifyInvoicePaymentDialog({
               </div>
             )}
 
+            {watchedStatus === 'rejected' && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  Rejection Reason
+                </Label>
+                <Select
+                  value={watchedRejectionReason}
+                  onValueChange={(value) => setValue('rejectionReason', value as VerifyInvoicePaymentForm['rejectionReason'])}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a reason..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REJECTION_REASONS.map((reason) => (
+                      <SelectItem key={reason.value} value={reason.value}>
+                        {reason.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="notes">
-                {watchedStatus === 'confirmed' ? 'Verification Notes' : 'Rejection Reason'}
+                {watchedStatus === 'confirmed' ? 'Verification Notes' : 'Additional Notes'}
               </Label>
               <Textarea
                 id="notes"
                 placeholder={
                   watchedStatus === 'confirmed'
                     ? 'Optional notes about the verification...'
-                    : 'Explain why this payment is being rejected...'
+                    : watchedRejectionReason === 'other'
+                      ? 'Required: explain the rejection reason...'
+                      : 'Optional additional details...'
                 }
                 {...register('notes')}
                 rows={3}
@@ -308,7 +351,10 @@ export function VerifyInvoicePaymentDialog({
             </Button>
             <Button
               type="submit"
-              disabled={verifyPayment.isPending}
+              disabled={
+                verifyPayment.isPending ||
+                (watchedStatus === 'rejected' && !watchedRejectionReason)
+              }
               variant={watchedStatus === 'confirmed' ? 'default' : 'destructive'}
             >
               {verifyPayment.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

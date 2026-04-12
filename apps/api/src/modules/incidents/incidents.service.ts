@@ -1,10 +1,13 @@
 import {
   Injectable,
+  Inject,
   NotFoundException,
   ForbiddenException,
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { Prisma, IncidentStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { DEFAULT_PAGINATION_LIMIT } from '../../common/constants/defaults';
@@ -32,9 +35,12 @@ const STATUS_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
 export class IncidentsService {
   private readonly logger = new Logger(IncidentsService.name);
 
+  private readonly TECHNICIAN_CACHE_KEY = 'technicians:list';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: IncidentsGateway,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async create(
@@ -382,6 +388,9 @@ export class IncidentsService {
       technicianId: dto.technicianId,
     });
 
+    // Invalidate technician workload cache
+    await this.cacheManager.del(this.TECHNICIAN_CACHE_KEY);
+
     // Emit WebSocket event
     this.gateway.emitIncidentAssigned({
       incidentId: updated.id,
@@ -497,6 +506,11 @@ export class IncidentsService {
       this.gateway.emitIncidentResolved(payload);
     } else {
       this.gateway.emitIncidentUpdated(payload);
+    }
+
+    // Invalidate technician workload cache on status change
+    if (updated.assigned_to) {
+      await this.cacheManager.del(this.TECHNICIAN_CACHE_KEY);
     }
 
     return this.toResponseDto(updated);

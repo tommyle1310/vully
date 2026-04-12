@@ -27,13 +27,24 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useVerifyPayment, PendingPayment, ContractPaymentStatus } from '@/hooks/use-payments';
-import { Loader2, CheckCircle, XCircle, Eye, User, Calendar, Banknote } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Eye, User, Calendar, Banknote, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// Structured rejection reasons
+const REJECTION_REASONS = [
+  { value: 'insufficient_amount', label: 'Insufficient Amount' },
+  { value: 'wrong_reference', label: 'Wrong Reference Number' },
+  { value: 'blurry_receipt', label: 'Blurry/Unreadable Receipt' },
+  { value: 'duplicate_payment', label: 'Duplicate Payment' },
+  { value: 'expired_receipt', label: 'Expired Receipt' },
+  { value: 'other', label: 'Other (Specify in Notes)' },
+] as const;
 
 const verifyPaymentSchema = z.object({
   status: z.enum(['confirmed', 'rejected']),
   notes: z.string().optional(),
   actualAmount: z.coerce.number().positive().optional(),
+  rejectionReason: z.enum(['insufficient_amount', 'wrong_reference', 'blurry_receipt', 'duplicate_payment', 'expired_receipt', 'other']).optional(),
 });
 
 type VerifyPaymentForm = z.infer<typeof verifyPaymentSchema>;
@@ -84,6 +95,7 @@ export function VerifyPaymentDialog({
           actualAmount: data.status === 'confirmed' && data.actualAmount !== payment.amount 
             ? data.actualAmount 
             : undefined,
+          rejectionReason: data.status === 'rejected' ? data.rejectionReason : undefined,
         },
       },
       {
@@ -297,6 +309,28 @@ export function VerifyPaymentDialog({
             </div>
           )}
 
+          {/* Rejection Reason (only for rejection) */}
+          {watchedStatus === 'rejected' && (
+            <div className="space-y-2">
+              <Label>Rejection Reason <span className="text-destructive">*</span></Label>
+              <Select
+                value={watch('rejectionReason') || ''}
+                onValueChange={(value) => setValue('rejectionReason', value as typeof REJECTION_REASONS[number]['value'])}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a reason..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {REJECTION_REASONS.map((reason) => (
+                    <SelectItem key={reason.value} value={reason.value}>
+                      {reason.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Admin Notes */}
           <div className="space-y-2">
             <Label htmlFor="notes">
@@ -333,7 +367,7 @@ export function VerifyPaymentDialog({
             </Button>
             <Button 
               type="submit" 
-              disabled={verifyPayment.isPending || (watchedStatus === 'rejected' && !watch('notes'))}
+              disabled={verifyPayment.isPending || (watchedStatus === 'rejected' && (!watch('notes') || !watch('rejectionReason')))}
               variant={watchedStatus === 'rejected' ? 'destructive' : 'default'}
             >
               {verifyPayment.isPending && (

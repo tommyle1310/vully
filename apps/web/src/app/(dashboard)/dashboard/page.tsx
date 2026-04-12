@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useDashboardStats } from '@/hooks/use-stats';
 import { usePendingPaymentCount } from '@/hooks/use-pending-payment-count';
 import { ResidentDashboard } from '@/components/dashboard/resident-dashboard';
+import { TechnicianDashboard } from '@/components/dashboard/technician-dashboard';
 
 // Lazy load chart components for better performance
 const OccupancyChart = dynamic(
@@ -122,15 +123,22 @@ const item = {
 };
 
 export default function DashboardPage() {
-  const { user, hasAnyRole } = useAuthStore();
-  const isAdmin = hasAnyRole(['admin', 'technician']);
-  const { data: statsResponse, isLoading } = useDashboardStats({ enabled: isAdmin });
+  const { user, hasAnyRole, hasRole } = useAuthStore();
+  const isAdmin = hasRole('admin');
+  const isTechnicianOnly = hasAnyRole(['technician']) && !isAdmin;
+  const isAdminOrTech = hasAnyRole(['admin', 'technician']);
+  const { data: statsResponse, isLoading } = useDashboardStats({ enabled: isAdminOrTech });
   const stats = statsResponse?.data;
   const { total: pendingPaymentCount, contractCount, invoiceCount, isLoading: pendingLoading } = usePendingPaymentCount();
 
-  // Show resident dashboard for non-admin users
-  if (!isAdmin) {
+  // Show resident dashboard for non-admin, non-technician users
+  if (!isAdminOrTech) {
     return <ResidentDashboard />;
+  }
+
+  // Show technician dashboard for technician-only users
+  if (isTechnicianOnly) {
+    return <TechnicianDashboard />;
   }
 
   return (

@@ -1,14 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   useReactTable,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  flexRender,
   createColumnHelper,
   SortingState,
   ColumnFiltersState,
@@ -21,18 +20,9 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow, // Updated to trigger TS recompile
-} from '@/components/ui/table';
+import { DataTable } from '@/components/ui/data-table';
 import { BuildingFormDialog } from './building-form-dialog';
 import { BuildingDetailSheet } from './building-detail-sheet';
-import { ResizeHandle } from '@/components/ui/resize-handle';
-import { useResizableColumns } from '@/hooks/use-resizable-columns';
 
 const DEFAULT_COLUMN_WIDTHS = [180, 140, 220, 100, 200, 100, 100] as const;
 
@@ -162,7 +152,6 @@ export default function BuildingsPage() {
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [editingBuilding, setEditingBuilding] = useState<Building | null>(null);
   const [includeInactive, setIncludeInactive] = useState(false);
-  const { widths, startResize } = useResizableColumns(DEFAULT_COLUMN_WIDTHS);
 
   const handleCreateBuilding = () => {
     setEditingBuilding(null);
@@ -279,69 +268,12 @@ export default function BuildingsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-md border">
-        <Table style={{ tableLayout: 'fixed' }}>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header, idx) => (
-                  <TableHead
-                    key={header.id}
-                    className="relative cursor-pointer select-none overflow-hidden"
-                    style={{ width: widths[idx] }}
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                    <ResizeHandle onMouseDown={startResize(idx)} />
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            <AnimatePresence mode="popLayout">
-              {table.getRowModel().rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
-                    No buildings found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <motion.tr
-                    key={row.id}
-                    layout
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
-                    onClick={() => setSelectedBuilding(row.original)}
-                  >
-                    {row.getVisibleCells().map((cell, idx) => (
-                      <TableCell
-                        key={cell.id}
-                        className="overflow-hidden text-ellipsis"
-                        style={{ width: widths[idx] }}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </motion.tr>
-                ))
-              )}
-            </AnimatePresence>
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        table={table}
+        defaultColumnWidths={DEFAULT_COLUMN_WIDTHS}
+        onRowClick={setSelectedBuilding}
+        emptyMessage="No buildings found."
+      />
 
       {/* Pagination */}
       {meta && (

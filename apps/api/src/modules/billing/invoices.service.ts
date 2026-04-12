@@ -32,7 +32,7 @@ export class InvoicesService {
     private readonly calculator: InvoiceCalculatorService,
   ) {}
 
-  async create(dto: CreateInvoiceDto, actorId: string): Promise<InvoiceResponseDto> {
+  async create(dto: CreateInvoiceDto, actorId: string, operationalOnly = false): Promise<InvoiceResponseDto> {
     const contract = await this.prisma.contracts.findUnique({
       where: { id: dto.contractId },
       include: {
@@ -73,6 +73,7 @@ export class InvoicesService {
       dto.categories,
       contract.contract_type,
       contract.apartments.unit_number,
+      operationalOnly,
     );
 
     if (calculation.lineItems.length === 0 || calculation.totalAmount <= 0) {
@@ -96,6 +97,7 @@ export class InvoicesService {
         issue_date: issueDate,
         due_date: dueDate,
         status: 'pending',
+        invoice_stream: operationalOnly ? 'operational' : undefined,
         subtotal: calculation.subtotal,
         tax_amount: calculation.taxAmount,
         total_amount: calculation.totalAmount,
@@ -319,6 +321,10 @@ export class InvoicesService {
 
     if (filters.status) {
       where.status = filters.status;
+    }
+
+    if (filters.stream) {
+      where.invoice_stream = filters.stream;
     }
 
     if (filters.dueDateFrom || filters.dueDateTo) {
@@ -753,7 +759,8 @@ export class InvoicesService {
             ...reportedPayment,
             rejectedBy: verifierId,
             rejectedAt: new Date().toISOString(),
-            rejectionReason: dto.notes,
+            rejectionReason: dto.rejectionReason || null,
+            rejectionNotes: dto.notes,
           },
         },
       };
@@ -763,6 +770,7 @@ export class InvoicesService {
         invoiceId: id,
         verifierId,
         reportedAmount,
+        rejectionReason: dto.rejectionReason,
         reason: dto.notes,
       });
     }

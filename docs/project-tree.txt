@@ -1,0 +1,715 @@
+File Tree: vully
+Generated on: 4/11/2026, 10:04:35 AM
+Root path: d:\personal-projects\vully
+
+────────────────────────────────────────────────────────────────────────────────
+
+├── .github/
+│   ├── prompts/
+│   │   ├── openspec-apply.prompt.md
+│   │   ├── openspec-archive.prompt.md
+│   │   └── openspec-proposal.prompt.md
+│   ├── SYSTEM_PROMPT.md
+│   └── copilot-instructions.md
+├── agents/
+│   ├── backend-architect.md
+│   ├── code-reviewer.md
+│   ├── database-architect.md
+│   ├── frontend-developer.md
+│   └── reference-3d-dev.md
+├── apps/
+│   ├── api/
+│   │   ├── prisma/
+│   │   │   ├── migrations/
+│   │   │   │   ├── 20260331035150_first_migration/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260331044025_add_password_reset_tokens/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260331145141_add_ai_assistant_tables/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260331151404_fix_vector_dimension/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260331151548_seed_document/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260401011802_add_floor_heights_to_buildings/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260401043646_add_multi_role_and_permissions/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260401133835_add_accounting_module/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260401152956_expand_apartment_data_model/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260402000001_add_contract_citizen_residents/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260407000001_add_invoice_line_item_billing_fields/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260407082934_widen_invoice_decimal_precision/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260410094320_add_access_cards_and_requests/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   └── migration_lock.toml
+│   │   │   └── schema.prisma
+│   │   ├── src/
+│   │   │   ├── common/
+│   │   │   │   ├── constants/
+│   │   │   │   │   └── defaults.ts
+│   │   │   │   ├── decorators/
+│   │   │   │   │   ├── current-user.decorator.ts
+│   │   │   │   │   └── roles.decorator.ts
+│   │   │   │   ├── filters/
+│   │   │   │   │   └── http-exception.filter.ts
+│   │   │   │   ├── guards/
+│   │   │   │   │   └── roles.guard.ts
+│   │   │   │   ├── health/
+│   │   │   │   │   ├── health.controller.ts
+│   │   │   │   │   └── health.module.ts
+│   │   │   │   ├── interceptors/
+│   │   │   │   │   ├── logging.interceptor.ts
+│   │   │   │   │   └── transform.interceptor.ts
+│   │   │   │   ├── interfaces/
+│   │   │   │   │   └── auth-user.interface.ts
+│   │   │   │   ├── middleware/
+│   │   │   │   │   └── ws-auth.middleware.ts
+│   │   │   │   ├── prisma/
+│   │   │   │   │   ├── prisma.module.ts
+│   │   │   │   │   └── prisma.service.ts
+│   │   │   │   ├── types/
+│   │   │   │   │   ├── prisma-payloads.ts
+│   │   │   │   │   └── service-types.ts
+│   │   │   │   └── utils/
+│   │   │   │       ├── date.util.ts
+│   │   │   │       └── decimal.util.ts
+│   │   │   ├── config/
+│   │   │   │   └── index.ts
+│   │   │   ├── modules/
+│   │   │   │   ├── ai-assistant/
+│   │   │   │   │   ├── dto/
+│   │   │   │   │   │   └── index.ts
+│   │   │   │   │   ├── ai-assistant-search.service.ts
+│   │   │   │   │   ├── ai-assistant.controller.ts
+│   │   │   │   │   ├── ai-assistant.helpers.ts
+│   │   │   │   │   ├── ai-assistant.module.ts
+│   │   │   │   │   ├── ai-assistant.service.ts
+│   │   │   │   │   ├── document.service.ts
+│   │   │   │   │   ├── embedding.service.ts
+│   │   │   │   │   ├── knowledge-base.data.ts
+│   │   │   │   │   └── seed-knowledge.ts
+│   │   │   │   ├── apartments/
+│   │   │   │   │   ├── dto/
+│   │   │   │   │   │   ├── access-card-request.dto.ts
+│   │   │   │   │   │   ├── access-card.dto.ts
+│   │   │   │   │   │   ├── apartment-constants.ts
+│   │   │   │   │   │   ├── apartment-filters.dto.ts
+│   │   │   │   │   │   ├── apartment-response.dto.ts
+│   │   │   │   │   │   ├── apartment.dto.ts
+│   │   │   │   │   │   ├── building-policy.dto.ts
+│   │   │   │   │   │   ├── building.dto.ts
+│   │   │   │   │   │   ├── contract.dto.ts
+│   │   │   │   │   │   ├── create-apartment.dto.ts
+│   │   │   │   │   │   ├── index.ts
+│   │   │   │   │   │   ├── parking.dto.ts
+│   │   │   │   │   │   ├── payment.dto.ts
+│   │   │   │   │   │   └── update-apartment.dto.ts
+│   │   │   │   │   ├── access-card-requests.controller.ts
+│   │   │   │   │   ├── access-card-requests.service.ts
+│   │   │   │   │   ├── access-cards-helpers.service.ts
+│   │   │   │   │   ├── access-cards-lifecycle.service.ts
+│   │   │   │   │   ├── access-cards.controller.ts
+│   │   │   │   │   ├── access-cards.mapper.ts
+│   │   │   │   │   ├── access-cards.service.ts
+│   │   │   │   │   ├── apartments-config.service.ts
+│   │   │   │   │   ├── apartments.controller.ts
+│   │   │   │   │   ├── apartments.mapper.ts
+│   │   │   │   │   ├── apartments.module.ts
+│   │   │   │   │   ├── apartments.service.ts
+│   │   │   │   │   ├── bank-accounts.controller.ts
+│   │   │   │   │   ├── bank-accounts.service.ts
+│   │   │   │   │   ├── building-policies.controller.ts
+│   │   │   │   │   ├── building-policies.service.ts
+│   │   │   │   │   ├── buildings-svg.service.ts
+│   │   │   │   │   ├── buildings.controller.ts
+│   │   │   │   │   ├── buildings.service.ts
+│   │   │   │   │   ├── contracts-tenant.service.ts
+│   │   │   │   │   ├── contracts.controller.ts
+│   │   │   │   │   ├── contracts.mapper.ts
+│   │   │   │   │   ├── contracts.service.ts
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   ├── parking-zones.service.ts
+│   │   │   │   │   ├── parking.controller.ts
+│   │   │   │   │   ├── parking.mapper.ts
+│   │   │   │   │   ├── parking.service.ts
+│   │   │   │   │   ├── payment-generator.service.ts
+│   │   │   │   │   ├── payment-schedule.controller.ts
+│   │   │   │   │   ├── payment-schedule.mapper.ts
+│   │   │   │   │   └── payment-schedule.service.ts
+│   │   │   │   ├── billing/
+│   │   │   │   │   ├── dto/
+│   │   │   │   │   │   ├── index.ts
+│   │   │   │   │   │   ├── invoice.dto.ts
+│   │   │   │   │   │   ├── meter-reading.dto.ts
+│   │   │   │   │   │   └── utility-type.dto.ts
+│   │   │   │   │   ├── billing-jobs.controller.ts
+│   │   │   │   │   ├── billing-queue.service.ts
+│   │   │   │   │   ├── billing.module.ts
+│   │   │   │   │   ├── billing.processor.spec.ts
+│   │   │   │   │   ├── billing.processor.ts
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   ├── invoice-calculator.service.spec.ts
+│   │   │   │   │   ├── invoice-calculator.service.ts
+│   │   │   │   │   ├── invoices.controller.ts
+│   │   │   │   │   ├── invoices.mapper.ts
+│   │   │   │   │   ├── invoices.service.spec.ts
+│   │   │   │   │   ├── invoices.service.ts
+│   │   │   │   │   ├── meter-readings.controller.ts
+│   │   │   │   │   ├── meter-readings.mapper.ts
+│   │   │   │   │   ├── meter-readings.service.spec.ts
+│   │   │   │   │   ├── meter-readings.service.ts
+│   │   │   │   │   ├── utility-types.controller.ts
+│   │   │   │   │   ├── utility-types.service.ts
+│   │   │   │   │   ├── vietqr.service.spec.ts
+│   │   │   │   │   └── vietqr.service.ts
+│   │   │   │   ├── identity/
+│   │   │   │   │   ├── dto/
+│   │   │   │   │   │   ├── index.ts
+│   │   │   │   │   │   ├── login.dto.ts
+│   │   │   │   │   │   └── user.dto.ts
+│   │   │   │   │   ├── guards/
+│   │   │   │   │   │   ├── index.ts
+│   │   │   │   │   │   └── jwt-auth.guard.ts
+│   │   │   │   │   ├── interfaces/
+│   │   │   │   │   │   └── auth.interface.ts
+│   │   │   │   │   ├── strategies/
+│   │   │   │   │   │   ├── index.ts
+│   │   │   │   │   │   └── jwt.strategy.ts
+│   │   │   │   │   ├── auth.controller.ts
+│   │   │   │   │   ├── auth.service.spec.ts
+│   │   │   │   │   ├── auth.service.ts
+│   │   │   │   │   ├── identity.module.ts
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   ├── users.controller.ts
+│   │   │   │   │   └── users.service.ts
+│   │   │   │   ├── incidents/
+│   │   │   │   │   ├── dto/
+│   │   │   │   │   │   ├── comment.dto.ts
+│   │   │   │   │   │   ├── incident.dto.ts
+│   │   │   │   │   │   └── index.ts
+│   │   │   │   │   ├── incident-comments.controller.ts
+│   │   │   │   │   ├── incident-comments.service.ts
+│   │   │   │   │   ├── incidents.controller.ts
+│   │   │   │   │   ├── incidents.gateway.ts
+│   │   │   │   │   ├── incidents.module.ts
+│   │   │   │   │   └── incidents.service.ts
+│   │   │   │   ├── management-board/
+│   │   │   │   │   ├── dto/
+│   │   │   │   │   ├── investor.controller.ts
+│   │   │   │   │   ├── management-board.controller.ts
+│   │   │   │   │   └── vendor.controller.ts
+│   │   │   │   └── stats/
+│   │   │   │       ├── stats-analytics.service.ts
+│   │   │   │       ├── stats.controller.ts
+│   │   │   │       ├── stats.module.ts
+│   │   │   │       └── stats.service.ts
+│   │   │   ├── app.module.ts
+│   │   │   └── main.ts
+│   │   ├── jest.config.js
+│   │   ├── nest-cli.json
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   └── web/
+│       ├── src/
+│       │   ├── app/
+│       │   │   ├── (auth)/
+│       │   │   │   ├── forgot-password/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── login/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── register/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── reset-password/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   └── layout.tsx
+│       │   │   ├── (dashboard)/
+│       │   │   │   ├── access-card-requests/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── apartments/
+│       │   │   │   │   ├── [id]/
+│       │   │   │   │   │   └── page.tsx
+│       │   │   │   │   ├── apartment-columns.tsx
+│       │   │   │   │   ├── apartment-detail-contract.tsx
+│       │   │   │   │   ├── apartment-detail-helpers.ts
+│       │   │   │   │   ├── apartment-detail-info-sections.tsx
+│       │   │   │   │   ├── apartment-detail-sheet.tsx
+│       │   │   │   │   ├── apartment-filters.tsx
+│       │   │   │   │   ├── apartment-form-billing-tab.tsx
+│       │   │   │   │   ├── apartment-form-dialog.tsx
+│       │   │   │   │   ├── apartment-form-helpers.ts
+│       │   │   │   │   ├── apartment-form-occupancy-tab.tsx
+│       │   │   │   │   ├── apartment-form-schema.ts
+│       │   │   │   │   ├── apartment-form-spatial-tab.tsx
+│       │   │   │   │   ├── apartment-form-utility-tab.tsx
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── buildings/
+│       │   │   │   │   ├── [id]/
+│       │   │   │   │   │   └── page.tsx
+│       │   │   │   │   ├── building-detail-sheet.tsx
+│       │   │   │   │   ├── building-form-dialog.tsx
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── contracts/
+│       │   │   │   │   ├── [id]/
+│       │   │   │   │   │   └── page.tsx
+│       │   │   │   │   ├── contract-columns.tsx
+│       │   │   │   │   ├── contract-detail-sheet.tsx
+│       │   │   │   │   ├── contract-financial-terms.tsx
+│       │   │   │   │   ├── contract-form-dialog.tsx
+│       │   │   │   │   ├── contract-form-helpers.ts
+│       │   │   │   │   ├── contract-form-schema.ts
+│       │   │   │   │   ├── contract-terminate-dialog.tsx
+│       │   │   │   │   ├── page.tsx
+│       │   │   │   │   ├── party-combobox.tsx
+│       │   │   │   │   ├── payment-summary-section.tsx
+│       │   │   │   │   └── quick-create-resident.tsx
+│       │   │   │   ├── dashboard/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── incidents/
+│       │   │   │   │   ├── create-incident-dialog.tsx
+│       │   │   │   │   ├── incident-columns.tsx
+│       │   │   │   │   ├── incident-detail-sheet.tsx
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── invoices/
+│       │   │   │   │   ├── bulk-generate-dialog.tsx
+│       │   │   │   │   ├── invoice-columns.tsx
+│       │   │   │   │   ├── invoice-detail-sheet.tsx
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── meter-readings/
+│       │   │   │   │   ├── meter-reading-form-sheet.tsx
+│       │   │   │   │   ├── meter-reading-schema.ts
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── payments/
+│       │   │   │   │   └── pending/
+│       │   │   │   │       └── page.tsx
+│       │   │   │   ├── settings/
+│       │   │   │   │   ├── page.tsx
+│       │   │   │   │   ├── settings-bank-accounts-form.tsx
+│       │   │   │   │   ├── settings-password-form.tsx
+│       │   │   │   │   └── settings-profile-form.tsx
+│       │   │   │   ├── users/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── utility-types/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   └── layout.tsx
+│       │   │   ├── api/
+│       │   │   │   └── cloudinary/
+│       │   │   │       ├── delete/
+│       │   │   │       │   └── route.ts
+│       │   │   │       └── upload/
+│       │   │   │           └── route.ts
+│       │   │   ├── globals.css
+│       │   │   ├── layout.tsx
+│       │   │   ├── page.tsx
+│       │   │   └── providers.tsx
+│       │   ├── components/
+│       │   │   ├── 3d/
+│       │   │   │   ├── building-3d-legend.tsx
+│       │   │   │   ├── building-3d.tsx
+│       │   │   │   ├── floor.tsx
+│       │   │   │   └── index.ts
+│       │   │   ├── access-cards/
+│       │   │   │   ├── AccessCardsTab.tsx
+│       │   │   │   ├── DeactivateCardDialog.tsx
+│       │   │   │   ├── EditAccessCardDialog.tsx
+│       │   │   │   ├── IssueAccessCardDialog.tsx
+│       │   │   │   ├── ReactivateCardDialog.tsx
+│       │   │   │   ├── RequestAccessCardDialog.tsx
+│       │   │   │   └── index.ts
+│       │   │   ├── apartments/
+│       │   │   │   ├── index.ts
+│       │   │   │   ├── inherited-field-wrapper.tsx
+│       │   │   │   └── parking-assignment-dialog.tsx
+│       │   │   ├── buildings/
+│       │   │   │   ├── building-parking-tab.tsx
+│       │   │   │   ├── building-policies-tab.tsx
+│       │   │   │   ├── floor-units-dialog.tsx
+│       │   │   │   ├── index.ts
+│       │   │   │   ├── parking-assign-dialog.tsx
+│       │   │   │   ├── parking-constants.ts
+│       │   │   │   ├── parking-slots-grid.tsx
+│       │   │   │   ├── parking-stats-cards.tsx
+│       │   │   │   ├── parking-zone-list.tsx
+│       │   │   │   ├── policy-current-display.tsx
+│       │   │   │   ├── policy-form-dialog.tsx
+│       │   │   │   └── policy-history.tsx
+│       │   │   ├── dashboard/
+│       │   │   │   ├── incidents-summary.tsx
+│       │   │   │   ├── occupancy-chart.tsx
+│       │   │   │   ├── recent-activity.tsx
+│       │   │   │   ├── resident-dashboard.tsx
+│       │   │   │   └── revenue-chart.tsx
+│       │   │   ├── date-picker/
+│       │   │   │   ├── date-picker.tsx
+│       │   │   │   ├── date-range-picker.tsx
+│       │   │   │   └── index.ts
+│       │   │   ├── layout/
+│       │   │   │   └── dashboard-sidebar.tsx
+│       │   │   ├── maps/
+│       │   │   │   ├── svg-builder/
+│       │   │   │   │   ├── components/
+│       │   │   │   │   │   ├── element-renderer.tsx
+│       │   │   │   │   │   ├── index.ts
+│       │   │   │   │   │   ├── properties-panel.tsx
+│       │   │   │   │   │   ├── sidebar-panels.tsx
+│       │   │   │   │   │   ├── svg-canvas.tsx
+│       │   │   │   │   │   └── svg-toolbar.tsx
+│       │   │   │   │   ├── hooks/
+│       │   │   │   │   │   ├── index.ts
+│       │   │   │   │   │   ├── use-keyboard-shortcuts.ts
+│       │   │   │   │   │   ├── use-svg-coordinates.ts
+│       │   │   │   │   │   ├── use-svg-drag.ts
+│       │   │   │   │   │   └── use-svg-history.ts
+│       │   │   │   │   ├── index.tsx
+│       │   │   │   │   ├── sub-rect.utils.ts
+│       │   │   │   │   ├── svg-builder.constants.ts
+│       │   │   │   │   ├── svg-builder.geometry.ts
+│       │   │   │   │   ├── svg-builder.types.ts
+│       │   │   │   │   └── svg-parser.ts
+│       │   │   │   ├── apartment-detail-panel.tsx
+│       │   │   │   ├── floor-plan-svg-processor.ts
+│       │   │   │   ├── floor-plan.tsx
+│       │   │   │   ├── index.ts
+│       │   │   │   ├── map-controls.tsx
+│       │   │   │   ├── svg-builder-dialog.tsx
+│       │   │   │   ├── svg-builder.tsx
+│       │   │   │   ├── svg-upload-dialog.tsx
+│       │   │   │   └── use-floor-plan-controls.ts
+│       │   │   ├── payments/
+│       │   │   │   ├── AddPaymentScheduleDialog.tsx
+│       │   │   │   ├── ContractFinancialSummary.tsx
+│       │   │   │   ├── EditPaymentScheduleDialog.tsx
+│       │   │   │   ├── PaymentScheduleTable.tsx
+│       │   │   │   ├── RecordPaymentDialog.tsx
+│       │   │   │   ├── ReportInvoicePaymentDialog.tsx
+│       │   │   │   ├── ReportPaymentDialog.tsx
+│       │   │   │   ├── ScheduleQRDisplay.tsx
+│       │   │   │   ├── VerifyInvoicePaymentDialog.tsx
+│       │   │   │   ├── VerifyPaymentDialog.tsx
+│       │   │   │   ├── VietQRDisplay.tsx
+│       │   │   │   ├── index.ts
+│       │   │   │   └── payment-schedule-columns.tsx
+│       │   │   ├── ui/
+│       │   │   │   ├── accordion.tsx
+│       │   │   │   ├── alert-dialog.tsx
+│       │   │   │   ├── alert.tsx
+│       │   │   │   ├── avatar.tsx
+│       │   │   │   ├── badge.tsx
+│       │   │   │   ├── button.tsx
+│       │   │   │   ├── calendar.tsx
+│       │   │   │   ├── card.tsx
+│       │   │   │   ├── checkbox.tsx
+│       │   │   │   ├── collapsible.tsx
+│       │   │   │   ├── command.tsx
+│       │   │   │   ├── dialog.tsx
+│       │   │   │   ├── dropdown-menu.tsx
+│       │   │   │   ├── form.tsx
+│       │   │   │   ├── input.tsx
+│       │   │   │   ├── label.tsx
+│       │   │   │   ├── page-transition.tsx
+│       │   │   │   ├── popover.tsx
+│       │   │   │   ├── progress.tsx
+│       │   │   │   ├── resize-handle.tsx
+│       │   │   │   ├── scroll-area.tsx
+│       │   │   │   ├── select.tsx
+│       │   │   │   ├── separator.tsx
+│       │   │   │   ├── sheet.tsx
+│       │   │   │   ├── skeleton.tsx
+│       │   │   │   ├── switch.tsx
+│       │   │   │   ├── table.tsx
+│       │   │   │   ├── tabs.tsx
+│       │   │   │   ├── textarea.tsx
+│       │   │   │   ├── toast.tsx
+│       │   │   │   ├── toaster.tsx
+│       │   │   │   └── tooltip.tsx
+│       │   │   ├── users/
+│       │   │   │   ├── create-user-dialog.tsx
+│       │   │   │   ├── edit-user-dialog.tsx
+│       │   │   │   └── manage-roles-dialog.tsx
+│       │   │   ├── apartment-combobox.tsx
+│       │   │   ├── auth-sync.tsx
+│       │   │   ├── floating-chat-widget.tsx
+│       │   │   ├── protected-route.tsx
+│       │   │   ├── theme-provider.tsx
+│       │   │   ├── user-profile-dropdown.tsx
+│       │   │   └── web-vitals-tracker.tsx
+│       │   ├── hooks/
+│       │   │   ├── apartment.types.ts
+│       │   │   ├── incident.types.ts
+│       │   │   ├── use-access-cards.ts
+│       │   │   ├── use-ai-assistant.ts
+│       │   │   ├── use-apartment-mutations.ts
+│       │   │   ├── use-apartment-queries.ts
+│       │   │   ├── use-apartments.ts
+│       │   │   ├── use-auth.ts
+│       │   │   ├── use-bank-accounts.ts
+│       │   │   ├── use-billing.ts
+│       │   │   ├── use-building-policies.ts
+│       │   │   ├── use-buildings.ts
+│       │   │   ├── use-contracts.ts
+│       │   │   ├── use-debounce.ts
+│       │   │   ├── use-incident-comments.ts
+│       │   │   ├── use-incident-mutations.ts
+│       │   │   ├── use-incident-queries.ts
+│       │   │   ├── use-incidents.ts
+│       │   │   ├── use-invoices.ts
+│       │   │   ├── use-meter-readings.ts
+│       │   │   ├── use-parking.ts
+│       │   │   ├── use-payments.ts
+│       │   │   ├── use-pending-payment-count.ts
+│       │   │   ├── use-resizable-columns.ts
+│       │   │   ├── use-stats.ts
+│       │   │   ├── use-svg-to-3d.ts
+│       │   │   ├── use-toast.ts
+│       │   │   ├── use-tour-guide.ts
+│       │   │   └── use-websocket.ts
+│       │   ├── lib/
+│       │   │   ├── api-client.ts
+│       │   │   ├── format.ts
+│       │   │   ├── performance.ts
+│       │   │   ├── utils.ts
+│       │   │   └── web-vitals.ts
+│       │   └── stores/
+│       │       ├── authStore.ts
+│       │       └── mapStore.ts
+│       ├── components.json
+│       ├── next-env.d.ts
+│       ├── next.config.js
+│       ├── package.json
+│       ├── postcss.config.js
+│       ├── tailwind.config.ts
+│       └── tsconfig.json
+├── docs/
+│   ├── references/
+│   │   ├── resize-handle.tsx
+│   │   └── use-resizable-columns.ts
+│   ├── APARTMENT_MANAGEMENT.md
+│   ├── AWS_DEPLOYMENT_GUIDE_2026.md
+│   ├── BUILDING_APARTMENT_SYSTEM.md
+│   ├── Technical-Execution&AI-Automation-Roadmap.md
+│   ├── must_follow_monthly_invoice.md
+│   ├── previous_chat.md
+│   ├── sample-floor-plan.svg
+│   ├── sample_integrate_vietqr.md
+│   └── suggestion.md
+├── openspec/
+│   ├── changes/
+│   │   ├── add-access-card-management/
+│   │   │   ├── specs/
+│   │   │   │   └── access-card-management/
+│   │   │   │       └── spec.md
+│   │   │   ├── design.md
+│   │   │   ├── proposal.md
+│   │   │   └── tasks.md
+│   │   ├── add-accounting-module/
+│   │   │   ├── specs/
+│   │   │   │   ├── accounting-books/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── accounting-data-model/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── accounting-double-entry/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── accounting-integrations/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── accounting-monthly-billing/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── accounting-operations/
+│   │   │   │   │   └── spec.md
+│   │   │   │   └── accounting-reports/
+│   │   │   │       └── spec.md
+│   │   │   ├── design.md
+│   │   │   ├── proposal.md
+│   │   │   └── tasks.md
+│   │   ├── add-enterprise-mvp-foundations/
+│   │   │   ├── specs/
+│   │   │   │   ├── compliance/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── multi-tenant/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── notifications/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── payment-gateway/
+│   │   │   │   │   └── spec.md
+│   │   │   │   └── trust-accounting/
+│   │   │   │       └── spec.md
+│   │   │   ├── design.md
+│   │   │   ├── proposal.md
+│   │   │   └── tasks.md
+│   │   ├── add-payment-tracking/
+│   │   │   ├── proposal.md
+│   │   │   └── tasks.md
+│   │   ├── archive/
+│   │   ├── enhance-apartment-platform-features/
+│   │   │   ├── specs/
+│   │   │   │   ├── apartments/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── buildings/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── contracts/
+│   │   │   │   │   └── spec.md
+│   │   │   │   └── svg-builder/
+│   │   │   │       └── spec.md
+│   │   │   ├── design.md
+│   │   │   ├── proposal.md
+│   │   │   └── tasks.md
+│   │   ├── enhance-building-policies-and-apartment-assets/
+│   │   │   ├── specs/
+│   │   │   │   ├── apartment-form-ux/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── building-policies/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── parking-management/
+│   │   │   │   │   └── spec.md
+│   │   │   │   └── trash-collection/
+│   │   │   │       └── spec.md
+│   │   │   ├── TESTING_GUIDE.md
+│   │   │   ├── design.md
+│   │   │   ├── proposal.md
+│   │   │   └── tasks.md
+│   │   ├── enhance-contract-and-svg-builder/
+│   │   │   └── specs/
+│   │   │       ├── contract-management/
+│   │   │       └── svg-builder/
+│   │   ├── enhance-contract-data-and-svg-builder-ux/
+│   │   │   ├── proposal.md
+│   │   │   └── tasks.md
+│   │   ├── enhance-svg-builder-and-3d-viewer/
+│   │   │   ├── specs/
+│   │   │   │   ├── apartments/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── dashboard/
+│   │   │   │   │   └── spec.md
+│   │   │   │   └── svg-maps/
+│   │   │   │       └── spec.md
+│   │   │   ├── design.md
+│   │   │   ├── proposal.md
+│   │   │   └── tasks.md
+│   │   ├── expand-apartment-data-model/
+│   │   │   ├── specs/
+│   │   │   │   └── apartment-data-model/
+│   │   │   │       └── spec.md
+│   │   │   ├── design.md
+│   │   │   ├── proposal.md
+│   │   │   └── tasks.md
+│   │   ├── overhaul-billing-and-invoicing/
+│   │   │   ├── specs/
+│   │   │   │   ├── invoice-generation/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── payment-schedule-auth/
+│   │   │   │   │   └── spec.md
+│   │   │   │   └── payment-ui-vietqr/
+│   │   │   │       └── spec.md
+│   │   │   ├── design.md
+│   │   │   ├── proposal.md
+│   │   │   └── tasks.md
+│   │   ├── refactor-backend-service-quality/
+│   │   │   ├── specs/
+│   │   │   │   ├── query-optimization/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── service-decomposition/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── service-type-safety/
+│   │   │   │   │   └── spec.md
+│   │   │   │   └── shared-utilities/
+│   │   │   │       └── spec.md
+│   │   │   ├── design.md
+│   │   │   ├── proposal.md
+│   │   │   └── tasks.md
+│   │   ├── refactor-frontend-consistency/
+│   │   │   ├── specs/
+│   │   │   │   ├── frontend-detail-sheets/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── frontend-file-decomposition/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── frontend-hooks-conventions/
+│   │   │   │   │   └── spec.md
+│   │   │   │   └── frontend-list-pages/
+│   │   │   │       └── spec.md
+│   │   │   ├── design.md
+│   │   │   ├── proposal.md
+│   │   │   └── tasks.md
+│   │   ├── refactor-user-roles-and-enums/
+│   │   │   ├── specs/
+│   │   │   │   ├── enum-consistency/
+│   │   │   │   │   └── spec.md
+│   │   │   │   ├── user-management-ui/
+│   │   │   │   │   └── spec.md
+│   │   │   │   └── user-roles/
+│   │   │   │       └── spec.md
+│   │   │   ├── IMPLEMENTATION_SUMMARY.md
+│   │   │   ├── design.md
+│   │   │   ├── proposal.md
+│   │   │   └── tasks.md
+│   │   └── scaffold-apartment-platform/
+│   │       ├── specs/
+│   │       │   ├── ai-assistant/
+│   │       │   │   └── spec.md
+│   │       │   ├── apartments/
+│   │       │   │   └── spec.md
+│   │       │   ├── billing/
+│   │       │   │   └── spec.md
+│   │       │   ├── dashboard/
+│   │       │   │   └── spec.md
+│   │       │   ├── identity/
+│   │       │   │   └── spec.md
+│   │       │   ├── incidents/
+│   │       │   │   └── spec.md
+│   │       │   ├── notifications/
+│   │       │   │   └── spec.md
+│   │       │   └── svg-maps/
+│   │       │       └── spec.md
+│   │       ├── design.md
+│   │       ├── proposal.md
+│   │       └── tasks.md
+│   ├── specs/
+│   ├── AGENTS.md
+│   └── project.md
+├── packages/
+│   └── shared-types/
+│       ├── src/
+│       │   ├── api/
+│       │   │   └── index.ts
+│       │   ├── entities/
+│       │   │   └── index.ts
+│       │   ├── enums/
+│       │   │   └── index.ts
+│       │   ├── events/
+│       │   │   └── index.ts
+│       │   └── index.ts
+│       ├── package.json
+│       ├── tsconfig.json
+│       └── tsup.config.ts
+├── scripts/
+│   ├── analyze-performance.js
+│   ├── check-user-contracts.sql
+│   ├── create-test-contract.sql
+│   ├── debug-billing-invoices.sql
+│   ├── diagnose-billing-failures.sql
+│   ├── init-db.sql
+│   ├── migrate-user-roles.sql
+│   ├── reset-billing-data.sql
+│   ├── reset-contract-payments.sql
+│   ├── update-svg-element-ids.sql
+│   ├── update-svg-ids.ts
+│   ├── upgrade-user-to-admin.sql
+│   └── verify-multi-role-schema.sql
+├── .env.example
+├── .eslintrc.js
+├── .gitignore
+├── .prettierrc
+├── AGENTS.md
+├── README.md
+├── accounting-module.md
+├── docker-compose.yml
+├── package.json
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
+└── turbo.json
+
+────────────────────────────────────────────────────────────────────────────────
+Generated by FileTree Pro Extension

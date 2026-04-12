@@ -12,6 +12,7 @@ import {
   Max,
   MaxLength,
 } from 'class-validator';
+import { PaymentRejectionReason } from '@prisma/client';
 
 // Enums matching Prisma schema
 export enum PaymentType {
@@ -247,6 +248,11 @@ export class VerifyPaymentDto {
   @IsNumber()
   @Min(1)
   actualAmount?: number;
+
+  @ApiPropertyOptional({ enum: PaymentRejectionReason, description: 'Structured rejection reason' })
+  @IsOptional()
+  @IsEnum(PaymentRejectionReason)
+  rejectionReason?: PaymentRejectionReason;
 }
 
 export class PaymentResponseDto {

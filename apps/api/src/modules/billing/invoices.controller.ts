@@ -73,6 +73,12 @@ export class InvoicesController {
   })
   @ApiQuery({ name: 'dueDateFrom', required: false, type: String })
   @ApiQuery({ name: 'dueDateTo', required: false, type: String })
+  @ApiQuery({
+    name: 'stream',
+    required: false,
+    enum: ['operational', 'property'],
+    description: 'Filter by invoice stream (operational fees vs property payments)',
+  })
   @ApiResponse({ status: 200, description: 'Invoice list' })
   async findAll(
     @CurrentUser() user: AuthUser,
@@ -84,6 +90,7 @@ export class InvoicesController {
     @Query('status') status?: string,
     @Query('dueDateFrom') dueDateFrom?: string,
     @Query('dueDateTo') dueDateTo?: string,
+    @Query('stream') stream?: string,
   ): Promise<{
     data: InvoiceResponseDto[];
     meta: { total: number; page: number; limit: number };
@@ -98,6 +105,7 @@ export class InvoicesController {
       status: status as InvoiceStatus,
       dueDateFrom,
       dueDateTo,
+      stream: stream as InvoiceFiltersDto['stream'],
     };
 
     const result = await this.invoicesService.findAll(

@@ -7,6 +7,15 @@ import { toNumber } from '../../common/utils/decimal.util';
 import { CACHE_TTL_MS } from '../../common/constants/defaults';
 import { DashboardStats, AdminStats } from '../../common/types/service-types';
 
+interface TechnicianDashboardStats {
+  assignedCount: number;
+  inProgressCount: number;
+  pendingReviewCount: number;
+  resolvedThisMonth: number;
+  avgResolutionHours: number;
+  urgentCount: number;
+}
+
 @Injectable()
 export class StatsService {
   constructor(
@@ -154,5 +163,77 @@ export class StatsService {
         total: totalBuildings,
       },
     };
+  }
+
+  async getTechnicianDashboardStats(technicianId: string): Promise<TechnicianDashboardStats> {
+    const cacheKey = `technician:dashboard:${technicianId}`;
+    const cached = await this.cacheManager.get<TechnicianDashboardStats>(cacheKey);
+    if (cached) return cached;
+
+    const now = new Date();
+    const startOfMonth = getStartOfMonth(now);
+
+    const [assignedCount, inProgressCount, pendingReviewCount, resolvedThisMonth, urgentCount, allResolved] =
+      await Promise.all([
+        this.prisma.incidents.count({
+          where: { assigned_to: technicianId, status: 'assigned' },
+        }),
+        this.prisma.incidents.count({
+          where: { assigned_to: technicianId, status: 'in_progress' },
+        }),
+        this.prisma.incidents.count({
+          where: { assigned_to: technicianId, status: 'pending_review' },
+        }),
+        this.prisma.incidents.count({
+          where: {
+            assigned_to: technicianId,
+            status: 'resolved',
+            resolved_at: { gte: startOfMonth },
+          },
+        }),
+        this.prisma.incidents.count({
+          where: {
+            assigned_to: technicianId,
+            status: { in: ['assigned', 'in_progress'] },
+            priority: 'urgent',
+          },
+        }),
+        this.prisma.incidents.findMany({
+          where: {
+            assigned_to: technicianId,
+            status: 'resolved',
+            resolved_at: { not: null },
+          },
+          select: {
+            created_at: true,
+            resolved_at: true,
+          },
+          take: 100,
+          orderBy: { resolved_at: 'desc' },
+        }),
+      ]);
+
+    // Calculate average resolution time in hours
+    let avgResolutionHours = 0;
+    if (allResolved.length > 0) {
+      const totalHours = allResolved.reduce((sum, inc) => {
+        if (!inc.resolved_at) return sum;
+        const diff = inc.resolved_at.getTime() - inc.created_at.getTime();
+        return sum + diff / (1000 * 60 * 60);
+      }, 0);
+      avgResolutionHours = Math.round((totalHours / allResolved.length) * 10) / 10;
+    }
+
+    const stats: TechnicianDashboardStats = {
+      assignedCount,
+      inProgressCount,
+      pendingReviewCount,
+      resolvedThisMonth,
+      avgResolutionHours,
+      urgentCount,
+    };
+
+    await this.cacheManager.set(cacheKey, stats, CACHE_TTL_MS);
+    return stats;
   }
 }

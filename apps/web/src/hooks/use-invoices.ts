@@ -79,6 +79,7 @@ export interface InvoiceFilters {
   status?: Invoice['status'];
   dueDateFrom?: string;
   dueDateTo?: string;
+  stream?: 'operational' | 'property';
 }
 
 interface InvoicesResponse {
@@ -118,6 +119,7 @@ export function useInvoices(filters: InvoiceFilters = {}) {
   if (filters.status) queryParams.set('status', filters.status);
   if (filters.dueDateFrom) queryParams.set('dueDateFrom', filters.dueDateFrom);
   if (filters.dueDateTo) queryParams.set('dueDateTo', filters.dueDateTo);
+  if (filters.stream) queryParams.set('stream', filters.stream);
 
   return useQuery({
     queryKey: ['invoices', filters],
@@ -258,6 +260,7 @@ export interface VerifyInvoicePaymentInput {
   status: 'confirmed' | 'rejected';
   actualAmount?: number;
   notes?: string;
+  rejectionReason?: 'insufficient_amount' | 'wrong_reference' | 'blurry_receipt' | 'duplicate_payment' | 'expired_receipt' | 'other';
 }
 
 export function useVerifyInvoicePayment() {

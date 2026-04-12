@@ -137,7 +137,7 @@ export class BillingProcessor extends WorkerHost {
             continue;
           }
 
-          // Create invoice
+          // Create invoice (operational only — skip milestone/installment)
           await this.invoicesService.create(
             {
               contractId: contract.id,
@@ -146,6 +146,7 @@ export class BillingProcessor extends WorkerHost {
               categories,
             },
             triggeredById,
+            true, // operationalOnly: bulk generation skips property payments
           );
 
           successCount++;

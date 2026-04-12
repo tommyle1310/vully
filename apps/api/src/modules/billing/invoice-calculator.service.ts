@@ -41,6 +41,8 @@ export class InvoiceCalculatorService {
     categories?: string[],
     contractType: ContractType = 'rental',
     unitNumber?: string,
+    /** When true, skip milestone/installment line items (bulk generate = operational only) */
+    operationalOnly = false,
   ): Promise<InvoiceCalculation> {
     const normalizedCategories = categories?.map((c) => c.toLowerCase());
     const includeAll =
@@ -58,7 +60,7 @@ export class InvoiceCalculatorService {
         normalizedCategories,
       );
       if (rentItem) lineItems.push(rentItem);
-    } else if (contractType === 'lease_to_own') {
+    } else if (contractType === 'lease_to_own' && !operationalOnly) {
       const installmentItem = await this.buildInstallmentLineItem(
         contractId,
         billingPeriod,
@@ -66,7 +68,7 @@ export class InvoiceCalculatorService {
         normalizedCategories,
       );
       if (installmentItem) lineItems.push(installmentItem);
-    } else if (contractType === 'purchase') {
+    } else if (contractType === 'purchase' && !operationalOnly) {
       const milestoneItems = await this.buildMilestoneLineItems(
         contractId,
         billingPeriod,

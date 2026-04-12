@@ -67,6 +67,37 @@ export const UpdateUserSchema = CreateUserSchema.partial().omit({ password: true
 export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
 
 // =============================================================================
+// Technician Profile
+// =============================================================================
+
+export const TechnicianAvailabilityStatusSchema = z.enum(['available', 'busy', 'off_duty']);
+export type TechnicianAvailabilityStatus = z.infer<typeof TechnicianAvailabilityStatusSchema>;
+
+export const TechnicianAvailabilityStatus = {
+  available: 'available' as const,
+  busy: 'busy' as const,
+  off_duty: 'off_duty' as const,
+} as const;
+
+const DayAbbreviationSchema = z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
+
+export const ShiftPreferencesSchema = z.object({
+  preferredDays: z.array(DayAbbreviationSchema).optional(),
+  preferredHours: z.string().regex(/^\d{2}:\d{2}-\d{2}:\d{2}$/).optional(),
+});
+export type ShiftPreferences = z.infer<typeof ShiftPreferencesSchema>;
+
+export const TechnicianProfileSchema = z.object({
+  specialties: z.array(IncidentCategorySchema).optional(),
+  availabilityStatus: TechnicianAvailabilityStatusSchema.optional(),
+  shiftPreferences: ShiftPreferencesSchema.optional(),
+});
+export type TechnicianProfile = z.infer<typeof TechnicianProfileSchema>;
+
+export const UpdateTechnicianProfileSchema = TechnicianProfileSchema;
+export type UpdateTechnicianProfileInput = z.infer<typeof UpdateTechnicianProfileSchema>;
+
+// =============================================================================
 // Building Entity
 // =============================================================================
 

@@ -9,7 +9,7 @@ import {
   IsDateString,
   Matches,
 } from 'class-validator';
-import { InvoiceStatus } from '@prisma/client';
+import { InvoiceStatus, InvoiceStream, PaymentRejectionReason } from '@prisma/client';
 import { Type, Transform } from 'class-transformer';
 
 export class CreateInvoiceDto {
@@ -85,6 +85,11 @@ export class InvoiceFiltersDto {
   @IsOptional()
   @IsDateString()
   dueDateTo?: string;
+
+  @ApiPropertyOptional({ enum: ['operational', 'property'], description: 'Filter by invoice stream' })
+  @IsOptional()
+  @IsEnum(InvoiceStream)
+  stream?: InvoiceStream;
 }
 
 export class InvoiceLineItemDto {
@@ -274,4 +279,9 @@ export class VerifyInvoicePaymentDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ enum: PaymentRejectionReason, description: 'Structured rejection reason' })
+  @IsOptional()
+  @IsEnum(PaymentRejectionReason)
+  rejectionReason?: PaymentRejectionReason;
 }

@@ -84,24 +84,26 @@ export default function AccessCardRequestsPage() {
   const { toast } = useToast();
   const isAdmin = hasRole('admin');
 
-  const [statusFilter, setStatusFilter] = useState<AccessCardRequestStatus | 'all'>('pending');
+  const [statusFilter, setStatusFilter] = useState<AccessCardRequestStatus | 'all'>('all');
   const [rejectTarget, setRejectTarget] = useState<AccessCardRequest | null>(null);
   const [rejectNote, setRejectNote] = useState('');
 
   const { data, isLoading, error, refetch } = useAccessCardRequests(
     statusFilter === 'all' ? undefined : { status: statusFilter },
   );
+  const { data: allData } = useAccessCardRequests();
   const approveRequest = useApproveAccessCardRequest();
   const rejectRequest = useRejectAccessCardRequest();
 
   const requests = data?.data ?? [];
+  const allRequests = allData?.data ?? [];
 
   const stats = useMemo(() => {
-    const pending = requests.filter((r) => r.status === 'pending').length;
-    const approved = requests.filter((r) => r.status === 'approved').length;
-    const rejected = requests.filter((r) => r.status === 'rejected').length;
+    const pending = allRequests.filter((r) => r.status === 'pending').length;
+    const approved = allRequests.filter((r) => r.status === 'approved').length;
+    const rejected = allRequests.filter((r) => r.status === 'rejected').length;
     return { pending, approved, rejected };
-  }, [requests]);
+  }, [allRequests]);
 
   const handleApprove = (request: AccessCardRequest) => {
     approveRequest.mutate(

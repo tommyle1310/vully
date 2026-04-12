@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   useReactTable,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  flexRender,
   SortingState,
   ColumnFiltersState,
 } from '@tanstack/react-table';
@@ -28,14 +27,7 @@ import { useApartments } from '@/hooks/use-apartments';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { DataTable } from '@/components/ui/data-table';
 import {
   Select,
   SelectContent,
@@ -76,6 +68,7 @@ export default function InvoicesPage() {
     contractId: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
     invoiceId: parseAsString.withDefault(''),
+    stream: parseAsString.withDefault('all'),
   });
   
   // Apartment filter state with debounce
@@ -109,6 +102,7 @@ export default function InvoicesPage() {
     status: urlFilters.status === 'all' ? undefined : urlFilters.status as Invoice['status'],
     apartmentId: urlFilters.apartmentId || undefined,
     contractId: urlFilters.contractId || undefined,
+    stream: urlFilters.stream === 'all' ? undefined : urlFilters.stream as 'operational' | 'property',
   });
 
   const invoices = data?.data || [];
@@ -303,66 +297,34 @@ export default function InvoicesPage() {
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
+
+        {/* Stream Filter (Operational vs Property) */}
+        {isAdmin && (
+          <Select
+            value={urlFilters.stream}
+            onValueChange={(value) => {
+              setUrlFilters({ stream: value, page: 1 });
+            }}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Stream" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Streams</SelectItem>
+              <SelectItem value="operational">Operational</SelectItem>
+              <SelectItem value="property">Property</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            <AnimatePresence mode="popLayout">
-              {table.getRowModel().rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
-                    <FileText className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      No invoices found.
-                    </p>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <motion.tr
-                    key={row.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="border-b cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => setSelectedInvoice(row.original)}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </TableCell>
-                    ))}
-                  </motion.tr>
-                ))
-              )}
-            </AnimatePresence>
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        table={table}
+        onRowClick={setSelectedInvoice}
+        emptyMessage="No invoices found."
+        emptyIcon={<FileText className="h-8 w-8 text-muted-foreground" />}
+      />
 
       {/* Pagination */}
       {meta && (

@@ -1,15 +1,18 @@
 import {
   Injectable,
+  Inject,
   ConflictException,
   NotFoundException,
   ForbiddenException,
   Logger,
   BadRequestException,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { Prisma, UserRole as UserRoleEnum } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { DEFAULT_PAGINATION_LIMIT } from '../../common/constants/defaults';
-import { CreateUserDto, UpdateUserDto, UserResponseDto, UpdateProfileDto } from './dto/user.dto';
+import { CreateUserDto, UpdateUserDto, UserResponseDto, UpdateProfileDto, UpdateTechnicianProfileDto, TechnicianListItemDto } from './dto/user.dto';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 
@@ -17,10 +20,13 @@ import { AuthService } from './auth.service';
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
   private readonly SALT_ROUNDS = 12;
+  private readonly TECHNICIAN_CACHE_KEY = 'technicians:list';
+  private readonly TECHNICIAN_CACHE_TTL = 120_000; // 2 minutes
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async create(dto: CreateUserDto, actorId: string): Promise<UserResponseDto> {
@@ -411,6 +417,147 @@ export class UsersService {
     this.logger.log({
       event: 'profile_updated',
       userId,
+      fields: Object.keys(dto),
+    });
+
+    return this.toResponseDto(updated);
+  }
+
+  /**
+   * List all technicians with incident workload counts
+   */
+  async listTechnicians(): Promise<TechnicianListItemDto[]> {
+    const cached = await this.cacheManager.get<TechnicianListItemDto[]>(this.TECHNICIAN_CACHE_KEY);
+    if (cached) return cached;
+
+    // Get all users with technician role
+    const technicianAssignments = await this.prisma.user_role_assignments.findMany({
+      where: { role: UserRoleEnum.technician },
+      select: { user_id: true },
+    });
+    const technicianIds = technicianAssignments.map((a) => a.user_id);
+
+    if (technicianIds.length === 0) return [];
+
+    const technicians = await this.prisma.users.findMany({
+      where: { id: { in: technicianIds }, is_active: true },
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        profile_data: true,
+      },
+    });
+
+    // Aggregate incident counts per technician in one query
+    const workloadCounts = await this.prisma.incidents.groupBy({
+      by: ['assigned_to', 'status'],
+      where: {
+        assigned_to: { in: technicianIds },
+        status: { in: ['assigned', 'in_progress', 'pending_review'] },
+      },
+      _count: { id: true },
+    });
+
+    // Build workload map
+    const workloadMap = new Map<string, { assigned: number; inProgress: number; pendingReview: number }>();
+    for (const row of workloadCounts) {
+      if (!row.assigned_to) continue;
+      const current = workloadMap.get(row.assigned_to) || { assigned: 0, inProgress: 0, pendingReview: 0 };
+      if (row.status === 'assigned') current.assigned = row._count.id;
+      if (row.status === 'in_progress') current.inProgress = row._count.id;
+      if (row.status === 'pending_review') current.pendingReview = row._count.id;
+      workloadMap.set(row.assigned_to, current);
+    }
+
+    const result: TechnicianListItemDto[] = technicians.map((tech) => {
+      const wl = workloadMap.get(tech.id) || { assigned: 0, inProgress: 0, pendingReview: 0 };
+      const profileData = (tech.profile_data as Record<string, unknown>) || {};
+      return {
+        id: tech.id,
+        firstName: tech.first_name,
+        lastName: tech.last_name,
+        email: tech.email,
+        profileData: {
+          avatarUrl: profileData.avatarUrl as string | undefined,
+          specialties: profileData.specialties as string[] | undefined,
+          availabilityStatus: (profileData.availabilityStatus as string) || 'available',
+        },
+        workload: {
+          ...wl,
+          total: wl.assigned + wl.inProgress + wl.pendingReview,
+        },
+      };
+    });
+
+    await this.cacheManager.set(this.TECHNICIAN_CACHE_KEY, result, this.TECHNICIAN_CACHE_TTL);
+    return result;
+  }
+
+  /**
+   * Invalidate the technician list cache
+   */
+  async invalidateTechnicianCache(): Promise<void> {
+    await this.cacheManager.del(this.TECHNICIAN_CACHE_KEY);
+  }
+
+  /**
+   * Update technician-specific profile fields (admin or self)
+   */
+  async updateTechnicianProfile(
+    userId: string,
+    dto: UpdateTechnicianProfileDto,
+    actorId: string,
+    actorRoles: UserRoleEnum[],
+  ): Promise<UserResponseDto> {
+    const isAdmin = actorRoles.includes(UserRoleEnum.admin);
+    const isSelf = actorId === userId;
+
+    if (!isAdmin && !isSelf) {
+      throw new ForbiddenException('Can only update your own technician profile');
+    }
+
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      include: { user_role_assignments: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Verify user has technician role
+    const hasTechRole = user.user_role_assignments.some((ra) => ra.role === UserRoleEnum.technician);
+    if (!hasTechRole) {
+      throw new ForbiddenException('User does not have the technician role');
+    }
+
+    // Merge into existing profile_data
+    const existingProfileData = (user.profile_data as Record<string, unknown>) || {};
+    const mergedProfileData = {
+      ...existingProfileData,
+      ...(dto.specialties !== undefined && { specialties: dto.specialties }),
+      ...(dto.availabilityStatus !== undefined && { availabilityStatus: dto.availabilityStatus }),
+      ...(dto.shiftPreferences !== undefined && { shiftPreferences: dto.shiftPreferences }),
+    };
+
+    const updated = await this.prisma.users.update({
+      where: { id: userId },
+      data: {
+        profile_data: mergedProfileData as Prisma.InputJsonValue,
+        updated_at: new Date(),
+      },
+      include: { user_role_assignments: true },
+    });
+
+    // Invalidate technician cache since profile changed
+    await this.invalidateTechnicianCache();
+
+    this.logger.log({
+      event: 'technician_profile_updated',
+      actorId,
+      targetUserId: userId,
       fields: Object.keys(dto),
     });
 

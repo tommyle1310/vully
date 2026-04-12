@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
-  flexRender,
   SortingState,
   ColumnFiltersState,
 } from '@tanstack/react-table';
@@ -18,14 +17,7 @@ import { useApartments, useApartment, Apartment } from '@/hooks/use-apartments';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { DataTable } from '@/components/ui/data-table';
 import { ApartmentDetailSheet } from './apartment-detail-sheet';
 import { ApartmentFormDialog } from './apartment-form-dialog';
 import { ApartmentFilters, ApartmentFilterValues } from './apartment-filters';
@@ -237,63 +229,12 @@ export default function ApartmentsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className="cursor-pointer select-none"
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            <AnimatePresence mode="popLayout">
-              {table.getRowModel().rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
-                    No apartments found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <motion.tr
-                    key={row.id}
-                    layout
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
-                    onClick={() => setSelectedApartment(row.original)}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </motion.tr>
-                ))
-              )}
-            </AnimatePresence>
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        table={table}
+        onRowClick={setSelectedApartment}
+        defaultColumnWidths={[100, 140, 140, 140, 100, 100,150]}
+        emptyMessage="No apartments found."
+      />
 
       {/* Pagination */}
       {isAdmin && meta && (

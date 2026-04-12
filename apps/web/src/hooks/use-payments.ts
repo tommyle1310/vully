@@ -124,6 +124,7 @@ export interface VerifyPaymentInput {
   status: ContractPaymentStatus;
   notes?: string;
   actualAmount?: number;
+  rejectionReason?: 'insufficient_amount' | 'wrong_reference' | 'blurry_receipt' | 'duplicate_payment' | 'expired_receipt' | 'other';
 }
 
 export interface GenerateRentScheduleInput {
