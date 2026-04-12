@@ -3,6 +3,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
+export interface TierBreakdownData {
+  tiers?: Array<{ tier: number; qty: number; price: number; amount: number }>;
+  flatRate?: boolean;
+  usage?: number;
+  unitPrice?: number;
+}
+
 export interface InvoiceLineItem {
   id: string;
   description: string;
@@ -15,7 +22,14 @@ export interface InvoiceLineItem {
   environmentFee?: number;
   utilityTypeId?: string;
   meterReadingId?: string;
-  tierBreakdown?: Record<string, unknown>;
+  tierBreakdown?: TierBreakdownData;
+  metadata?: {
+    proRated?: boolean;
+    billableDays?: number;
+    totalDays?: number;
+    fullMonthAmount?: number;
+    [key: string]: unknown;
+  };
 }
 
 export interface ReportedPaymentSnapshot {
@@ -30,7 +44,7 @@ export interface ReportedPaymentSnapshot {
 
 export interface Invoice {
   id: string;
-  contractId: string;
+  contractId: string | null;
   invoice_number: string;
   billingPeriod: string;
   issueDate: string;
@@ -68,6 +82,20 @@ export interface Invoice {
       email: string;
     };
   };
+  apartment?: {
+    id: string;
+    unit_number: string;
+    buildings: {
+      id: string;
+      name: string;
+    };
+    owner?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+  };
 }
 
 export interface InvoiceFilters {
@@ -80,6 +108,7 @@ export interface InvoiceFilters {
   dueDateFrom?: string;
   dueDateTo?: string;
   stream?: 'operational' | 'property';
+  vacant?: boolean;
 }
 
 interface InvoicesResponse {

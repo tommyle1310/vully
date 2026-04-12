@@ -350,12 +350,18 @@ export class IncidentsService {
       throw new NotFoundException('Incident not found');
     }
 
-    // Verify technician exists and has technician role
-    const technician = await this.prisma.users.findUnique({
-      where: { id: dto.technicianId },
+    // Verify technician exists and has technician role (multi-role RBAC)
+    const technicianAssignment = await this.prisma.user_role_assignments.findUnique({
+      where: {
+        user_id_role: {
+          user_id: dto.technicianId,
+          role: UserRole.technician,
+        },
+      },
+      include: { users: { select: { is_active: true } } },
     });
 
-    if (!technician || technician.role !== UserRole.technician) {
+    if (!technicianAssignment || !technicianAssignment.users.is_active) {
       throw new BadRequestException('Invalid technician');
     }
 

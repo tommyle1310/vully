@@ -98,16 +98,16 @@ export function RevenueChart() {
             <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <defs>
                 <linearGradient id="colorRent" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.1} />
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorUtilities" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0.1} />
+                  <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorFees" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="hsl(var(--chart-3))" stopOpacity={0.1} />
+                  <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="hsl(var(--chart-3))" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -126,23 +126,23 @@ export function RevenueChart() {
               <Area
                 type="monotone"
                 dataKey="Rent"
-                stackId="1"
                 stroke="hsl(var(--primary))"
                 fill="url(#colorRent)"
-              />
-              <Area
-                type="monotone"
-                dataKey="Utilities"
-                stackId="1"
-                stroke="hsl(var(--chart-2))"
-                fill="url(#colorUtilities)"
+                strokeWidth={2}
               />
               <Area
                 type="monotone"
                 dataKey="Fees"
-                stackId="1"
                 stroke="hsl(var(--chart-3))"
                 fill="url(#colorFees)"
+                strokeWidth={2}
+              />
+              <Area
+                type="monotone"
+                dataKey="Utilities"
+                stroke="hsl(var(--chart-2))"
+                fill="url(#colorUtilities)"
+                strokeWidth={2}
               />
             </AreaChart>
           </ResponsiveContainer>

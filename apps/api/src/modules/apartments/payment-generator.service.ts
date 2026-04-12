@@ -12,7 +12,7 @@ import {
   PaymentType,
   PaymentStatus,
 } from './dto/payment.dto';
-import { addMonths, format, isPast, isBefore, startOfDay } from 'date-fns';
+import { addMonths, format, isPast, isBefore, startOfDay, endOfMonth, getDaysInMonth } from 'date-fns';
 import { DEFAULT_PAYMENT_DUE_DAY } from '../../common/constants/defaults';
 import { toScheduleResponseDto } from './payment-schedule.mapper';
 
@@ -55,13 +55,33 @@ export class PaymentGeneratorService {
 
     for (let i = 0; i < months; i++) {
       const monthDate = addMonths(startDate, i);
-      const dueDate = new Date(monthDate);
+      let dueDate = new Date(monthDate);
       dueDate.setDate(paymentDueDay);
+
+      // Fix: If this is the first period and due date would be before start date,
+      // move it to the next month
+      if (i === 0 && isBefore(dueDate, startDate)) {
+        dueDate = addMonths(dueDate, 1);
+      }
 
       const today = startOfDay(new Date());
       const status = isBefore(dueDate, today)
         ? PaymentStatus.overdue
         : PaymentStatus.pending;
+
+      // Pro-rate first period if contract starts mid-month
+      let expectedAmount = rentAmount;
+      if (i === 0) {
+        const startDay = startDate.getDate();
+        const daysInMonth = getDaysInMonth(startDate);
+        const endOfFirstMonth = endOfMonth(startDate);
+        const billableDays = endOfFirstMonth.getDate() - startDay + 1;
+        
+        // Only pro-rate if not starting on the 1st
+        if (startDay > 1) {
+          expectedAmount = Math.round((rentAmount / daysInMonth) * billableDays);
+        }
+      }
 
       schedules.push({
         contract_id: contractId,
@@ -69,7 +89,7 @@ export class PaymentGeneratorService {
         payment_type: PaymentType.rent,
         sequence_number: i + 1,
         due_date: dueDate,
-        expected_amount: rentAmount,
+        expected_amount: expectedAmount,
         received_amount: 0,
         status,
         updated_at: new Date(),
@@ -146,13 +166,33 @@ export class PaymentGeneratorService {
 
     for (let i = 0; i < months; i++) {
       const monthDate = addMonths(startDate, i);
-      const dueDate = new Date(monthDate);
+      let dueDate = new Date(monthDate);
       dueDate.setDate(paymentDueDay);
+
+      // Fix: If this is the first period and due date would be before start date,
+      // move it to the next month
+      if (i === 0 && isBefore(dueDate, startDate)) {
+        dueDate = addMonths(dueDate, 1);
+      }
 
       const today = startOfDay(new Date());
       const status = isBefore(dueDate, today)
         ? PaymentStatus.overdue
         : PaymentStatus.pending;
+
+      // Pro-rate first period if contract starts mid-month
+      let expectedAmount = installmentAmount;
+      if (i === 0) {
+        const startDay = startDate.getDate();
+        const daysInMonth = getDaysInMonth(startDate);
+        const endOfFirstMonth = endOfMonth(startDate);
+        const billableDays = endOfFirstMonth.getDate() - startDay + 1;
+        
+        // Only pro-rate if not starting on the 1st
+        if (startDay > 1) {
+          expectedAmount = Math.round((installmentAmount / daysInMonth) * billableDays);
+        }
+      }
 
       schedules.push({
         contract_id: contractId,
@@ -160,7 +200,7 @@ export class PaymentGeneratorService {
         payment_type: PaymentType.installment,
         sequence_number: i + 1,
         due_date: dueDate,
-        expected_amount: installmentAmount,
+        expected_amount: expectedAmount,
         received_amount: 0,
         status,
         updated_at: new Date(),

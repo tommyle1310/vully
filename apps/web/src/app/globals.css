@@ -2,6 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 1. Ưu tiên đặt các thuộc tính tiêu chuẩn cho Firefox */
+html {
+  /* Màu thanh cuộn (thumb) và màu nền (track) */
+  scrollbar-color: #b8860b #2c2c2c; 
+  scrollbar-width: thin;
+}
+
+/* 2. Tiếp theo là các thuộc tính Webkit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 3px; /* Độ rộng thanh cuộn */
+}
+
+/* Nền của thanh cuộn */
+::-webkit-scrollbar-track {
+  background: #2c2c2c; /* Màu nền tối */
+  border-radius: 10px;
+}
+
+/* Phần thanh cuộn có thể kéo */
+::-webkit-scrollbar-thumb {
+  /* Gradient màu vàng đậm */
+  background: linear-gradient(to bottom, #634805, #614b15); 
+  border-radius: 10px;
+  border: 2px solid #2c2c2c; /* Tạo khoảng hở giữa track và thumb */
+}
+
+
 @layer base {
   :root {
     --background: 160 15% 10%;

@@ -323,7 +323,7 @@ export function IncidentDetailSheet({
                   value={currentIncident.assignedToId ?? undefined}
                   onChange={(technicianId) => {
                     assignTechnician.mutate(
-                      { incidentId: currentIncident.id, data: { technicianId } },
+                      { incidentId: currentIncident.id, technicianId },
                       {
                         onSuccess: () => {
                           toast({

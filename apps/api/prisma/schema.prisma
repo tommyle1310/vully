@@ -85,6 +85,7 @@ model apartments {
   other_apartments       apartments[]            @relation("apartmentsToapartments")
   contracts              contracts[]
   incidents              incidents[]
+  invoices               invoices[]
   meter_readings         meter_readings[]
   parking_slots          parking_slots[]
   access_cards           access_cards[]
@@ -471,7 +472,8 @@ model invoice_line_items {
 
 model invoices {
   id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  contract_id        String               @db.Uuid
+  contract_id        String?              @db.Uuid
+  apartment_id       String?              @db.Uuid
   invoice_number     String               @unique @db.VarChar(50)
   billing_period     String               @db.VarChar(7)
   issue_date         DateTime             @db.Date
@@ -488,10 +490,12 @@ model invoices {
   created_at         DateTime             @default(now()) @db.Timestamptz(6)
   updated_at         DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
   invoice_line_items invoice_line_items[]
-  contracts          contracts            @relation(fields: [contract_id], references: [id], onDelete: Cascade)
+  contracts          contracts?           @relation(fields: [contract_id], references: [id], onDelete: Cascade)
+  apartments         apartments?          @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
 
   @@index([billing_period])
   @@index([contract_id])
+  @@index([apartment_id])
   @@index([due_date])
   @@index([status])
   @@index([invoice_stream])

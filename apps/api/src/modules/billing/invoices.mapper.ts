@@ -56,5 +56,23 @@ export function toInvoiceResponseDto(invoice: InvoiceWithLineItems): InvoiceResp
           },
         }
       : undefined,
+    apartment: invoice.apartments
+      ? {
+          id: invoice.apartments.id,
+          unit_number: invoice.apartments.unit_number,
+          buildings: {
+            id: invoice.apartments.buildings.id,
+            name: invoice.apartments.buildings.name,
+          },
+          owner: invoice.apartments.users
+            ? {
+                id: invoice.apartments.users.id,
+                firstName: invoice.apartments.users.first_name,
+                lastName: invoice.apartments.users.last_name,
+                email: invoice.apartments.users.email,
+              }
+            : undefined,
+        }
+      : undefined,
   };
 }

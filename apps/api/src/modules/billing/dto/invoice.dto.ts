@@ -8,6 +8,7 @@ import {
   Min,
   IsDateString,
   Matches,
+  IsBoolean,
 } from 'class-validator';
 import { InvoiceStatus, InvoiceStream, PaymentRejectionReason } from '@prisma/client';
 import { Type, Transform } from 'class-transformer';
@@ -90,6 +91,12 @@ export class InvoiceFiltersDto {
   @IsOptional()
   @IsEnum(InvoiceStream)
   stream?: InvoiceStream;
+
+  @ApiPropertyOptional({ description: 'Filter for vacant apartment invoices (where contract_id is null)' })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  vacant?: boolean;
 }
 
 export class InvoiceLineItemDto {
@@ -134,8 +141,8 @@ export class InvoiceResponseDto {
   @ApiProperty()
   id: string;
 
-  @ApiProperty()
-  contractId: string;
+  @ApiPropertyOptional({ description: 'Null for vacant apartment invoices' })
+  contractId: string | null;
 
   @ApiProperty()
   invoice_number: string;
@@ -198,6 +205,22 @@ export class InvoiceResponseDto {
       };
     };
     tenant: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+  };
+
+  @ApiPropertyOptional({ description: 'Direct apartment reference for vacant invoices' })
+  apartment?: {
+    id: string;
+    unit_number: string;
+    buildings: {
+      id: string;
+      name: string;
+    };
+    owner?: {
       id: string;
       firstName: string;
       lastName: string;

@@ -60,6 +60,12 @@ export type InvoiceWithLineItems = Prisma.invoicesGetPayload<{
         users_contracts_tenant_idTousers: true;
       };
     };
+    apartments: {
+      include: {
+        buildings: true;
+        users: true;
+      };
+    };
   };
 }>;
 

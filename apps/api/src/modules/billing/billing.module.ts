@@ -11,6 +11,7 @@ import { BillingProcessor } from './billing.processor';
 import { BillingQueueService } from './billing-queue.service';
 import { BillingJobsController } from './billing-jobs.controller';
 import { VietQRService } from './vietqr.service';
+import { VacantBillingService } from './vacant-billing.service';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { VietQRService } from './vietqr.service';
     BillingProcessor,
     BillingQueueService,
     VietQRService,
+    VacantBillingService,
   ],
   exports: [
     InvoicesService,
@@ -47,6 +49,7 @@ import { VietQRService } from './vietqr.service';
     UtilityTypesService,
     BillingQueueService,
     VietQRService,
+    VacantBillingService,
   ],
 })
 export class BillingModule {}

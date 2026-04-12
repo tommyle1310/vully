@@ -69,6 +69,7 @@ export default function InvoicesPage() {
     page: parseAsInteger.withDefault(1),
     invoiceId: parseAsString.withDefault(''),
     stream: parseAsString.withDefault('all'),
+    vacant: parseAsString.withDefault('all'),
   });
   
   // Apartment filter state with debounce
@@ -103,6 +104,7 @@ export default function InvoicesPage() {
     apartmentId: urlFilters.apartmentId || undefined,
     contractId: urlFilters.contractId || undefined,
     stream: urlFilters.stream === 'all' ? undefined : urlFilters.stream as 'operational' | 'property',
+    vacant: urlFilters.vacant === 'all' ? undefined : urlFilters.vacant === 'true',
   });
 
   const invoices = data?.data || [];
@@ -313,6 +315,25 @@ export default function InvoicesPage() {
               <SelectItem value="all">All Streams</SelectItem>
               <SelectItem value="operational">Operational</SelectItem>
               <SelectItem value="property">Property</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+        
+        {/* Vacant Filter */}
+        {isAdmin && (
+          <Select
+            value={urlFilters.vacant}
+            onValueChange={(value) => {
+              setUrlFilters({ vacant: value, page: 1 });
+            }}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Vacant" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Units</SelectItem>
+              <SelectItem value="true">Vacant Only</SelectItem>
+              <SelectItem value="false">Occupied Only</SelectItem>
             </SelectContent>
           </Select>
         )}

@@ -3,6 +3,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { InvoicesService } from './invoices.service';
+import { VacantBillingService } from './vacant-billing.service';
 
 export interface GenerateMonthlyInvoicesPayload {
   billingPeriod: string;
@@ -26,11 +27,12 @@ export class BillingProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly invoicesService: InvoicesService,
+    private readonly vacantBillingService: VacantBillingService,
   ) {
     super();
   }
 
-  async process(job: Job<GenerateMonthlyInvoicesPayload>): Promise<{ success: number; supplemented: number; failed: number }> {
+  async process(job: Job<GenerateMonthlyInvoicesPayload>): Promise<{ success: number; supplemented: number; failed: number; vacantCount: number }> {
     const { billingPeriod, buildingId, triggeredById, billingJobId, categories } = job.data;
 
     this.logger.log({
@@ -199,11 +201,67 @@ export class BillingProcessor extends WorkerHost {
         });
       }
 
+      // === Pass 2: Vacant apartment billing ===
+      let vacantCount = 0;
+      try {
+        const vacantApartments = await this.vacantBillingService.findBillableVacantApartments(
+          billingPeriod,
+          buildingId,
+        );
+
+        for (const apt of vacantApartments) {
+          try {
+            const result = await this.vacantBillingService.generateVacantInvoice(
+              apt.id,
+              apt.building_id,
+              apt.unit_number,
+              billingPeriod,
+            );
+
+            if (result) {
+              vacantCount++;
+              this.logger.debug({
+                event: 'vacant_invoice_generated',
+                apartmentId: apt.id,
+                unitNumber: apt.unit_number,
+                billingPeriod,
+              });
+
+              // TODO: Enqueue owner notification (email + in-app) when notification module is implemented
+              // Template: "Management fee invoice #{invoice_number} for unit {unit_number} — ₫{total_amount} due by {due_date}"
+              // this.notificationService.notify(apt.owner_id, { type: 'vacant_invoice', invoiceId: result.id });
+              this.logger.log({
+                event: 'owner_notification_pending',
+                ownerId: apt.owner_id,
+                apartmentId: apt.id,
+                unitNumber: apt.unit_number,
+                message: 'Owner notification for vacant invoice — awaiting notification module implementation',
+              });
+            }
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            errors.push({ contractId: `vacant:${apt.id}`, error: errorMessage });
+            this.logger.error({
+              event: 'vacant_invoice_failed',
+              apartmentId: apt.id,
+              unitNumber: apt.unit_number,
+              error: errorMessage,
+            });
+          }
+        }
+      } catch (error) {
+        this.logger.error({
+          event: 'vacant_billing_pass_failed',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+
       // Build summary for error_log (includes created/skipped/supplemented counts)
       const jobSummary = {
         createdCount: successCount,
         skippedCount,
         supplementedCount,
+        vacantCount,
         createdByType,
         errors: errors.length > 0 ? errors : undefined,
       };
@@ -214,7 +272,7 @@ export class BillingProcessor extends WorkerHost {
         data: {
           status: failedCount === 0 ? 'completed' : 'failed',
           completed_at: new Date(),
-          processed_count: contracts.length,
+          processed_count: contracts.length + vacantCount,
           failed_count: failedCount,
           error_log: jobSummary,
         },
@@ -230,10 +288,11 @@ export class BillingProcessor extends WorkerHost {
         supplementedCount,
         skippedCount,
         failedCount,
+        vacantCount,
         totalContracts: contracts.length,
       });
 
-      return { success: successCount, supplemented: supplementedCount, failed: failedCount };
+      return { success: successCount, supplemented: supplementedCount, failed: failedCount, vacantCount };
     } catch (error) {
       // Update billing job as failed
       await this.prisma.billing_jobs.update({

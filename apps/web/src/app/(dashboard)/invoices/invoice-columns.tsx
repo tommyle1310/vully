@@ -36,13 +36,24 @@ export const columns = [
     header: 'Unit',
     cell: (info) => {
       const invoice = info.row.original;
+      const unit = invoice.contract?.apartments.unit_number
+        ?? invoice.apartment?.unit_number;
+      const building = invoice.contract?.apartments.buildings.name
+        ?? invoice.apartment?.buildings.name;
+      const isVacant = !invoice.contractId;
+
       return (
         <div>
           <span className="font-medium">
-            {invoice.contract?.apartments.unit_number || '-'}
+            {unit || '-'}
+            {isVacant && (
+              <Badge variant="outline" className="ml-1.5 text-[10px] px-1 py-0">
+                Vacant
+              </Badge>
+            )}
           </span>
           <span className="block text-xs text-muted-foreground">
-            {invoice.contract?.apartments.buildings.name || ''}
+            {building || ''}
           </span>
         </div>
       );
@@ -51,9 +62,14 @@ export const columns = [
   columnHelper.accessor('contract.tenant.firstName', {
     header: 'Tenant',
     cell: (info) => {
-      const tenant = info.row.original.contract?.tenant;
-      if (!tenant) return '-';
-      return `${tenant.firstName} ${tenant.lastName}`;
+      const invoice = info.row.original;
+      const tenant = invoice.contract?.tenant;
+      if (tenant) return `${tenant.firstName} ${tenant.lastName}`;
+      const owner = invoice.apartment?.owner;
+      if (owner) return (
+        <span className="text-muted-foreground">{owner.firstName} {owner.lastName} (Owner)</span>
+      );
+      return '-';
     },
   }),
   columnHelper.accessor('billingPeriod', {

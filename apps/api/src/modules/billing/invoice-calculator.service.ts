@@ -90,10 +90,26 @@ export class InvoiceCalculatorService {
 
     // 3. Management fee (all occupied apartments)
     if (includeAll || normalizedCategories?.includes('management_fee')) {
+      // Fetch contract dates for pro-rate calculation
+      let contractStartDate: Date | undefined;
+      let contractEndDate: Date | undefined;
+      if (contractId) {
+        const contract = await this.prisma.contracts.findUnique({
+          where: { id: contractId },
+          select: { start_date: true, end_date: true },
+        });
+        if (contract) {
+          contractStartDate = contract.start_date;
+          contractEndDate = contract.end_date ?? undefined;
+        }
+      }
+
       const mgmtItem = await this.buildManagementFeeLineItem(
         apartmentId,
         buildingId,
         billingPeriod,
+        contractStartDate,
+        contractEndDate,
       );
       if (mgmtItem) lineItems.push(mgmtItem);
     }
@@ -382,10 +398,12 @@ export class InvoiceCalculatorService {
   // ---------------------------------------------------------------------------
   // Management Fee
   // ---------------------------------------------------------------------------
-  private async buildManagementFeeLineItem(
+  async buildManagementFeeLineItem(
     apartmentId: string,
     buildingId: string,
     billingPeriod: string,
+    contractStartDate?: Date,
+    contractEndDate?: Date,
   ): Promise<InvoiceLineItemCalc | null> {
     const [year, month] = billingPeriod.split('-').map(Number);
     const periodDate = new Date(year, month - 1, 15);
@@ -413,19 +431,55 @@ export class InvoiceCalculatorService {
     if (area <= 0) return null;
 
     const ratePerSqm = Number(config.price_per_sqm);
-    const baseAmount = area * ratePerSqm;
+    const fullMonthAmount = area * ratePerSqm;
+
+    // Pro-rate calculation
+    const periodStart = new Date(year, month - 1, 1);
+    const periodEnd = new Date(year, month, 0); // last day of month
+    const totalDays = periodEnd.getDate();
+
+    let billableDays = totalDays;
+    const effectiveStart = contractStartDate && contractStartDate > periodStart
+      ? contractStartDate
+      : periodStart;
+    const effectiveEnd = contractEndDate && contractEndDate < periodEnd
+      ? contractEndDate
+      : periodEnd;
+
+    if (effectiveStart > periodStart || effectiveEnd < periodEnd) {
+      billableDays = Math.max(
+        0,
+        Math.floor((effectiveEnd.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24)) + 1,
+      );
+    }
+
+    const proRateFactor = billableDays / totalDays;
+    const isProRated = proRateFactor < 1.0;
+    const baseAmount = Math.round(fullMonthAmount * proRateFactor);
     const vatRate = VAT_RATES['management_fee'];
-    const vatAmount = baseAmount * vatRate;
+    const vatAmount = Math.round(baseAmount * vatRate);
+
+    const description = isProRated
+      ? `Management Fee (${area} m² × ${ratePerSqm.toLocaleString()} VND/m²) — Pro-rated: ${billableDays}/${totalDays} days`
+      : `Management Fee (${area} m² × ${ratePerSqm.toLocaleString()} VND/m²)`;
 
     return {
-      description: `Management Fee (${area} m² × ${ratePerSqm.toLocaleString()} VND/m²)`,
+      description,
       category: 'management_fee',
       quantity: area,
-      unitPrice: ratePerSqm,
+      unitPrice: Math.round(ratePerSqm * proRateFactor),
       amount: baseAmount + vatAmount,
       vatRate,
       vatAmount,
       environmentFee: 0,
+      ...(isProRated && {
+        metadata: {
+          proRated: true,
+          billableDays,
+          totalDays,
+          fullMonthAmount,
+        },
+      }),
     };
   }
 

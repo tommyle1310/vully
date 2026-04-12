@@ -11,6 +11,8 @@ const mockPrismaService = {
   contract_payment_schedules: { findMany: jest.fn() },
   contracts: { findUnique: jest.fn() },
   invoices: { findFirst: jest.fn(), count: jest.fn() },
+  building_policies: { findFirst: jest.fn() },
+  parking_slots: { findMany: jest.fn() },
 };
 
 describe('InvoiceCalculatorService', () => {
@@ -28,6 +30,11 @@ describe('InvoiceCalculatorService', () => {
     service = module.get<InvoiceCalculatorService>(InvoiceCalculatorService);
     prisma = module.get<typeof mockPrismaService>(PrismaService);
     jest.clearAllMocks();
+
+    // Defaults for tables that most tests don't care about
+    prisma.building_policies.findFirst.mockResolvedValue(null);
+    prisma.parking_slots.findMany.mockResolvedValue([]);
+    prisma.contracts.findUnique.mockResolvedValue(null);
   });
 
   describe('calculateTieredAmount', () => {
@@ -152,6 +159,7 @@ describe('InvoiceCalculatorService', () => {
 
   describe('calculateInvoice - utility', () => {
     it('should apply 0% VAT for electricity (thu hộ)', async () => {
+      prisma.utility_types.findMany.mockResolvedValue([{ id: 'elec-id' }]);
       prisma.meter_readings.findMany.mockResolvedValue([
         {
           id: 'reading-1',
@@ -189,6 +197,7 @@ describe('InvoiceCalculatorService', () => {
     });
 
     it('should apply 10% environment fee for water', async () => {
+      prisma.utility_types.findMany.mockResolvedValue([{ id: 'water-id' }]);
       prisma.meter_readings.findMany.mockResolvedValue([
         {
           id: 'reading-w',
@@ -345,6 +354,131 @@ describe('InvoiceCalculatorService', () => {
       );
 
       expect(result.paymentReference).toBe('A101_RENT_202605');
+    });
+  });
+
+  describe('buildManagementFeeLineItem - pro-rate', () => {
+    const mockConfig = {
+      id: 'config-id',
+      building_id: 'building-id',
+      price_per_sqm: 15000,
+      effective_from: new Date('2026-01-01'),
+      effective_to: null,
+    };
+
+    const mockApartment = { gross_area: 80, net_area: null };
+
+    it('should pro-rate for mid-month start (15th of 30-day month)', async () => {
+      prisma.management_fee_configs.findFirst.mockResolvedValue(mockConfig);
+      prisma.apartments.findUnique.mockResolvedValue(mockApartment);
+
+      const result = await service.buildManagementFeeLineItem(
+        'apt-id',
+        'building-id',
+        '2026-06', // June = 30 days
+        new Date(2026, 5, 15), // June 15, local time (consistent with prod code)
+      );
+
+      expect(result).not.toBeNull();
+      // 80 × 15000 = 1,200,000 full month
+      // Billable: Jun 15–30 = 16 days, factor = 16/30
+      const fullMonth = 80 * 15000;
+      const totalDays = 30;
+      const billableDays = 16;
+      const base = Math.round(fullMonth * (billableDays / totalDays));
+      const vat = Math.round(base * 0.10);
+
+      expect(result!.amount).toBe(base + vat);
+      expect(result!.metadata).toBeDefined();
+      expect(result!.metadata!.proRated).toBe(true);
+      expect(result!.metadata!.billableDays).toBe(billableDays);
+      expect(result!.metadata!.totalDays).toBe(totalDays);
+      expect(result!.metadata!.fullMonthAmount).toBe(fullMonth);
+      expect(result!.description).toContain('Pro-rated');
+      expect(result!.description).toContain(`${billableDays}/${totalDays}`);
+    });
+
+    it('should pro-rate for mid-month termination (20th of 31-day month)', async () => {
+      prisma.management_fee_configs.findFirst.mockResolvedValue(mockConfig);
+      prisma.apartments.findUnique.mockResolvedValue(mockApartment);
+
+      const result = await service.buildManagementFeeLineItem(
+        'apt-id',
+        'building-id',
+        '2026-03', // March = 31 days
+        undefined,
+        new Date(2026, 2, 20), // March 20, local time
+      );
+
+      expect(result).not.toBeNull();
+      const billableDays = 20; // Mar 1–20
+      const totalDays = 31;
+      const fullMonth = 80 * 15000;
+      const base = Math.round(fullMonth * (billableDays / totalDays));
+      const vat = Math.round(base * 0.10);
+
+      expect(result!.amount).toBe(base + vat);
+      expect(result!.metadata!.proRated).toBe(true);
+      expect(result!.metadata!.billableDays).toBe(billableDays);
+    });
+
+    it('should return full month when contract spans entire period', async () => {
+      prisma.management_fee_configs.findFirst.mockResolvedValue(mockConfig);
+      prisma.apartments.findUnique.mockResolvedValue(mockApartment);
+
+      const result = await service.buildManagementFeeLineItem(
+        'apt-id',
+        'building-id',
+        '2026-06',
+        new Date(2026, 0, 1),  // Jan 1 — before period
+        new Date(2026, 11, 31), // Dec 31 — after period
+      );
+
+      expect(result).not.toBeNull();
+      const fullMonth = 80 * 15000;
+      const vat = Math.round(fullMonth * 0.10);
+      expect(result!.amount).toBe(fullMonth + vat);
+      expect(result!.metadata).toBeUndefined();
+      expect(result!.description).not.toContain('Pro-rated');
+    });
+
+    it('should round pro-rated amounts to nearest VND', async () => {
+      // Use area that creates fractional amounts
+      prisma.management_fee_configs.findFirst.mockResolvedValue(mockConfig);
+      prisma.apartments.findUnique.mockResolvedValue({ gross_area: 73.3, net_area: null });
+
+      const result = await service.buildManagementFeeLineItem(
+        'apt-id',
+        'building-id',
+        '2026-06', // 30 days
+        new Date(2026, 5, 11), // June 11, local time → 20 billable days
+      );
+
+      expect(result).not.toBeNull();
+      // 73.3 × 15000 = 1,099,500 full month
+      // factor = 20/30 = 0.6667
+      // base = round(1,099,500 × 0.6667) = 732,967 (no fractional đồng)
+      expect(Number.isInteger(result!.amount)).toBe(true);
+      expect(Number.isInteger(result!.vatAmount)).toBe(true);
+      expect(Number.isInteger(result!.unitPrice)).toBe(true);
+    });
+
+    it('should return full month when no contract dates given', async () => {
+      prisma.management_fee_configs.findFirst.mockResolvedValue(mockConfig);
+      prisma.apartments.findUnique.mockResolvedValue(mockApartment);
+
+      const result = await service.buildManagementFeeLineItem(
+        'apt-id',
+        'building-id',
+        '2026-06',
+        // no start/end dates
+      );
+
+      expect(result).not.toBeNull();
+      const fullMonth = 80 * 15000;
+      const vat = Math.round(fullMonth * 0.10);
+      expect(result!.amount).toBe(fullMonth + vat);
+      expect(result!.metadata).toBeUndefined();
     });
   });
 });

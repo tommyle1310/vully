@@ -23,6 +23,25 @@ import {
 import { InvoiceCalculatorService } from './invoice-calculator.service';
 import { toInvoiceResponseDto } from './invoices.mapper';
 
+/** Shared Prisma include for invoice queries that need full relation data for the mapper */
+const INVOICE_INCLUDE = {
+  invoice_line_items: true,
+  contracts: {
+    include: {
+      apartments: {
+        include: { buildings: true },
+      },
+      users_contracts_tenant_idTousers: true,
+    },
+  },
+  apartments: {
+    include: {
+      buildings: true,
+      users: true,
+    },
+  },
+} as const;
+
 @Injectable()
 export class InvoicesService {
   private readonly logger = new Logger(InvoicesService.name);
@@ -124,17 +143,7 @@ export class InvoicesService {
           })),
         },
       },
-      include: {
-        invoice_line_items: true,
-        contracts: {
-          include: {
-            apartments: {
-              include: { buildings: true },
-            },
-            users_contracts_tenant_idTousers: true,
-          },
-        },
-      },
+      include: INVOICE_INCLUDE,
     });
 
     this.logger.log({
@@ -166,15 +175,7 @@ export class InvoicesService {
   ): Promise<InvoiceResponseDto | null> {
     const invoice = await this.prisma.invoices.findUnique({
       where: { id: invoiceId },
-      include: {
-        invoice_line_items: true,
-        contracts: {
-          include: {
-            apartments: { include: { buildings: true } },
-            users_contracts_tenant_idTousers: true,
-          },
-        },
-      },
+      include: INVOICE_INCLUDE,
     });
 
     if (!invoice) {
@@ -187,6 +188,10 @@ export class InvoicesService {
     }
 
     const contract = invoice.contracts;
+
+    if (!contract) {
+      throw new NotFoundException('Invoice has no associated contract — cannot supplement');
+    }
 
     // Recalculate what the full invoice SHOULD contain
     const fullCalc = await this.calculator.calculateInvoice(
@@ -270,15 +275,7 @@ export class InvoicesService {
           tax_amount: newTax,
           total_amount: newTotal,
         },
-        include: {
-          invoice_line_items: true,
-          contracts: {
-            include: {
-              apartments: { include: { buildings: true } },
-              users_contracts_tenant_idTousers: true,
-            },
-          },
-        },
+        include: INVOICE_INCLUDE,
       });
     });
 
@@ -312,7 +309,10 @@ export class InvoicesService {
     }
 
     if (filters.apartmentId) {
-      where.contracts = { apartment_id: filters.apartmentId };
+      where.OR = [
+        { contracts: { apartment_id: filters.apartmentId } },
+        { apartment_id: filters.apartmentId },
+      ];
     }
 
     if (filters.billingPeriod) {
@@ -325,6 +325,14 @@ export class InvoicesService {
 
     if (filters.stream) {
       where.invoice_stream = filters.stream;
+    }
+
+    if (filters.vacant !== undefined) {
+      if (filters.vacant) {
+        where.contract_id = null;
+      } else {
+        where.contract_id = { not: null };
+      }
     }
 
     if (filters.dueDateFrom || filters.dueDateTo) {
@@ -350,17 +358,7 @@ export class InvoicesService {
         skip,
         take: limit,
         orderBy: { created_at: 'desc' },
-        include: {
-          invoice_line_items: true,
-          contracts: {
-            include: {
-              apartments: {
-                include: { buildings: true },
-              },
-              users_contracts_tenant_idTousers: true,
-            },
-          },
-        },
+        include: INVOICE_INCLUDE,
       }),
       this.prisma.invoices.count({ where }),
     ]);
@@ -389,6 +387,12 @@ export class InvoicesService {
             users_contracts_tenant_idTousers: true,
           },
         },
+        apartments: {
+          include: {
+            buildings: true,
+            users: true,
+          },
+        },
       },
     });
 
@@ -396,7 +400,7 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    if (userRole === 'resident' && userId !== invoice.contracts.tenant_id) {
+    if (userRole === 'resident' && userId !== invoice.contracts?.tenant_id) {
       throw new ForbiddenException('Access denied');
     }
 
@@ -438,17 +442,7 @@ export class InvoicesService {
     const updated = await this.prisma.invoices.update({
       where: { id },
       data: updateData,
-      include: {
-        invoice_line_items: true,
-        contracts: {
-          include: {
-            apartments: {
-              include: { buildings: true },
-            },
-            users_contracts_tenant_idTousers: true,
-          },
-        },
-      },
+      include: INVOICE_INCLUDE,
     });
 
     // Sync to payment schedule when marking as paid
@@ -489,17 +483,7 @@ export class InvoicesService {
         status: 'pending',
         due_date: { lt: now },
       },
-      include: {
-        invoice_line_items: true,
-        contracts: {
-          include: {
-            apartments: {
-              include: { buildings: true },
-            },
-            users_contracts_tenant_idTousers: true,
-          },
-        },
-      },
+      include: INVOICE_INCLUDE,
     });
 
     if (overdueInvoices.length > 0) {
@@ -535,7 +519,8 @@ export class InvoicesService {
     }
 
     // Only the tenant can report payment for their invoice
-    if (invoice.contracts.tenant_id !== reporterId) {
+    // Vacant invoices (no contract) cannot have tenant-reported payments
+    if (!invoice.contracts || invoice.contracts.tenant_id !== reporterId) {
       throw new ForbiddenException('Only the invoice tenant can report payment');
     }
 
@@ -564,15 +549,7 @@ export class InvoicesService {
           reportedPayment,
         } as Prisma.InputJsonValue,
       },
-      include: {
-        invoice_line_items: true,
-        contracts: {
-          include: {
-            apartments: { include: { buildings: true } },
-            users_contracts_tenant_idTousers: true,
-          },
-        },
-      },
+      include: INVOICE_INCLUDE,
     });
 
     this.logger.log({
@@ -611,15 +588,7 @@ export class InvoicesService {
           },
         ],
       },
-      include: {
-        invoice_line_items: true,
-        contracts: {
-          include: {
-            apartments: { include: { buildings: true } },
-            users_contracts_tenant_idTousers: true,
-          },
-        },
-      },
+      include: INVOICE_INCLUDE,
       orderBy: { updated_at: 'desc' },
     });
 
@@ -652,15 +621,7 @@ export class InvoicesService {
           },
         ],
       },
-      include: {
-        invoice_line_items: true,
-        contracts: {
-          include: {
-            apartments: { include: { buildings: true } },
-            users_contracts_tenant_idTousers: true,
-          },
-        },
-      },
+      include: INVOICE_INCLUDE,
       orderBy: { updated_at: 'desc' },
     });
 
@@ -679,15 +640,7 @@ export class InvoicesService {
   ): Promise<InvoiceResponseDto> {
     const invoice = await this.prisma.invoices.findUnique({
       where: { id },
-      include: {
-        invoice_line_items: true,
-        contracts: {
-          include: {
-            apartments: { include: { buildings: true } },
-            users_contracts_tenant_idTousers: true,
-          },
-        },
-      },
+      include: INVOICE_INCLUDE,
     });
 
     if (!invoice) {
@@ -778,15 +731,7 @@ export class InvoicesService {
     const updated = await this.prisma.invoices.update({
       where: { id },
       data: updateData,
-      include: {
-        invoice_line_items: true,
-        contracts: {
-          include: {
-            apartments: { include: { buildings: true } },
-            users_contracts_tenant_idTousers: true,
-          },
-        },
-      },
+      include: INVOICE_INCLUDE,
     });
 
     return toInvoiceResponseDto(updated);
@@ -797,7 +742,7 @@ export class InvoicesService {
    * This ensures Financial Summary in contract detail shows the correct amounts.
    */
   private async syncPaymentToSchedule(
-    contractId: string,
+    contractId: string | null,
     billingPeriod: string,
     lineItems: { category: string | null; unit_price: Prisma.Decimal }[],
     paidAmount: number,
@@ -806,6 +751,9 @@ export class InvoicesService {
     reportedPayment: Record<string, unknown>,
     verifierId: string,
   ): Promise<void> {
+    // Vacant invoices (no contract) don't have payment schedules
+    if (!contractId) return;
+
     try {
       // Find rent line item to get base amount (excl. VAT)
       const rentItem = lineItems.find((item) => item.category === 'rent');

@@ -45,6 +45,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { ScheduleQRDisplay } from '@/components/payments/ScheduleQRDisplay';
 import { ReportInvoicePaymentDialog } from '@/components/payments/ReportInvoicePaymentDialog';
+import { TierBreakdown } from '@/components/billing/TierBreakdown';
+import { ProRateIndicator } from '@/components/billing/ProRateIndicator';
 
 interface InvoiceDetailSheetProps {
   invoice: Invoice | null;
@@ -89,10 +91,12 @@ function groupLineItemsByCategory(lineItems: InvoiceLineItem[]) {
 
 export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetailSheetProps) {
   const { toast } = useToast();
+  const { hasAnyRole } = useAuthStore();
   const { mutate: markAsPaid, isPending } = useMarkInvoicePaid();
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
 
-  // Check if there's a reported payment pending verification
+  // Check role and reported payment status
+  const isAdmin = hasAnyRole(['admin', 'technician']);
   const reportedPayment = invoice?.priceSnapshot?.reportedPayment;
 
   const groupedItems = useMemo(
@@ -196,6 +200,17 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetai
                           {invoice.contract.tenant.email}
                         </p>
                       </>
+                    ) : invoice.apartment?.owner ? (
+                      <>
+                        <p className="font-medium">
+                          {invoice.apartment.owner.firstName}{' '}
+                          {invoice.apartment.owner.lastName}
+                          <span className="text-xs text-muted-foreground ml-1">(Owner)</span>
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {invoice.apartment.owner.email}
+                        </p>
+                      </>
                     ) : (
                       <p className="text-muted-foreground">-</p>
                     )}
@@ -217,6 +232,16 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetai
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {invoice.contract.apartments.buildings.name}
+                        </p>
+                      </>
+                    ) : invoice.apartment ? (
+                      <>
+                        <p className="font-medium">
+                          Unit {invoice.apartment.unit_number}
+                          <Badge variant="outline" className="ml-1.5 text-[10px] px-1 py-0">Vacant</Badge>
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {invoice.apartment.buildings.name}
                         </p>
                       </>
                     ) : (
@@ -281,6 +306,15 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetai
                                     <span className="ml-2 text-xs text-muted-foreground">
                                       (VAT {(item.vatRate * 100).toFixed(0)}%)
                                     </span>
+                                  )}
+                                  {item.tierBreakdown && (
+                                    <TierBreakdown
+                                      breakdown={item.tierBreakdown}
+                                      environmentFee={item.environmentFee}
+                                    />
+                                  )}
+                                  {item.metadata?.proRated && (
+                                    <ProRateIndicator metadata={item.metadata} />
                                   )}
                                 </div>
                               </TableCell>
@@ -377,8 +411,8 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetai
                 </Card>
               )}
 
-              {/* Reported Payment Pending Verification Notice */}
-              {reportedPayment && (
+              {/* Reported Payment Pending Verification Notice - Residents only */}
+              {!isAdmin && reportedPayment && (
                 <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
                   <CardContent className="py-4">
                     <div className="flex items-start gap-3">
@@ -405,8 +439,8 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetai
                 </Card>
               )}
 
-              {/* QR Code Payment - for pending/overdue invoices */}
-              {(invoice.status === 'pending' || invoice.status === 'overdue') && !reportedPayment && invoice.contract?.apartments?.buildings?.id && (
+              {/* QR Code Payment - Residents only, for pending/overdue invoices */}
+              {!isAdmin && (invoice.status === 'pending' || invoice.status === 'overdue') && !reportedPayment && invoice.contract?.apartments?.buildings?.id && (
                 <Card>
                   <CardHeader className="py-3">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -436,15 +470,17 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetai
                 </Card>
               )}
 
-              {/* Report Payment Dialog */}
-              <ReportInvoicePaymentDialog
-                open={reportDialogOpen}
-                onOpenChange={setReportDialogOpen}
-                invoice={invoice}
-                onSuccess={() => onOpenChange(false)}
-              />
+              {/* Report Payment Dialog - Residents only */}
+              {!isAdmin && (
+                <ReportInvoicePaymentDialog
+                  open={reportDialogOpen}
+                  onOpenChange={setReportDialogOpen}
+                  invoice={invoice}
+                  onSuccess={() => onOpenChange(false)}
+                />
+              )}
 
-              {/* Actions - Admin only */}
+              {/* Direct Payment Actions - Admin only */}
               {(invoice.status === 'pending' || invoice.status === 'overdue') && (
                 <AdminInvoiceActions
                   invoice={invoice}
