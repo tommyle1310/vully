@@ -214,7 +214,7 @@ export default function IncidentsPage() {
         <DataTable
           table={table}
           onRowClick={handleRowClick}
-          defaultColumnWidths={[100, 140, 100, 120, 100, 100,100]}
+          defaultColumnWidths={[150, 100, 140, 80, 100, 100,100]}
           emptyMessage="No incidents found"
         />
       )}

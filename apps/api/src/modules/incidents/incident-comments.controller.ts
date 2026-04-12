@@ -55,7 +55,7 @@ export class IncidentCommentsController {
       incidentId,
       dto,
       user.id,
-      user.role,
+      user.roles,
     );
     return { data: comment };
   }
@@ -74,7 +74,7 @@ export class IncidentCommentsController {
     const comments = await this.commentsService.findAll(
       incidentId,
       user.id,
-      user.role,
+      user.roles,
     );
     return { data: comments };
   }
@@ -95,7 +95,7 @@ export class IncidentCommentsController {
       commentId,
       dto,
       user.id,
-      user.role,
+      user.roles,
     );
     return { data: comment };
   }
@@ -112,6 +112,6 @@ export class IncidentCommentsController {
     @Param('commentId', ParseUUIDPipe) commentId: string,
     @CurrentUser() user: AuthUser,
   ): Promise<void> {
-    await this.commentsService.delete(commentId, user.id, user.role);
+    await this.commentsService.delete(commentId, user.id, user.roles);
   }
 }

@@ -1,6 +1,7 @@
 'use client';
 
-import { LogOut, Settings, User } from 'lucide-react';
+import { LogOut, Settings, User, Sun, Moon, Monitor } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/hooks/use-auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -16,6 +17,7 @@ import { Button } from '@/components/ui/button';
 
 export function UserProfileDropdown() {
   const { user, logout, isLoggingOut } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   if (!user) return null;
 
@@ -58,6 +60,33 @@ export function UserProfileDropdown() {
           <DropdownMenuItem>
             <Settings className="mr-2 h-4 w-4" />
             <span>Settings</span>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+          Theme
+        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            onClick={() => setTheme('light')}
+            className={theme === 'light' ? 'bg-accent' : ''}
+          >
+            <Sun className="mr-2 h-4 w-4" />
+            <span>Light</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setTheme('dark')}
+            className={theme === 'dark' ? 'bg-accent' : ''}
+          >
+            <Moon className="mr-2 h-4 w-4" />
+            <span>Dark</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setTheme('system')}
+            className={theme === 'system' ? 'bg-accent' : ''}
+          >
+            <Monitor className="mr-2 h-4 w-4" />
+            <span>System</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

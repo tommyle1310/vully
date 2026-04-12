@@ -55,7 +55,7 @@ export class IncidentsController {
     @Body() dto: CreateIncidentDto,
     @CurrentUser() user: AuthUser,
   ): Promise<{ data: IncidentResponseDto }> {
-    const incident = await this.incidentsService.create(dto, user.id, user.role);
+    const incident = await this.incidentsService.create(dto, user.id, user.roles);
     return { data: incident };
   }
 
@@ -108,7 +108,7 @@ export class IncidentsController {
       pageNum,
       limitNum,
       user.id,
-      user.role,
+      user.roles,
     );
 
     return {
@@ -149,7 +149,7 @@ export class IncidentsController {
 
     const result = await this.incidentsService.getMyIncidents(
       user.id,
-      user.role,
+      user.roles,
       filters,
       pageNum,
       limitNum,
@@ -177,7 +177,7 @@ export class IncidentsController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: AuthUser,
   ): Promise<{ data: IncidentResponseDto }> {
-    const incident = await this.incidentsService.findOne(id, user.id, user.role);
+    const incident = await this.incidentsService.findOne(id, user.id, user.roles);
     return { data: incident };
   }
 
@@ -193,7 +193,7 @@ export class IncidentsController {
     @Body() dto: UpdateIncidentDto,
     @CurrentUser() user: AuthUser,
   ): Promise<{ data: IncidentResponseDto }> {
-    const incident = await this.incidentsService.update(id, dto, user.id, user.role);
+    const incident = await this.incidentsService.update(id, dto, user.id, user.roles);
     return { data: incident };
   }
 
@@ -213,7 +213,7 @@ export class IncidentsController {
       id,
       dto,
       user.id,
-      user.role,
+      user.roles,
     );
     return { data: incident };
   }
@@ -235,7 +235,7 @@ export class IncidentsController {
       id,
       dto,
       user.id,
-      user.role,
+      user.roles,
     );
     return { data: incident };
   }
@@ -251,6 +251,6 @@ export class IncidentsController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: AuthUser,
   ): Promise<void> {
-    await this.incidentsService.delete(id, user.id, user.role);
+    await this.incidentsService.delete(id, user.id, user.roles);
   }
 }

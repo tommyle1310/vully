@@ -194,14 +194,14 @@ export function IncidentDetailSheet({
               currentIncident?.title
             )}
           </SheetTitle>
-          <SheetDescription className="text-left">
-            {loadingIncident ? (
-              <Skeleton className="h-4 w-1/2" />
-            ) : (
-              categoryLabels[currentIncident?.category ?? ''] ??
-              currentIncident?.category
-            )}
-          </SheetDescription>
+          {loadingIncident ? (
+            <Skeleton className="h-4 w-1/2" />
+          ) : (
+            <SheetDescription className="text-left">
+              {categoryLabels[currentIncident?.category ?? ''] ??
+                currentIncident?.category}
+            </SheetDescription>
+          )}
         </SheetHeader>
 
         <ScrollArea className="flex-1 -mx-6 px-6">
@@ -283,8 +283,10 @@ export function IncidentDetailSheet({
                   onValueChange={handleStatusChange}
                   disabled={updateStatus.isPending}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {currentIncident?.status && statusConfig[currentIncident.status]?.label}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {isAdmin && (

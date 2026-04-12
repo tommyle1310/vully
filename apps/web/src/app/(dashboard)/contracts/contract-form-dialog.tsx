@@ -53,6 +53,13 @@ import {
 import { PartyCombobox } from './party-combobox';
 import { ContractFinancialTerms } from './contract-financial-terms';
 
+interface ContractFormDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  contract?: Contract;
+  mode: 'create' | 'edit';
+}
+
 export function ContractFormDialog({
   open,
   onOpenChange,
@@ -261,8 +268,8 @@ export function ContractFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2">
             <TypeIcon className="h-5 w-5" />
             {mode === 'create' ? 'New Contract' : 'Edit Contract'}
@@ -275,12 +282,13 @@ export function ContractFormDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Contract Type Selection */}
-            <FormField
-              control={form.control}
-              name="contractType"
-              render={({ field }) => (
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+              {/* Contract Type Selection */}
+              <FormField
+                control={form.control}
+                name="contractType"
+                render={({ field }) => (
                 <FormItem>
                   <FormLabel>Contract Type</FormLabel>
                   <div className="grid grid-cols-3 gap-3">
@@ -380,7 +388,13 @@ export function ContractFormDialog({
                   <FormItem>
                     <FormLabel>Number of Residents</FormLabel>
                     <FormControl>
-                      <Input type="number" min={1} {...field} />
+                      <Input
+                        type="number"
+                        min={1}
+                        {...field}
+                        value={field.value ?? ''}
+                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -463,22 +477,24 @@ export function ContractFormDialog({
                       control={form.control}
                       name="issueBuildingCard"
                       render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormItem>
                           <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
+                            <label className="flex flex-row items-start space-x-3 rounded-md border p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                              <div className="space-y-1 leading-none flex-1">
+                                <div className="flex items-center gap-2 font-medium text-sm cursor-pointer">
+                                  <Key className="h-4 w-4" />
+                                  Building Card
+                                </div>
+                                <p className="text-sm text-muted-foreground cursor-pointer">
+                                  Lobby & elevator access
+                                </p>
+                              </div>
+                            </label>
                           </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel className="flex items-center gap-2">
-                              <Key className="h-4 w-4" />
-                              Building Card
-                            </FormLabel>
-                            <FormDescription>
-                              Lobby & elevator access
-                            </FormDescription>
-                          </div>
                         </FormItem>
                       )}
                     />
@@ -486,22 +502,24 @@ export function ContractFormDialog({
                       control={form.control}
                       name="issueParkingCard"
                       render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormItem>
                           <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
+                            <label className="flex flex-row items-start space-x-3 rounded-md border p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                              <div className="space-y-1 leading-none flex-1">
+                                <div className="flex items-center gap-2 font-medium text-sm cursor-pointer">
+                                  <Car className="h-4 w-4" />
+                                  Parking Card
+                                </div>
+                                <p className="text-sm text-muted-foreground cursor-pointer">
+                                  Vehicle parking access
+                                </p>
+                              </div>
+                            </label>
                           </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel className="flex items-center gap-2">
-                              <Car className="h-4 w-4" />
-                              Parking Card
-                            </FormLabel>
-                            <FormDescription>
-                              Vehicle parking access
-                            </FormDescription>
-                          </div>
                         </FormItem>
                       )}
                     />
@@ -528,7 +546,7 @@ export function ContractFormDialog({
                             ].map((facility) => (
                               <label
                                 key={facility.id}
-                                className="flex items-center gap-2 rounded border p-2 cursor-pointer hover:bg-muted/50"
+                                className="flex items-center gap-2 rounded border p-2 cursor-pointer hover:bg-muted/50 transition-colors"
                               >
                                 <Checkbox
                                   checked={field.value?.includes(facility.id)}
@@ -543,7 +561,7 @@ export function ContractFormDialog({
                                     }
                                   }}
                                 />
-                                <span className="text-sm">{facility.label}</span>
+                                <span className="text-sm cursor-pointer">{facility.label}</span>
                               </label>
                             ))}
                           </div>
@@ -576,8 +594,9 @@ export function ContractFormDialog({
                 </FormItem>
               )}
             />
+            </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="px-6 py-4 border-t gap-2 sm:gap-0">
               <Button
                 type="button"
                 variant="outline"

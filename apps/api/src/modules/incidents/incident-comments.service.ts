@@ -30,7 +30,7 @@ export class IncidentCommentsService {
     incidentId: string,
     dto: CreateIncidentCommentDto,
     actorId: string,
-    actorRole: UserRole,
+    actorRoles: UserRole[],
   ): Promise<IncidentCommentResponseDto> {
     // Verify incident exists
     const incident = await this.prisma.incidents.findUnique({
@@ -41,21 +41,28 @@ export class IncidentCommentsService {
       throw new NotFoundException('Incident not found');
     }
 
-    // Check access: residents can only comment on their own incidents
-    if (actorRole === UserRole.resident && incident.reported_by !== actorId) {
-      throw new ForbiddenException('You can only comment on your own incidents');
+    // Admin can comment on any incident
+    if (actorRoles.includes(UserRole.admin)) {
+      // No restrictions for admin
     }
-
-    // Check access: technicians can only comment on assigned incidents
-    if (actorRole === UserRole.technician && incident.assigned_to !== actorId) {
-      throw new ForbiddenException(
-        'You can only comment on incidents assigned to you',
-      );
+    // Pure residents can only comment on their own incidents
+    else if (actorRoles.includes(UserRole.resident) && !actorRoles.includes(UserRole.technician)) {
+      if (incident.reported_by !== actorId) {
+        throw new ForbiddenException('You can only comment on your own incidents');
+      }
+    }
+    // Technicians (without admin) can only comment on assigned incidents
+    else if (actorRoles.includes(UserRole.technician) && !actorRoles.includes(UserRole.admin)) {
+      if (incident.assigned_to !== actorId) {
+        throw new ForbiddenException(
+          'You can only comment on incidents assigned to you',
+        );
+      }
     }
 
     // Internal comments can only be made by admin or technician
     const isInternal =
-      dto.isInternal && (actorRole === UserRole.admin || actorRole === UserRole.technician);
+      dto.isInternal && (actorRoles.includes(UserRole.admin) || actorRoles.includes(UserRole.technician));
 
     const comment = await this.prisma.incident_comments.create({
       data: {
@@ -117,7 +124,7 @@ export class IncidentCommentsService {
   async findAll(
     incidentId: string,
     actorId: string,
-    actorRole: UserRole,
+    actorRoles: UserRole[],
   ): Promise<IncidentCommentResponseDto[]> {
     // Verify incident exists and user has access
     const incident = await this.prisma.incidents.findUnique({
@@ -128,21 +135,29 @@ export class IncidentCommentsService {
       throw new NotFoundException('Incident not found');
     }
 
-    // Check access
-    if (actorRole === UserRole.resident && incident.reported_by !== actorId) {
-      throw new ForbiddenException('You can only view comments on your own incidents');
+    // Admin can view all comments
+    if (actorRoles.includes(UserRole.admin)) {
+      // No restrictions for admin
     }
-
-    if (actorRole === UserRole.technician && incident.assigned_to !== actorId) {
-      throw new ForbiddenException(
-        'You can only view comments on incidents assigned to you',
-      );
+    // Pure residents can only view comments on their own incidents
+    else if (actorRoles.includes(UserRole.resident) && !actorRoles.includes(UserRole.technician)) {
+      if (incident.reported_by !== actorId) {
+        throw new ForbiddenException('You can only view comments on your own incidents');
+      }
+    }
+    // Technicians (without admin) can only view comments on assigned incidents
+    else if (actorRoles.includes(UserRole.technician) && !actorRoles.includes(UserRole.admin)) {
+      if (incident.assigned_to !== actorId) {
+        throw new ForbiddenException(
+          'You can only view comments on incidents assigned to you',
+        );
+      }
     }
 
     const whereClause: any = { incident_id: incidentId };
 
-    // Residents cannot see internal comments
-    if (actorRole === UserRole.resident) {
+    // Pure residents cannot see internal comments
+    if (actorRoles.includes(UserRole.resident) && !actorRoles.includes(UserRole.admin) && !actorRoles.includes(UserRole.technician)) {
       whereClause.is_internal = false;
     }
 
@@ -163,7 +178,7 @@ export class IncidentCommentsService {
     commentId: string,
     dto: UpdateIncidentCommentDto,
     actorId: string,
-    actorRole: UserRole,
+    actorRoles: UserRole[],
   ): Promise<IncidentCommentResponseDto> {
     const comment = await this.prisma.incident_comments.findUnique({
       where: { id: commentId },
@@ -174,14 +189,14 @@ export class IncidentCommentsService {
     }
 
     // Only author or admin can update
-    if (actorRole !== UserRole.admin && comment.author_id !== actorId) {
+    if (!actorRoles.includes(UserRole.admin) && comment.author_id !== actorId) {
       throw new ForbiddenException('You can only edit your own comments');
     }
 
     // Determine isInternal: admin/technician can toggle, residents always false
     let isInternal = comment.is_internal;
     if (dto.isInternal !== undefined) {
-      if (actorRole === UserRole.admin || actorRole === UserRole.technician) {
+      if (actorRoles.includes(UserRole.admin) || actorRoles.includes(UserRole.technician)) {
         isInternal = dto.isInternal;
       }
     }
@@ -211,7 +226,7 @@ export class IncidentCommentsService {
   async delete(
     commentId: string,
     actorId: string,
-    actorRole: UserRole,
+    actorRoles: UserRole[],
   ): Promise<void> {
     const comment = await this.prisma.incident_comments.findUnique({
       where: { id: commentId },
@@ -222,7 +237,7 @@ export class IncidentCommentsService {
     }
 
     // Only author or admin can delete
-    if (actorRole !== UserRole.admin && comment.author_id !== actorId) {
+    if (!actorRoles.includes(UserRole.admin) && comment.author_id !== actorId) {
       throw new ForbiddenException('You can only delete your own comments');
     }
 

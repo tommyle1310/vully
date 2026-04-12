@@ -46,7 +46,7 @@ export class IncidentsService {
   async create(
     dto: CreateIncidentDto,
     actorId: string,
-    actorRole: UserRole,
+    actorRoles: UserRole[],
   ): Promise<IncidentResponseDto> {
     // Verify apartment exists
     const apartment = await this.prisma.apartments.findUnique({
@@ -58,8 +58,12 @@ export class IncidentsService {
       throw new NotFoundException('Apartment not found');
     }
 
-    // If reporter is a resident, verify they have an active contract for this apartment
-    if (actorRole === UserRole.resident) {
+    // If reporter is ONLY a resident (not admin/technician), verify they have an active contract
+    const isExclusiveResident = actorRoles.includes(UserRole.resident) && 
+      !actorRoles.includes(UserRole.admin) && 
+      !actorRoles.includes(UserRole.technician);
+
+    if (isExclusiveResident) {
       const activeContract = await this.prisma.contracts.findFirst({
         where: {
           tenant_id: actorId,
@@ -106,6 +110,7 @@ export class IncidentsService {
     this.logger.log({
       event: 'incident_created',
       actorId,
+      actorRoles,
       incidentId: incident.id,
       category: dto.category,
       priority: dto.priority,
@@ -130,18 +135,29 @@ export class IncidentsService {
     page = 1,
     limit = DEFAULT_PAGINATION_LIMIT,
     userId?: string,
-    userRole?: UserRole,
+    userRoles?: UserRole[],
   ): Promise<{ data: IncidentResponseDto[]; total: number; pages: number }> {
     const where: Prisma.incidentsWhereInput = {};
 
-    // Residents can only see their own reported incidents
-    if (userRole === UserRole.resident && userId) {
+    // Only pure residents (not admin/tech) can only see their own reported incidents
+    const isExclusiveResident = userRoles?.includes(UserRole.resident) && 
+      !userRoles?.includes(UserRole.admin) && 
+      !userRoles?.includes(UserRole.technician);
+
+    if (isExclusiveResident && userId) {
       where.reported_by = userId;
     }
 
-    // Technicians can see their assigned incidents
-    if (userRole === UserRole.technician && userId) {
-      where.assigned_to = userId;
+    // Technicians (without admin role) can see their assigned incidents + broader view
+    const isTechnicianOnly = userRoles?.includes(UserRole.technician) && 
+      !userRoles?.includes(UserRole.admin);
+
+    if (isTechnicianOnly && userId) {
+      // Technicians can see incidents assigned to them or unassigned ones
+      where.OR = [
+        { assigned_to: userId },
+        { assigned_to: null, status: 'open' },
+      ];
     }
 
     // Apply filters
@@ -221,7 +237,7 @@ export class IncidentsService {
   async findOne(
     id: string,
     userId?: string,
-    userRole?: UserRole,
+    userRoles?: UserRole[],
   ): Promise<IncidentResponseDto> {
     const incident = await this.prisma.incidents.findUnique({
       where: { id },
@@ -253,13 +269,21 @@ export class IncidentsService {
       throw new NotFoundException('Incident not found');
     }
 
-    // Access control
-    if (userRole === UserRole.resident && incident.reported_by !== userId) {
-      throw new ForbiddenException('You can only view your own incidents');
+    // Access control (admins can see all)
+    if (userRoles?.includes(UserRole.admin)) {
+      // Admin can view any incident
     }
-
-    if (userRole === UserRole.technician && incident.assigned_to !== userId) {
-      throw new ForbiddenException('You can only view incidents assigned to you');
+    // Pure residents can only view their own incidents
+    else if (userRoles?.includes(UserRole.resident) && !userRoles?.includes(UserRole.technician)) {
+      if (incident.reported_by !== userId) {
+        throw new ForbiddenException('You can only view your own incidents');
+      }
+    }
+    // Technicians (without admin) can only view assigned incidents
+    else if (userRoles?.includes(UserRole.technician) && !userRoles?.includes(UserRole.admin)) {
+      if (incident.assigned_to !== userId) {
+        throw new ForbiddenException('You can only view incidents assigned to you');
+      }
     }
 
     return this.toResponseDto(incident);
@@ -269,7 +293,7 @@ export class IncidentsService {
     id: string,
     dto: UpdateIncidentDto,
     actorId: string,
-    actorRole: UserRole,
+    actorRoles: UserRole[],
   ): Promise<IncidentResponseDto> {
     const incident = await this.prisma.incidents.findUnique({
       where: { id },
@@ -279,8 +303,12 @@ export class IncidentsService {
       throw new NotFoundException('Incident not found');
     }
 
-    // Only admin can update all fields; residents can only update their own open incidents
-    if (actorRole === UserRole.resident) {
+    // Admin can update any incident
+    if (actorRoles.includes(UserRole.admin)) {
+      // No restrictions for admin
+    }
+    // Pure residents can only update their own open incidents
+    else if (actorRoles.includes(UserRole.resident) && !actorRoles.includes(UserRole.technician)) {
       if (incident.reported_by !== actorId) {
         throw new ForbiddenException('You can only update your own incidents');
       }
@@ -290,10 +318,12 @@ export class IncidentsService {
         );
       }
     }
-
-    // Technicians cannot update incident details (only status via separate endpoint)
-    if (actorRole === UserRole.technician) {
+    // Technicians without admin role cannot update incident details
+    else if (actorRoles.includes(UserRole.technician) && !actorRoles.includes(UserRole.admin)) {
       throw new ForbiddenException('Technicians cannot update incident details');
+    }
+    else {
+      throw new ForbiddenException('Insufficient permissions to update incident');
     }
 
     const updated = await this.prisma.incidents.update({
@@ -335,10 +365,10 @@ export class IncidentsService {
     id: string,
     dto: AssignTechnicianDto,
     actorId: string,
-    actorRole: UserRole,
+    actorRoles: UserRole[],
   ): Promise<IncidentResponseDto> {
     // Only admin can assign technicians
-    if (actorRole !== UserRole.admin) {
+    if (!actorRoles.includes(UserRole.admin)) {
       throw new ForbiddenException('Only administrators can assign technicians');
     }
 
@@ -415,7 +445,7 @@ export class IncidentsService {
     id: string,
     dto: UpdateIncidentStatusDto,
     actorId: string,
-    actorRole: UserRole,
+    actorRoles: UserRole[],
   ): Promise<IncidentResponseDto> {
     const incident = await this.prisma.incidents.findUnique({
       where: { id },
@@ -437,7 +467,7 @@ export class IncidentsService {
     this.validateStatusChangePermission(
       incident.status,
       dto.status,
-      actorRole,
+      actorRoles,
       actorId,
       incident.assigned_to,
     );
@@ -525,17 +555,17 @@ export class IncidentsService {
   private validateStatusChangePermission(
     currentStatus: IncidentStatus,
     newStatus: IncidentStatus,
-    actorRole: UserRole,
+    actorRoles: UserRole[],
     actorId: string,
     assignedToId: string | null,
   ): void {
     // Admin can do any valid transition
-    if (actorRole === UserRole.admin) {
+    if (actorRoles.includes(UserRole.admin)) {
       return;
     }
 
     // Technician can only update incidents assigned to them
-    if (actorRole === UserRole.technician) {
+    if (actorRoles.includes(UserRole.technician)) {
       if (assignedToId !== actorId) {
         throw new ForbiddenException(
           'You can only update status for incidents assigned to you',
@@ -560,13 +590,13 @@ export class IncidentsService {
       return;
     }
 
-    // Residents cannot change status
+    // Residents (without admin/tech roles) cannot change status
     throw new ForbiddenException('Residents cannot change incident status');
   }
 
-  async delete(id: string, actorId: string, actorRole: UserRole): Promise<void> {
+  async delete(id: string, actorId: string, actorRoles: UserRole[]): Promise<void> {
     // Only admin can delete incidents
-    if (actorRole !== UserRole.admin) {
+    if (!actorRoles.includes(UserRole.admin)) {
       throw new ForbiddenException('Only administrators can delete incidents');
     }
 
@@ -591,17 +621,24 @@ export class IncidentsService {
 
   async getMyIncidents(
     userId: string,
-    userRole: UserRole,
+    userRoles: UserRole[],
     filters: IncidentFiltersDto,
     page = 1,
     limit = DEFAULT_PAGINATION_LIMIT,
   ): Promise<{ data: IncidentResponseDto[]; total: number; pages: number }> {
     const where: Prisma.incidentsWhereInput = {};
 
-    if (userRole === UserRole.resident) {
-      where.reported_by = userId;
-    } else if (userRole === UserRole.technician) {
+    // Admins see all incidents (no filters)
+    if (userRoles.includes(UserRole.admin)) {
+      // No restriction for admins
+    }
+    // Technicians see incidents assigned to them
+    else if (userRoles.includes(UserRole.technician)) {
       where.assigned_to = userId;
+    }
+    // Pure residents see incidents they reported
+    else if (userRoles.includes(UserRole.resident)) {
+      where.reported_by = userId;
     }
 
     // Apply additional filters

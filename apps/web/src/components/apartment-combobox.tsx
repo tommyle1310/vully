@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Check, ChevronsUpDown, Building2, Loader2 } from 'lucide-react';
 import { useBuildings } from '@/hooks/use-buildings';
 import { useApartments } from '@/hooks/use-apartments';
@@ -45,6 +45,43 @@ export function ApartmentCombobox({
   const [selectedBuildingId, setSelectedBuildingId] = useState<
     string | undefined
   >(undefined);
+  
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  // Scroll parent dialog when popover opens to ensure visibility
+  useEffect(() => {
+    if (open && triggerRef.current) {
+      // Small delay to ensure popover is rendered
+      const timer = setTimeout(() => {
+        const trigger = triggerRef.current;
+        if (!trigger) return;
+
+        // Find the dialog content container (scrollable parent)
+        const dialogContent = trigger.closest('[role="dialog"]');
+        const scrollContainer = dialogContent?.querySelector('[class*="overflow-y-auto"]');
+        
+        if (scrollContainer && trigger) {
+          const triggerRect = trigger.getBoundingClientRect();
+          const containerRect = scrollContainer.getBoundingClientRect();
+          
+          // Calculate if trigger is near bottom of container
+          const distanceFromBottom = containerRect.bottom - triggerRect.bottom;
+          const popoverHeight = 500; // Approximate max popover height
+          
+          // If not enough space below, scroll to make room
+          if (distanceFromBottom < popoverHeight) {
+            const scrollAmount = popoverHeight - distanceFromBottom + 16; // 16px margin
+            scrollContainer.scrollBy({
+              top: scrollAmount,
+              behavior: 'smooth',
+            });
+          }
+        }
+      }, 50);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
 
   // Debounce the apartment search for server-side query (500ms for API calls)
   useEffect(() => {
@@ -108,6 +145,7 @@ export function ApartmentCombobox({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -119,7 +157,15 @@ export function ApartmentCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[420px] p-0" align="start" side="bottom" sideOffset={4}>
+      <PopoverContent 
+        className="w-[420px] p-0" 
+        align="start" 
+        side="bottom" 
+        sideOffset={4}
+        avoidCollisions={true}
+        collisionPadding={8}
+        sticky="always"
+      >
         {/* ── Building filter ── */}
         <div className="border-b p-2">
           <Command className="border-none shadow-none">
@@ -128,7 +174,13 @@ export function ApartmentCombobox({
               value={buildingSearch}
               onValueChange={setBuildingSearch}
             />
-            <CommandList className="max-h-[120px] overflow-y-auto">
+            <CommandList 
+              className="max-h-[120px] overflow-y-auto"
+              onWheel={(e) => {
+                // Allow native scroll behavior
+                e.stopPropagation();
+              }}
+            >
               <CommandEmpty>No buildings found.</CommandEmpty>
               <CommandGroup>
                 <CommandItem
@@ -183,7 +235,13 @@ export function ApartmentCombobox({
               <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
             )}
           </div>
-          <CommandList className="max-h-[280px] overflow-y-auto">
+          <CommandList 
+            className="max-h-[280px] overflow-y-auto"
+            onWheel={(e) => {
+              // Allow native scroll behavior
+              e.stopPropagation();
+            }}
+          >
             {loadingApts ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-4 w-4 animate-spin" />

@@ -72,10 +72,10 @@ const navConfig: NavEntry[] = [
 ];
 
 // ── Glassmorphism Style Constants ──────────────────
-const glassLink = "relative flex w-full items-center overflow-hidden rounded-xl py-2.5 text-sm font-medium transition-all duration-200 before:absolute before:left-0 before:right-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/60 before:to-transparent before:content-['']";
-const glassActive = 'border border-primary/40 bg-primary/85 text-primary-foreground shadow-[0_8px_24px_hsl(var(--primary)/0.4),inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-[21px] dark:bg-primary/75 dark:shadow-[0_8px_24px_hsl(var(--primary)/0.25),inset_0_1px_0_rgba(255,255,255,0.08)]';
-const glassInactive = 'border border-white/25 bg-white/[0.08] text-muted-foreground/95 shadow-[0_4px_16px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-[21px] hover:-translate-y-[1px] hover:border-white/40 hover:bg-white/[0.13] hover:text-foreground hover:shadow-[0_8px_24px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.2)] dark:border-white/[0.08] dark:bg-white/[0.04] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:border-white/[0.14] dark:hover:bg-white/[0.08] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.07)]';
-const hoverPanelClass = 'w-auto min-w-[190px] rounded-xl border-white/20 bg-white/[0.15] p-2 shadow-[0_8px_32px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-[21px] dark:border-white/[0.10] dark:bg-white/[0.08] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.05)]';
+const glassLink = "relative flex w-full items-center overflow-hidden rounded-xl py-2.5 text-sm font-medium transition-all duration-200";
+const glassActive = 'border border-primary/40 bg-primary text-primary-foreground shadow-lg';
+const glassInactive = 'border text-muted-foreground hover:text-foreground hover:bg-accent/50 border-border bg-card/50 hover:border-border/80 shadow-sm hover:shadow-md';
+const hoverPanelClass = 'w-auto min-w-[190px] rounded-xl border p-2 shadow-lg bg-popover border-border';
 
 // ── Component ──────────────────────────────────────
 interface DashboardSidebarProps {
@@ -108,7 +108,23 @@ export function DashboardSidebar({
     [user, hasAnyRole],
   );
 
-  const checkActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const checkActive = (href: string) => {
+    // Exact match always wins
+    if (pathname === href) return true;
+    // For sub-routes, only highlight if no exact match exists in the current config
+    // This prevents /incidents from highlighting when on /incidents/my-assignments
+    if (pathname.startsWith(`${href}/`)) {
+      // Check if there's a more specific match
+      const hasMoreSpecificMatch = filteredConfig.some(entry => {
+        if (isGroup(entry)) {
+          return entry.items.some(item => pathname === item.href);
+        }
+        return pathname === entry.href;
+      });
+      return !hasMoreSpecificMatch;
+    }
+    return false;
+  };
   const getBadge = (href: string) => href === '/payments/pending' ? pendingPaymentCount : 0;
   const openHover = (key: string) => { clearTimeout(hoverTimer.current); setHoveredGroup(key); };
   const closeHover = () => { hoverTimer.current = setTimeout(() => setHoveredGroup(null), 150); };
@@ -157,7 +173,7 @@ export function DashboardSidebar({
         onClick={onCloseMobile}
         className={cn(
           'flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors',
-          active ? 'bg-primary/20 font-medium text-primary' : 'text-muted-foreground hover:bg-white/[0.08] hover:text-foreground',
+          active ? 'bg-primary/20 font-medium text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
         )}
       >
         <Icon className="h-3.5 w-3.5" />
