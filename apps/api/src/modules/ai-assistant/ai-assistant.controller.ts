@@ -15,6 +15,7 @@ import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthUser } from '../../common/interfaces/auth-user.interface';
 import { AiAssistantService } from './ai-assistant.service';
 import { DocumentService } from './document.service';
 import { ChatQueryDto, CreateDocumentDto } from './dto';
@@ -93,10 +94,11 @@ export class AiAssistantController {
       },
     },
   })
-  async getQuota(@CurrentUser() user: { id: string; role: string }) {
+  async getQuota(@CurrentUser() user: AuthUser) {
     const used = await this.aiAssistantService.getUserQueryCount(user.id);
-    const limit = user.role === 'admin' ? 0 : 20; // 0 means unlimited for admin
-    const remaining = user.role === 'admin' ? 'unlimited' : Math.max(0, limit - used);
+    const isAdmin = user?.roles?.includes('admin');
+    const limit = isAdmin ? 0 : 20; // 0 means unlimited for admin
+    const remaining = isAdmin ? 'unlimited' : Math.max(0, limit - used);
 
     return {
       data: {

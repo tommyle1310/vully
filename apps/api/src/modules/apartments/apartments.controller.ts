@@ -91,8 +91,9 @@ export class ApartmentsController {
     const pageNum = parseInt(page || '1', 10);
     const limitNum = parseInt(limit || '20', 10);
 
-    // Residents can only see their own apartment
-    if (user?.role === 'resident') {
+    // Residents (without admin/technician privileges) can only see their own apartment
+    const hasAdminAccess = user?.roles?.some(r => r === 'admin' || r === 'technician');
+    if (user?.roles?.includes('resident') && !hasAdminAccess) {
       const apartment = await this.apartmentsService.findByResident(user.id);
       return {
         data: apartment ? [apartment] : [],
@@ -159,7 +160,9 @@ export class ApartmentsController {
   ): Promise<{ data: ApartmentResponseDto }> {
     let apartments: ApartmentResponseDto;
 
-    if (user.role === 'resident') {
+    // Residents (without admin/technician privileges) can only see their own apartment
+    const hasAdminAccess = user?.roles?.some(r => r === 'admin' || r === 'technician');
+    if (user?.roles?.includes('resident') && !hasAdminAccess) {
       apartments = await this.apartmentsService.findOneForResident(id, user.id);
     } else {
       apartments = await this.apartmentsService.findOne(id);
