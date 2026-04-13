@@ -79,9 +79,9 @@ model apartments {
 
   // Relations
   buildings              buildings               @relation(fields: [building_id], references: [id], onDelete: Cascade)
-  management_fee_configs management_fee_configs? @relation(fields: [mgmt_fee_config_id], references: [id])
-  users                  users?                  @relation(fields: [owner_id], references: [id])
-  apartments             apartments?             @relation("apartmentsToapartments", fields: [parent_unit_id], references: [id])
+  management_fee_configs management_fee_configs? @relation(fields: [mgmt_fee_config_id], references: [id], onDelete: SetNull)
+  users                  users?                  @relation(fields: [owner_id], references: [id], onDelete: SetNull)
+  apartments             apartments?             @relation("apartmentsToapartments", fields: [parent_unit_id], references: [id], onDelete: SetNull)
   other_apartments       apartments[]            @relation("apartmentsToapartments")
   contracts              contracts[]
   incidents              incidents[]
@@ -216,7 +216,7 @@ model building_policies {
 
   // Relations
   buildings buildings @relation(fields: [building_id], references: [id], onDelete: Cascade)
-  users     users?    @relation(fields: [created_by], references: [id])
+  users     users?    @relation(fields: [created_by], references: [id], onDelete: SetNull)
 
   @@index([building_id, effective_from])
   @@index([building_id, effective_to])
@@ -261,8 +261,8 @@ model parking_slots {
 
   // Relations
   parking_zones parking_zones @relation(fields: [zone_id], references: [id], onDelete: Cascade)
-  apartments    apartments?   @relation(fields: [assigned_apt_id], references: [id])
-  access_card   access_cards? @relation(fields: [access_card_id], references: [id])
+  apartments    apartments?   @relation(fields: [assigned_apt_id], references: [id], onDelete: SetNull)
+  access_card   access_cards? @relation(fields: [access_card_id], references: [id], onDelete: SetNull)
 
   @@unique([zone_id, slot_number])
   @@index([assigned_apt_id])
@@ -292,8 +292,8 @@ model access_cards {
 
   // Relations
   apartments          apartments            @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
-  holder              users?                @relation("access_card_holder", fields: [holder_id], references: [id])
-  deactivated_by_user users?                @relation("access_card_deactivator", fields: [deactivated_by], references: [id])
+  holder              users?                @relation("access_card_holder", fields: [holder_id], references: [id], onDelete: SetNull)
+  deactivated_by_user users?                @relation("access_card_deactivator", fields: [deactivated_by], references: [id], onDelete: SetNull)
   approved_request    access_card_requests? @relation("issued_access_card")
   parking_slot        parking_slots?
 
@@ -318,8 +318,8 @@ model access_card_requests {
 
   apartments         apartments    @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
   requester          users         @relation("access_card_request_requester", fields: [requested_by], references: [id], onDelete: Cascade)
-  reviewer           users?        @relation("access_card_request_reviewer", fields: [reviewed_by], references: [id])
-  issued_access_card access_cards? @relation("issued_access_card", fields: [issued_card_id], references: [id])
+  reviewer           users?        @relation("access_card_request_reviewer", fields: [reviewed_by], references: [id], onDelete: SetNull)
+  issued_access_card access_cards? @relation("issued_access_card", fields: [issued_card_id], references: [id], onDelete: SetNull)
 
   @@index([apartment_id])
   @@index([requested_by])
@@ -336,9 +336,51 @@ model chat_queries {
   tokens_used   Int      @default(0)
   response_time Int      @default(0)
   created_at    DateTime @default(now()) @db.Timestamptz(6)
-  users         users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  // NEW: Agentic orchestration fields
+  response_embedding   Unsupported("vector(768)")?
+  intent               String?                     @db.VarChar(50)
+  intent_confidence    Decimal?                    @db.Decimal(3, 2)
+  cache_checked        Boolean                     @default(false)
+  cache_hit            Boolean                     @default(false)
+  cache_verified       Boolean                     @default(false)
+  cache_similarity     Decimal?                    @db.Decimal(3, 2)
+  model_used           String?                     @db.VarChar(50)
+  tools_executed       Json?                       @default("[]")
+  routing_time_ms      Int?
+  model_time_ms        Int?
+  total_time_ms        Int?
+  correlation_id       String?                     @unique @db.Uuid
+  error_during_routing Boolean                     @default(false)
+  fallback_used        String?                     @db.VarChar(50)
+
+  // Relations
+  users               users                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  chat_query_feedback chat_query_feedback[]
 
   @@index([user_id, created_at])
+  @@index([correlation_id])
+  @@index([intent])
+  @@index([created_at])
+}
+
+model chat_query_feedback {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chat_query_id String   @db.Uuid
+  user_id       String   @db.Uuid
+  feedback_type String   @db.VarChar(20) // "helpful" | "unhelpful"
+  reason        String?  @db.VarChar(50) // "wrong_information" | "irrelevant" | "unclear" | etc
+  comment       String?
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  // Relations
+  chat_query chat_queries @relation(fields: [chat_query_id], references: [id], onDelete: Cascade)
+  user       users        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([chat_query_id])
+  @@index([user_id])
+  @@index([feedback_type])
+  @@map("chat_query_feedback")
 }
 
 model contracts {
@@ -371,8 +413,8 @@ model contracts {
 
   // Relations
   apartments                        apartments                   @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
-  users_contracts_created_byTousers users?                       @relation("contracts_created_byTousers", fields: [created_by], references: [id])
-  users_contracts_tenant_idTousers  users                        @relation("contracts_tenant_idTousers", fields: [tenant_id], references: [id])
+  users_contracts_created_byTousers users?                       @relation("contracts_created_byTousers", fields: [created_by], references: [id], onDelete: SetNull)
+  users_contracts_tenant_idTousers  users                        @relation("contracts_tenant_idTousers", fields: [tenant_id], references: [id], onDelete: Restrict)
   invoices                          invoices[]
   payment_schedules                 contract_payment_schedules[]
 
@@ -412,11 +454,11 @@ model documents {
 model incident_comments {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   incident_id String    @db.Uuid
-  author_id   String    @db.Uuid
+  author_id   String?   @db.Uuid
   content     String
   is_internal Boolean   @default(false)
   created_at  DateTime  @default(now()) @db.Timestamptz(6)
-  users       users     @relation(fields: [author_id], references: [id])
+  users       users?    @relation(fields: [author_id], references: [id], onDelete: SetNull)
   incidents   incidents @relation(fields: [incident_id], references: [id], onDelete: Cascade)
 
   @@index([incident_id])
@@ -425,7 +467,7 @@ model incident_comments {
 model incidents {
   id                                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   apartment_id                       String              @db.Uuid
-  reported_by                        String              @db.Uuid
+  reported_by                        String?             @db.Uuid
   assigned_to                        String?             @db.Uuid
   category                           IncidentCategory
   priority                           IncidentPriority    @default(medium)
@@ -439,8 +481,8 @@ model incidents {
   updated_at                         DateTime            @db.Timestamptz(6)
   incident_comments                  incident_comments[]
   apartments                         apartments          @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
-  users_incidents_assigned_toTousers users?              @relation("incidents_assigned_toTousers", fields: [assigned_to], references: [id])
-  users_incidents_reported_byTousers users               @relation("incidents_reported_byTousers", fields: [reported_by], references: [id])
+  users_incidents_assigned_toTousers users?              @relation("incidents_assigned_toTousers", fields: [assigned_to], references: [id], onDelete: SetNull)
+  users_incidents_reported_byTousers users?              @relation("incidents_reported_byTousers", fields: [reported_by], references: [id], onDelete: SetNull)
 
   @@index([apartment_id])
   @@index([assigned_to])
@@ -464,8 +506,8 @@ model invoice_line_items {
   meter_reading_id String?         @db.Uuid
   tier_breakdown   Json?
   invoices         invoices        @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
-  meter_readings   meter_readings? @relation(fields: [meter_reading_id], references: [id])
-  utility_types    utility_types?  @relation(fields: [utility_type_id], references: [id])
+  meter_readings   meter_readings? @relation(fields: [meter_reading_id], references: [id], onDelete: SetNull)
+  utility_types    utility_types?  @relation(fields: [utility_type_id], references: [id], onDelete: SetNull)
 
   @@index([invoice_id])
 }
@@ -528,8 +570,8 @@ model meter_readings {
   created_at         DateTime             @default(now()) @db.Timestamptz(6)
   invoice_line_items invoice_line_items[]
   apartments         apartments           @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
-  users              users?               @relation(fields: [recorded_by], references: [id])
-  utility_types      utility_types        @relation(fields: [utility_type_id], references: [id])
+  users              users?               @relation(fields: [recorded_by], references: [id], onDelete: SetNull)
+  utility_types      utility_types        @relation(fields: [utility_type_id], references: [id], onDelete: Restrict)
 
   @@unique([apartment_id, utility_type_id, billing_period])
   @@index([apartment_id, billing_period])
@@ -624,6 +666,7 @@ model users {
   audit_logs                             audit_logs[]
   building_policies                      building_policies[]
   chat_queries                           chat_queries[]
+  chat_query_feedback                    chat_query_feedback[]
   contracts_contracts_created_byTousers  contracts[]             @relation("contracts_created_byTousers")
   contracts_contracts_tenant_idTousers   contracts[]             @relation("contracts_tenant_idTousers")
   incident_comments                      incident_comments[]
@@ -734,9 +777,9 @@ model contract_payments {
 
   // Relations
   schedule contract_payment_schedules @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
-  users    users                      @relation("payment_recorded_by", fields: [recorded_by], references: [id])
-  reporter users?                     @relation("payment_reported_by", fields: [reported_by], references: [id])
-  verifier users?                     @relation("payment_verified_by", fields: [verified_by], references: [id])
+  users    users                      @relation("payment_recorded_by", fields: [recorded_by], references: [id], onDelete: Restrict)
+  reporter users?                     @relation("payment_reported_by", fields: [reported_by], references: [id], onDelete: SetNull)
+  verifier users?                     @relation("payment_verified_by", fields: [verified_by], references: [id], onDelete: SetNull)
 
   @@index([schedule_id])
   @@index([recorded_by])

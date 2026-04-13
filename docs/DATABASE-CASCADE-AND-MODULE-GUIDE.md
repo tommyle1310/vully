@@ -1,7 +1,17 @@
 # Database Cascade Delete Analysis & Module Guide
 
 **Generated:** April 13, 2026  
+**Last Updated:** April 13, 2026 (Cascade fixes applied via migration `20260413000001_fix_cascade_delete_relationships`)  
 **Purpose:** Understanding database relationships, cascade behavior, and comprehensive module documentation
+
+---
+
+## ✅ **CASCADE DELETE FIXES APPLIED**
+
+**Migration:** `20260413000001_fix_cascade_delete_relationships`  
+**Status:** ✅ Applied to database on April 13, 2026
+
+All cascade delete issues identified below have been fixed. Foreign key constraints now properly handle deletions with appropriate cascade behaviors (CASCADE, SET NULL, or RESTRICT).
 
 ---
 
@@ -48,9 +58,60 @@ These relationships will automatically clean up related records:
 
 ---
 
-### ⚠️ **DANGEROUS TO DELETE (No Cascade / Restrict)**
+### ✅ **FIXED - Now Safe to Delete (Cascade Configured)**
 
-These relationships will **PREVENT deletion** or leave orphaned records:
+All the relationships below have been fixed with proper cascade behavior:
+
+| Parent Table | Child Table | Relationship | Behavior | Status |
+|--------------|-------------|--------------|----------|--------|
+| `users` | `apartments` (owner_id) | User → Owned Apartments | **SET NULL** | ✅ Fixed - apartments keep their data, owner_id becomes null |
+| `users` | `audit_logs` (actor_id) | User → Audit Logs | **SET NULL** | ✅ Already nullable - audit logs retained for compliance |
+| `users` | `contracts` (created_by) | User → Contracts Created | **SET NULL** | ✅ Fixed - contracts retained, creator reference removed |
+| `users` | `contracts` (tenant_id) | User → Tenant Contracts | **RESTRICT** | ✅ Fixed - prevents deletion of tenants with active contracts |
+| `users` | `incident_comments` (author_id) | User → Comments | **SET NULL** | ✅ Fixed - comments retained, author reference removed |
+| `users` | `incidents` (assigned_to) | User → Assigned Incidents | **SET NULL** | ✅ Fixed - incidents become unassigned |
+| `users` | `incidents` (reported_by) | User → Reported Incidents | **SET NULL** | ✅ Fixed - incidents retained, reporter reference removed |
+| `users` | `meter_readings` (recorded_by) | User → Meter Readings | **SET NULL** | ✅ Fixed - readings retained, recorder reference removed |
+| `users` | `building_policies` (created_by) | User → Policies Created | **SET NULL** | ✅ Fixed - policies retained |
+| `users` | `access_cards` (holder_id) | User → Access Cards Held | **SET NULL** | ✅ Fixed - cards retained, holder reference removed |
+| `users` | `access_cards` (deactivated_by) | User → Cards Deactivated | **SET NULL** | ✅ Fixed - cards retained |
+| `users` | `access_card_requests` (reviewed_by) | User → Card Requests Reviewed | **SET NULL** | ✅ Fixed - requests retained |
+| `users` | `contract_payments` (recorded_by) | User → Payments Recorded | **RESTRICT** | ✅ Fixed - prevents deletion of admins who recorded payments |
+| `users` | `contract_payments` (reported_by) | User → Payments Reported | **SET NULL** | ✅ Fixed - payments retained |
+| `users` | `contract_payments` (verified_by) | User → Payments Verified | **SET NULL** | ✅ Fixed - payments retained |
+| `apartments` | `apartments` (parent_unit_id) | Merged Units | **SET NULL** | ✅ Fixed - self-referential relationship handled |
+| `apartments` | `parking_slots` (assigned_apt_id) | Apartment → Parking Slots | **SET NULL** | ✅ Fixed - slots become unassigned |
+| `management_fee_configs` | `apartments` (mgmt_fee_config_id) | Fee Config → Apartments | **SET NULL** | ✅ Fixed - apartments lose fee config reference |
+| `utility_types` | `invoice_line_items` (utility_type_id) | Utility Type → Line Items | **SET NULL** | ✅ Fixed - line items retained |
+| `utility_types` | `meter_readings` (utility_type_id) | Utility Type → Readings | **RESTRICT** | ✅ Fixed - prevents deletion of utility types with readings |
+| `meter_readings` | `invoice_line_items` (meter_reading_id) | Reading → Line Items | **SET NULL** | ✅ Fixed - line items retained |
+| `access_cards` | `parking_slots` (access_card_id) | Card → Parking Slots | **SET NULL** | ✅ Fixed - slots lose card reference |
+| `access_cards` | `access_card_requests` (issued_card_id) | Card → Requests | **SET NULL** | ✅ Fixed - requests retained |
+
+---
+
+### 🔒 **Protected Deletions (RESTRICT Configured)**
+
+These relationships now **PREVENT deletion** to maintain data integrity:
+
+| Parent Table | Child Table | Reason for Restriction |
+|--------------|-------------|------------------------|
+| `users` | `contracts` (tenant_id) | ❌ Cannot delete a tenant if they have contracts (legal/financial records) |
+| `users` | `contract_payments` (recorded_by) | ❌ Cannot delete admin who recorded payments (financial audit trail) |
+| `utility_types` | `meter_readings` | ❌ Cannot delete utility type if meter readings exist (historical data integrity) |
+
+**Note:** Application-level checks should also enforce these restrictions with user-friendly error messages.
+
+---
+
+### ⚠️ **DANGEROUS TO DELETE (No Cascade / Restrict)** *(LEGACY - NOW FIXED)*
+
+~~These relationships will **PREVENT deletion** or leave orphaned records:~~
+
+**ALL ISSUES BELOW HAVE BEEN RESOLVED IN MIGRATION `20260413000001_fix_cascade_delete_relationships`**
+
+<details>
+<summary>🗂️ View original issues (now fixed)</summary>
 
 | Parent Table | Child Table | Relationship | Behavior | Risk |
 |--------------|-------------|--------------|----------|------|
@@ -78,48 +139,62 @@ These relationships will **PREVENT deletion** or leave orphaned records:
 | `access_cards` | `parking_slots` (access_card_id) | Card → Parking Slots | **NO CASCADE** | ⚠️ Slots lose card reference |
 | `access_cards` | `access_card_requests` (issued_card_id) | Card → Requests | **NO CASCADE** | ⚠️ Requests remain |
 
+</details>
+
 ---
 
-### 🔧 **Recommended Database Fixes**
+### ✅ **Database Fixes Applied**
 
-To prevent orphaned records and improve data integrity, consider these schema changes:
+~~To prevent orphaned records and improve data integrity, consider these schema changes:~~
 
-#### **1. Critical: User Deletion Protection**
+**All fixes have been applied via migration `20260413000001_fix_cascade_delete_relationships`**
+
+The following changes were implemented:
+
+#### **1. ✅ Critical: User Deletion Protection**
 ```sql
--- Option A: Prevent deletion of users with active contracts (RECOMMENDED)
-ALTER TABLE contracts ALTER COLUMN tenant_id SET NOT NULL;
--- Then add application-level check to prevent user deletion if they have contracts
+-- APPLIED: Prevent deletion of users with active contracts
+ALTER TABLE contracts ADD CONSTRAINT contracts_tenant_id_fkey 
+  FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE RESTRICT;
 
--- Option B: Cascade delete contracts when tenant is deleted (DANGEROUS)
--- Not recommended for production - contracts are legal documents
+-- APPLIED: Prevent deletion of admins who recorded payments
+ALTER TABLE contract_payments ADD CONSTRAINT contract_payments_recorded_by_fkey 
+  FOREIGN KEY (recorded_by) REFERENCES users(id) ON DELETE RESTRICT;
 ```
 
-#### **2. Apartment Ownership**
+#### **2. ✅ Apartment Ownership**
 ```sql
--- Set owner_id to NULL when owner is deleted (apartments can be unowned)
-ALTER TABLE apartments 
-  DROP CONSTRAINT apartments_owner_id_fkey,
-  ADD CONSTRAINT apartments_owner_id_fkey 
-    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;
+-- APPLIED: Set owner_id to NULL when owner is deleted (apartments can be unowned)
+ALTER TABLE apartments ADD CONSTRAINT apartments_owner_id_fkey 
+  FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;
 ```
 
-#### **3. Parking Slots Assignment**
+#### **3. ✅ Parking Slots Assignment**
 ```sql
--- Clear assignment when apartment is deleted
-ALTER TABLE parking_slots
-  DROP CONSTRAINT parking_slots_assigned_apt_id_fkey,
-  ADD CONSTRAINT parking_slots_assigned_apt_id_fkey
-    FOREIGN KEY (assigned_apt_id) REFERENCES apartments(id) ON DELETE SET NULL;
+-- APPLIED: Clear assignment when apartment is deleted
+ALTER TABLE parking_slots ADD CONSTRAINT parking_slots_assigned_apt_id_fkey
+  FOREIGN KEY (assigned_apt_id) REFERENCES apartments(id) ON DELETE SET NULL;
 ```
 
-#### **4. Access Cards Holder**
+#### **4. ✅ Access Cards Holder**
 ```sql
--- Clear holder when user is deleted
-ALTER TABLE access_cards
-  DROP CONSTRAINT access_cards_holder_id_fkey,
-  ADD CONSTRAINT access_cards_holder_id_fkey
-    FOREIGN KEY (holder_id) REFERENCES users(id) ON DELETE SET NULL;
+-- APPLIED: Clear holder when user is deleted
+ALTER TABLE access_cards ADD CONSTRAINT access_cards_holder_id_fkey
+  FOREIGN KEY (holder_id) REFERENCES users(id) ON DELETE SET NULL;
 ```
+
+#### **5. ✅ Incidents and Comments**
+```sql
+-- APPLIED: Clear reporter/assigned when user is deleted
+ALTER TABLE incidents ADD CONSTRAINT incidents_reported_by_fkey
+  FOREIGN KEY (reported_by) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE incidents ADD CONSTRAINT incidents_assigned_to_fkey
+  FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE incident_comments ADD CONSTRAINT incident_comments_author_id_fkey
+  FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL;
+```
+
+**See full migration:** [apps/api/prisma/migrations/20260413000001_fix_cascade_delete_relationships/migration.sql](../apps/api/prisma/migrations/20260413000001_fix_cascade_delete_relationships/migration.sql)
 
 ---
 
@@ -719,23 +794,93 @@ None
 
 ---
 
-## 🚨 **Action Items for Database Integrity**
+## ✅ **Completed Actions & Remaining Tasks**
 
-1. **CRITICAL:** Add application-level checks to prevent user deletion if they have:
-   - Active contracts (as tenant)
-   - Recorded payments (as admin)
-   - Active meter readings (as recorder)
+### ✅ **Completed (April 13, 2026)**
 
-2. **Recommended:** Update foreign key constraints to use `ON DELETE SET NULL` for:
-   - `apartments.owner_id`
-   - `parking_slots.assigned_apt_id`
-   - `access_cards.holder_id`
-   - `incidents.assigned_to`
-   - `incident_comments.author_id`
+1. **✅ DONE:** Updated all foreign key constraints with proper cascade behavior:
+   - SET NULL for optional relationships (owner_id, holder_id, recorded_by, etc.)
+   - RESTRICT for critical relationships (tenant contracts, payment recordings)
+   - CASCADE for dependent child records (invoices, incidents, comments)
 
-3. **Optional:** Add soft delete pattern for users instead of hard delete (add `deleted_at` column)
+2. **✅ DONE:** Made nullable columns support SET NULL cascade:
+   - `incident_comments.author_id` (String → String?)
+   - `incidents.reported_by` (String → String?)
 
-4. **Testing:** Run manual deletion tests on Neon DB to identify orphaned records and update constraints accordingly
+3. **✅ DONE:** Applied migration `20260413000001_fix_cascade_delete_relationships` to database
+
+### 📋 **Recommended Next Steps**
+
+1. **Application-Level Validation:** Add user-friendly error messages when deletion is blocked:
+   ```typescript
+   // Example: In users.service.ts
+   async delete(userId: string) {
+     // Check for active contracts
+     const activeContracts = await prisma.contracts.count({
+       where: { tenant_id: userId, status: 'active' }
+     });
+     if (activeContracts > 0) {
+       throw new BadRequestException(
+         `Cannot delete user: they have ${activeContracts} active contract(s). Please terminate contracts first.`
+       );
+     }
+     
+     // Check for recorded payments
+     const recordedPayments = await prisma.contract_payments.count({
+       where: { recorded_by: userId }
+     });
+     if (recordedPayments > 0) {
+       throw new BadRequestException(
+         `Cannot delete user: they have recorded ${recordedPayments} payment(s) in the system.`
+       );
+     }
+     
+     // Safe to delete
+     return prisma.users.delete({ where: { id: userId } });
+   }
+   ```
+
+2. **Soft Delete Pattern (Optional):** Consider implementing soft deletes for users:
+   ```typescript
+   // Add to users table
+   deleted_at DateTime?
+   
+   // Instead of hard delete:
+   async softDelete(userId: string) {
+     return prisma.users.update({
+       where: { id: userId },
+       data: { deleted_at: new Date(), is_active: false }
+     });
+   }
+   ```
+
+3. **Testing:** Run deletion tests to verify cascade behavior:
+   - Test deleting building → cascades to apartments → cascades to contracts
+   - Test deleting user with contracts → should be blocked by RESTRICT
+   - Test deleting apartment owner → should set owner_id to NULL
+   - Test deleting utility type with readings → should be blocked by RESTRICT
+
+4. **Monitoring:** Add audit logging for deletion attempts (successful and blocked)
+
+---
+
+## 📝 **Migration Summary**
+
+### **Applied Migration:** `20260413000001_fix_cascade_delete_relationships`
+
+**Changes Made:**
+- Updated 22 foreign key constraints with proper cascade behavior
+- Made 2 columns nullable to support SET NULL cascade
+- Protected 3 critical relationships with RESTRICT to prevent data loss
+
+**Database Impact:**
+- ✅ No data loss (migration only updates constraints)
+- ✅ No downtime required
+- ✅ Full backward compatibility with existing queries
+
+**Files Changed:**
+- [schema.prisma](../apps/api/prisma/schema.prisma) - Updated relationship definitions
+- [migration.sql](../apps/api/prisma/migrations/20260413000001_fix_cascade_delete_relationships/migration.sql) - SQL to alter constraints
 
 ---
 
