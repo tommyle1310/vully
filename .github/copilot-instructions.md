@@ -41,10 +41,18 @@ Role: Senior Fullstack Engineer (NestJS & Next.js expert)
 
 **Implemented Modules (✅)**:
 - Identity: Auth (JWT access+refresh, password reset), Users, Multi-role RBAC (UserRoleAssignment + Permissions + RolePermission)
-- Apartments: Buildings (with SVG maps + policies), Apartments (50+ fields), Contracts (CRUD + terminate), Access Cards (issue/edit/deactivate/reactivate), Parking (zones + slots), Building Policies (versioned), Payment Schedules
-- Payment Tracking: Contract Payment Schedules, Payments, Financial Summaries, Void Support
-- Billing: Invoices, Meter Readings, Utility Types/Tiers (tiered pricing), BullMQ processor, Billing Jobs, Management Fee Configs
-- Incidents: CRUD, Comments, WebSocket Gateway
+- Apartments: 
+  - Buildings (CRUD with SVG maps, floor heights, amenities)
+  - Apartments (50+ fields: spatial, ownership, occupancy, utilities, policy overrides)
+  - Contracts (CRUD + terminate, multi-type support: rental/purchase/lease-to-own)
+  - Building Policies (versioned policies: occupancy rules, billing config, trash collection)
+  - Parking Management (zones + slots with assignment + status tracking)
+  - Access Cards (CRUD + lifecycle: issue/edit/deactivate/reactivate with facility access)
+  - Access Card Requests (request workflow: pending → approved → rejected with admin approval)
+  - Bank Accounts (VietQR integration ready: building + owner accounts)
+  - Payment Schedules (generate rent/purchase schedules, record payments, financial summaries)
+- Billing: Invoices (dual-stream: monthly utilities + management fees), Meter Readings (image proof), Utility Types/Tiers (tiered pricing with effective dates), BullMQ processor, Billing Jobs, Management Fee Configs
+- Incidents: CRUD, Comments, WebSocket Gateway (real-time updates)
 - Stats: Dashboard analytics (Redis-cached, 5-min TTL)
 - AI Assistant: RAG chatbot (Gemini + pgvector + LangChain), Documents, Document Chunks
 
@@ -132,13 +140,17 @@ apps/
 ├── api/                    # NestJS Backend
 │   └── src/
 │       ├── modules/        # Feature modules
-│       │   ├── identity/       # Auth, Users, RBAC
-│       │   ├── apartments/     # Buildings, Apartments, Contracts, Access Cards, Parking, Policies, Payments
-        │   ├── billing/        # Invoices, Meter Readings, Utility Types/Tiers, Management Fees
+        │   ├── identity/       # Auth, Users, RBAC (JWT + multi-role)
+        │   ├── apartments/     # Buildings, Apartments, Contracts, Building Policies, 
+        │   │                   # Parking (zones+slots), Access Cards (CRUD+lifecycle),
+        │   │                   # Access Card Requests (workflow), Bank Accounts, 
+        │   │                   # Payment Schedules (generate+record)
+        │   ├── billing/        # Invoices (dual-stream), Meter Readings, Utility Types/Tiers, 
+        │   │                   # Management Fee Configs, BullMQ processor
         │   ├── incidents/      # Incidents, Comments, WebSocket Gateway
-        │   ├── stats/          # Dashboard analytics
-        │   ├── management-board/ # 🚧 Vendor, Investor, Board (skeleton)
-│       │   └── ai-assistant/   # RAG chatbot
+        │   ├── stats/          # Dashboard analytics (Redis-cached)
+        │   ├── management-board/ # 🚧 Vendor, Investor, Board (skeleton controllers only)
+        │   └── ai-assistant/   # RAG chatbot (Gemini + pgvector + LangChain)
 │       ├── common/         # Shared utilities
 │       ├── providers/      # External services
 │       ├── database/       # Prisma schema & migrations
@@ -147,22 +159,30 @@ apps/
     └── src/
         ├── app/            # App Router pages
         │   ├── (auth)/         # Login, Register, Forgot/Reset Password
-        │   └── (dashboard)/    # 14 pages: dashboard, apartments, apartments/[id],
+        │   └── (dashboard)/    # 16 pages: dashboard, apartments, apartments/[id],
         │                       # buildings, buildings/[id], contracts, contracts/[id],
-        │                       # incidents, invoices, meter-readings, users,
-        │                       # utility-types, settings
+        │                       # incidents, incidents/my-assignments, invoices, 
+        │                       # meter-readings, users, utility-types, settings,
+        │                       # access-card-requests, payments/pending
         ├── components/
-        │   ├── ui/             # Shadcn/UI (30 components)
-        │   ├── payments/       # PaymentScheduleTable, RecordPaymentDialog, etc.
-        │   ├── access-cards/   # AccessCardsTab, IssueAccessCardDialog, etc.
-        │   ├── buildings/      # Parking management, building policies
-        │   ├── apartments/     # Inherited field wrapper, parking assignment
-        │   ├── dashboard/      # Charts, activity feed, resident dashboard
-        │   ├── maps/           # SVG floor plan viewer + builder
-        │   ├── 3d/             # Three.js building 3D viewer
-        │   ├── users/          # User dialogs, role management
-        │   └── date-picker/    # Date picker, date range picker
-        ├── hooks/          # 27 custom hooks
+        │   ├── ui/             # Shadcn/UI (33 components: button, dialog, form, table, etc.)
+        │   ├── payments/       # PaymentScheduleTable, RecordPaymentDialog, VoidPaymentDialog
+        │   ├── access-cards/   # AccessCardsTab, AccessCardFormDialog, IssueAccessCardDialog,
+        │   │                   # AccessCardDetailSheet, AccessCardRequestWorkflow
+        │   ├── buildings/      # ParkingManagementTab (zones+slots), BuildingPoliciesTab,
+        │   │                   # BankAccountManagement, FloorPlanTab, Building3DViewer
+        │   ├── apartments/     # InheritedFieldWrapper, ParkingAssignment, ApartmentFormDialog,
+        │   │                   # ApartmentDetailSheet, ApartmentFilters
+        │   ├── dashboard/      # Charts (occupancy, revenue, incidents), ActivityFeed,
+        │   │                   # ResidentDashboard, StatCards
+        │   ├── maps/           # SVG floor plan viewer + builder (SvgBuilder, FloorPlan)
+        │   ├── 3d/             # Three.js building 3D viewer (Building3D, useSvgTo3d hook)
+        │   ├── billing/        # Invoice components, meter reading forms
+        │   ├── users/          # User dialogs, role management, UserRoleAssignment
+        │   └── date-picker/    # DatePicker, DateRangePicker components
+        ├── hooks/          # 30 custom hooks (auth, CRUD, websocket, svg-to-3d,
+        │                   # access-cards, bank-accounts, building-policies, parking,
+        │                   # payments, pending-payment-count, tour-guide)
         ├── stores/         # Zustand stores (authStore, mapStore)
         └── lib/            # Utilities (api-client, format, performance, web-vitals)
 

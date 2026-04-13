@@ -97,21 +97,40 @@ apps/web/src/
 │       ├── users/page.tsx
 │       └── utility-types/page.tsx
 ├── components/
-│   ├── ui/                          # 30 Shadcn/UI components (DO NOT modify)
+│   ├── ui/                          # 33 Shadcn/UI components (DO NOT modify)
 │   │   ├── accordion, alert, alert-dialog, avatar, badge, button,
-│   │   │   calendar, card, checkbox, command, dialog, dropdown-menu,
-│   │   │   form, input, label, page-transition, popover, progress,
-│   │   │   scroll-area, select, separator, sheet, skeleton, switch,
-│   │   │   table, tabs, textarea, toast, toaster, tooltip
+│   │   │   calendar, card, checkbox, collapsible, command, data-table,
+│   │   │   dialog, dropdown-menu, form, input, label, page-transition,
+│   │   │   popover, progress, resize-handle, scroll-area, select,
+│   │   │   separator, sheet, skeleton, switch, table, tabs, textarea,
+│   │   │   toast, toaster, tooltip
 │   ├── 3d/                          # Three.js building viewer
 │   │   ├── building-3d.tsx, building-3d-legend.tsx, floor.tsx, index.ts
 │   ├── access-cards/                # Access card management
-│   │   ├── AccessCardsTab.tsx, IssueAccessCardDialog.tsx, ...
+│   │   ├── AccessCardsTab.tsx, AccessCardFormDialog.tsx,
+│   │   │   IssueAccessCardDialog.tsx, AccessCardDetailSheet.tsx,
+│   │   │   AccessCardRequestWorkflow.tsx, index.ts
 │   ├── apartments/                  # Shared apartment components
-│   │   ├── parking-assignment-dialog.tsx, inherited-field-wrapper.tsx, index.ts
-│   ├── buildings/                   # Building sub-components (decomposed)
-│   │   ├── building-parking-tab.tsx  # Orchestrator
-│   │   ├── building-policies-tab.tsx # Orchestrator
+│   │   ├── apartment-form-dialog.tsx      # Multi-tab create/edit form (spatial, occupancy, utility, billing)
+│   │   ├── apartment-form-schema.ts       # Zod schema + validation
+│   │   ├── apartment-form-helpers.ts      # Form utilities
+│   │   ├── apartment-form-spatial-tab.tsx
+│   │   ├── apartment-form-occupancy-tab.tsx
+│   │   ├── apartment-form-utility-tab.tsx
+│   │   ├── apartment-form-billing-tab.tsx
+│   │   ├── apartment-detail-sheet.tsx     # Multi-section detail view
+│   │   ├── apartment-detail-helpers.ts
+│   │   ├── apartment-detail-contract.tsx
+│   │   ├── apartment-detail-info-sections.tsx
+│   │   ├── apartment-filters.tsx          # Advanced filter popoverparking-assignment-dialog.tsx, inherited-field-wrapper.tsx
+│   │   ├── apartment-columns.tsx          # TanStack Table columns
+│   │   └──agement)
+│   │   ├── building-policies-tab.tsx # Orchestrator (current + history)
+│   │   ├── building-floor-plan-tab.tsx # SVG floor plan viewer
+│   │   ├── building-3d-viewer-tab.tsx # Three.js 3D buildrecording
+│   │   ├── PaymentScheduleTable.tsx, payment-schedule-columns.tsx,
+│   │   │   ContractFinancialSummary.tsx, RecordPaymentDialog.tsx,
+│   │   │   Voidhestrator
 │   │   ├── parking-constants.ts, parking-stats-cards.tsx, parking-zone-list.tsx,
 │   │   │   parking-slots-grid.tsx, parking-assign-dialog.tsx
 │   │   ├── policy-form-dialog.tsx, policy-current-display.tsx, policy-history.tsx
@@ -122,20 +141,7 @@ apps/web/src/
 │   ├── maps/                        # SVG floor plan
 │   │   ├── floor-plan.tsx, floor-plan-svg-processor.ts, use-floor-plan-controls.ts
 │   │   ├── apartment-detail-panel.tsx, map-controls.tsx
-│   │   ├── svg-builder-dialog.tsx, svg-upload-dialog.tsx
-│   │   └── svg-builder/             # Builder sub-components
-│   ├── payments/                    # Payment tracking & verification
-│   │   ├── PaymentScheduleTable.tsx, payment-schedule-columns.tsx,
-│   │   │   ContractFinancialSummary.tsx, RecordPaymentDialog.tsx,
-│   │   │   ReportPaymentDialog.tsx, VerifyPaymentDialog.tsx, index.ts
-│   ├── users/                       # User management dialogs
-│   │   ├── create-user-dialog.tsx, edit-user-dialog.tsx, manage-roles-dialog.tsx
-│   ├── apartment-combobox.tsx       # Reusable apartment picker
-│   ├── auth-sync.tsx, protected-route.tsx
-│   ├── floating-chat-widget.tsx     # AI assistant
-│   ├── user-profile-dropdown.tsx
-│   └── web-vitals-tracker.tsx
-├── hooks/
+│   │   ├─                           # 30 custom hooks
 │   ├── apartment.types.ts           # Type definitions (split from hook)
 │   ├── use-apartment-queries.ts     # Query hooks (split)
 │   ├── use-apartment-mutations.ts   # Mutation hooks (split)
@@ -148,6 +154,23 @@ apps/web/src/
 │   ├── use-auth.ts
 │   ├── use-buildings.ts
 │   ├── use-building-policies.ts
+│   ├── use-contracts.ts             # Non-split (types + queries + mutations in one file)
+│   ├── use-invoices.ts
+│   ├── use-meter-readings.ts
+│   ├── use-billing.ts               # Utility types/tiers
+│   ├── use-payments.ts              # Payment schedules + financial summary + record/void
+│   ├── use-pending-payment-count.ts # Real-time overdue payment count
+│   ├── use-parking.ts               # Parking zones + slots management
+│   ├── use-access-cards.ts          # Access card lifecycle + requests
+│   ├── use-bank-accounts.ts         # Bank account management for VietQR
+│   ├── use-stats.ts
+│   ├── use-ai-assistant.ts
+│   ├── use-websocket.ts
+│   ├── use-svg-to-3d.ts             # SVG to Three.js conversion
+│   ├── use-technicians.ts           # Technician user list
+│   ├── use-resizable-columns.ts     # Table column resizing
+│   ├── use-debounce.ts
+│   ├── use-tour-guide.ts            # Interactive onboarding (Shepherd.js)cies.ts
 │   ├── use-contracts.ts             # Non-split (types + queries + mutations in one file)
 │   ├── use-invoices.ts
 │   ├── use-meter-readings.ts

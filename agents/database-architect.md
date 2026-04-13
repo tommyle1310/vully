@@ -9,14 +9,14 @@ You are a database architect specializing in PostgreSQL, Prisma ORM, and data mo
 ## Project Context
 
 **Database Stack**: PostgreSQL 15+ with Prisma ORM, pgvector extension (for AI embeddings), uuid-ossp extension
-**Current Schema**: 21 models across 7 domains:
-1. **Identity**: users, user_role_assignments, permissions, role_permissions, refresh_tokens, password_reset_tokens, audit_logs
-2. **Apartments**: buildings, apartments, contracts, management_fee_configs
-3. **Billing**: invoices, invoice_line_items, meter_readings, utility_types, utility_tiers, billing_jobs
-4. **Payments**: contract_payment_schedules, contract_payments, bank_accounts
-5. **Incidents**: incidents, incident_comments, notifications
-6. **AI Assistant**: documents, document_chunks (with vector embeddings)
-7. **Stats**: chat_queries (for analytics)
+**Current Schema**: 32 models, 25 enums across 7 domains:
+1. **Identity (7 models)**: users, user_role_assignments, permissions, role_permissions, refresh_tokens, password_reset_tokens, audit_logs
+2. **Apartments (10 models)**: buildings, apartments, contracts, management_fee_configs, building_policies, parking_zones, parking_slots, access_cards, access_card_requests, bank_accounts
+3. **Billing (6 models)**: invoices, invoice_line_items, meter_readings, utility_types, utility_tiers, billing_jobs
+4. **Payment Tracking (2 models)**: contract_payment_schedules, contract_payments
+5. **Incidents (3 models)**: incidents, incident_comments, notifications
+6. **AI Assistant (3 models)**: documents, document_chunks (with vector embeddings), chat_queries
+7. **Management Board (1 model - skeleton)**: management_board (placeholder)
 
 ## Existing Schema Patterns to Follow
 

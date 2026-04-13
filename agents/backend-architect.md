@@ -269,57 +269,68 @@ modules/[module-name]/
 
 ### Apartments Module (`modules/apartments/`)
 
-**The largest module** — manages buildings, apartments, contracts, payment schedules, parking, access cards, building policies.
+**The largest module** — manages buildings, apartments, contracts, payment schedules, parking, access cards, building policies, bank accounts.
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `apartments.module.ts` | ~55 | 7 controllers + 14 services + exports all services |
+| `apartments.module.ts` | ~60 | 9 controllers + 18 services + exports all services |
 | **Buildings** | | |
-| `buildings.controller.ts` | | CRUD + SVG map upload + stats + meters |
+| `buildings.controller.ts` | ~270 | CRUD + SVG map upload + stats + meters |
 | `buildings.service.ts` | ~220 | Building CRUD + delegates SVG sync to sub-service |
 | `buildings-svg.service.ts` | ~175 | SVG parsing → auto-create apartments from floor plans |
 | **Apartments** | | |
-| `apartments.controller.ts` | | CRUD + resident-scoped access + config endpoints |
+| `apartments.controller.ts` | ~340 | CRUD + resident-scoped access + config endpoints |
 | `apartments.service.ts` | ~250 | Apartment CRUD with policy inheritance |
 | `apartments-config.service.ts` | ~100 | Policy inheritance logic (apartment overrides building defaults) |
 | `apartments.mapper.ts` | ~100 | `toApartmentResponseDto()` |
 | **Contracts** | | |
-| `contracts.controller.ts` | | CRUD + terminate + tenant endpoints |
-| `contracts.service.ts` | ~240 | Contract CRUD with apartment status sync |
+| `contracts.controller.ts` | ~310 | CRUD + terminate + tenant endpoints |
+| `contracts.service.ts` | ~240 | Contract CRUD with apartment status sync + auto-issue access cards |
 | `contracts-tenant.service.ts` | ~100 | `findMyContracts()`, `getMyApartment()` (resident-scoped) |
 | `contracts.mapper.ts` | ~70 | `toContractResponseDto()` + `optNum()` decimal helper |
 | **Payment Schedules** | | |
-| `payment-schedule.controller.ts` | | CRUD schedules + record/void payments + financial summary |
+| `payment-schedule.controller.ts` | ~285 | CRUD schedules + record/void payments + financial summary |
 | `payment-schedule.service.ts` | ~290 | Payment CRUD + financial calculations |
 | `payment-generator.service.ts` | ~270 | Auto-generate payment schedules for purchase/lease contracts |
 | `payment-schedule.mapper.ts` | ~100 | `toScheduleResponseDto()` |
-| **Parking** | | |
-| `parking.controller.ts` | | Zone CRUD + slot CRUD + assign/unassign + stats |
+| **Parking Management** | | |
+| `parking.controller.ts` | ~295 | Zone CRUD + slot CRUD + assign/unassign + stats |
 | `parking.service.ts` | ~280 | Slot operations: bulk create, assign, unassign |
 | `parking-zones.service.ts` | ~155 | Zone CRUD + verify helpers |
 | `parking.mapper.ts` | ~52 | `toZoneResponseDto()`, `toSlotResponseDto()` |
 | **Access Cards** | | |
-| `access-cards.controller.ts` | | CRUD + activate/deactivate/replace |
+| `access-cards.controller.ts` | ~320 | CRUD + deactivate/reactivate + stats |
 | `access-cards.service.ts` | ~200 | Core CRUD |
 | `access-cards-helpers.service.ts` | ~120 | Validation helpers (check limits from building policy) |
-| `access-cards-lifecycle.service.ts` | ~120 | Activate, deactivate, replace workflows |
+| `access-cards-lifecycle.service.ts` | ~120 | Deactivate, reactivate workflows |
 | `access-cards.mapper.ts` | ~80 | `toAccessCardResponseDto()` |
+| **Access Card Requests** | | |
+| `access-card-requests.controller.ts` | ~265 | Request workflow: create, approve, reject, cancel |
+| `access-card-requests.service.ts` | ~240 | Request CRUD + approval workflow (auto-issue card on approval) |
+| `access-card-requests.mapper.ts` | ~90 | `toRequestResponseDto()` |
 | **Building Policies** | | |
-| `building-policies.controller.ts` | | CRUD versioned policies per building |
-| `building-policies.service.ts` | ~200 | Policy CRUD with effective date logic |
+| `building-policies.controller.ts` | ~195 | CRUD versioned policies per building |
+| `building-policies.service.ts` | ~200 | Policy CRUD with effective date logic (versioning with effective_from/to) |
+| `building-policies.mapper.ts` | ~65 | `toPolicyResponseDto()` |
+| **Bank Accounts** | | |
+| `bank-accounts.controller.ts` | ~210 | CRUD bank accounts for VietQR integration |
+| `bank-accounts.service.ts` | ~185 | Account CRUD + set primary account logic |
+| `bank-accounts.mapper.ts` | ~55 | `toBankAccountResponseDto()` |
 | **DTOs** | | |
 | `dto/apartment.dto.ts` | | Barrel re-export for split dto files |
-| `dto/create-apartment.dto.ts` | | 50+ validated fields (spatial, ownership, utilities) |
-| `dto/update-apartment.dto.ts` | | Same fields as create, all optional |
-| `dto/apartment-response.dto.ts` | | Flat response (no nesting), ApiProperty decorators |
-| `dto/apartment-filters.dto.ts` | | Multi-status filter with array normalization |
-| `dto/apartment-constants.ts` | | Static arrays: UNIT_TYPES, ORIENTATIONS, etc. |
-| `dto/building.dto.ts` | | CreateBuildingDto, UpdateBuildingDto, BuildingResponseDto |
-| `dto/contract.dto.ts` | | All contract type DTOs + payment tracking fields |
-| `dto/parking.dto.ts` | | Zone + Slot DTOs |
-| `dto/payment.dto.ts` | | RecordPaymentDto, PaymentScheduleResponseDto, FinancialSummaryDto |
-| `dto/access-card.dto.ts` | | Card lifecycle DTOs |
-| `dto/building-policy.dto.ts` | | Policy DTOs with versioning fields |
+| `dto/create-apartment.dto.ts` | ~135 | 50+ validated fields (spatial, ownership, utilities, policy overrides) |
+| `dto/update-apartment.dto.ts` | ~130 | Same fields as create, all optional |
+| `dto/apartment-response.dto.ts` | ~160 | Flat response (no nesting), ApiProperty decorators |
+| `dto/apartment-filters.dto.ts` | ~55 | Multi-status filter with array normalization |
+| `dto/apartment-constants.ts` | ~45 | Static arrays: UNIT_TYPES, ORIENTATIONS, etc. |
+| `dto/building.dto.ts` | ~120 | CreateBuildingDto, UpdateBuildingDto, BuildingResponseDto |
+| `dto/contract.dto.ts` | ~210 | All contract type DTOs + payment tracking fields + access card issuance |
+| `dto/parking.dto.ts` | ~145 | Zone + Slot DTOs + assignment DTOs |
+| `dto/payment.dto.ts` | ~175 | RecordPaymentDto, PaymentScheduleResponseDto, FinancialSummaryDto, VoidPaymentDto |
+| `dto/access-card.dto.ts` | ~165 | Card lifecycle DTOs (Create, Update, Deactivate, Reactivate, Stats) |
+| `dto/access-card-request.dto.ts` | ~120 | Request workflow DTOs (Create, Approve, Reject) |
+| `dto/building-policy.dto.ts` | ~115 | Policy DTOs with versioning fields (effective_from/to) |
+| `dto/bank-account.dto.ts` | ~85 | Bank account DTOs for VietQR integration |
 
 ### Billing Module (`modules/billing/`)
 

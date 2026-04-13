@@ -8,7 +8,7 @@
 
 Vully is a production-ready apartment management platform built for Vietnamese high-rise complexes. It handles building/unit management, tenant contracts, utility billing with tiered pricing, incident tracking, and an AI chatbot powered by Google Gemini with RAG for building regulations.
 
-**Current Status**: ✅ **Fully functional core platform** with 6 implemented modules, 9 dashboard pages, and 25+ UI components.
+**Current Status**: ✅ **Fully functional core platform** with 7 implemented modules, 16 dashboard pages, 30+ UI components.
 
 ---
 
@@ -65,7 +65,7 @@ vully/
 ├── apps/
 │   ├── api/                        # NestJS backend (port 3000)
 │   │   ├── prisma/
-│   │   │   └── schema.prisma      # Database schema + migrations
+│   │   │   └── schema.prisma      # Database schema + migrations (32 models, 25 enums)
 │   │   └── src/
 │   │       ├── main.ts
 │   │       ├── app.module.ts
@@ -80,27 +80,34 @@ vully/
 │   │       │   └── health/         # /health, /health/ready
 │   │       └── modules/
 │   │           ├── identity/       # Auth (JWT access+refresh), users CRUD, RBAC
-│   │           ├── apartments/     # Buildings, apartments, contracts
+│   │           ├── apartments/     # Buildings, apartments, contracts, policies, parking,
+│   │           │                   # access cards, bank accounts, payment schedules
 │   │           ├── billing/        # Invoices, meter readings, BullMQ processor, tiered pricing
 │   │           ├── incidents/      # Incident CRUD, comments, WebSocket gateway
 │   │           ├── stats/          # Dashboard analytics (Redis-cached)
 │   │           ├── ai-assistant/   # RAG chatbot (Gemini + pgvector + LangChain)
-│   │           ├── accounting/     # Journal entries, ledger accounts, vouchers (skeleton)
 │   │           └── management-board/ # Investors, vendors (skeleton)
 │   │
 │   └── web/                        # Next.js 15 frontend (port 3000)
 │       └── src/
 │           ├── app/
 │           │   ├── (auth)/         # /login, /register, /forgot-password, /reset-password
-│           │   └── (dashboard)/    # /dashboard, /buildings, /apartments, /contracts,
-│           │                       # /incidents, /invoices, /meter-readings, /users
+│           │   └── (dashboard)/    # 16 protected pages: dashboard, buildings, buildings/[id],
+│           │                       # apartments, apartments/[id], contracts, contracts/[id],
+│           │                       # incidents, incidents/my-assignments, invoices,
+│           │                       # meter-readings, users, utility-types, settings,
+│           │                       # access-card-requests, payments/pending
 │           ├── components/
-│           │   ├── ui/             # Shadcn/UI (24 components)
+│           │   ├── ui/             # Shadcn/UI (33 components: button, dialog, table, form, etc.)
 │           │   ├── maps/           # SVG floor plan viewer + builder
 │           │   ├── 3d/             # Three.js building 3D viewer
 │           │   ├── dashboard/      # Chart widgets (occupancy, revenue, incidents, activity)
+│           │   ├── access-cards/   # Access card management UI components
+│           │   ├── buildings/      # Building policies, parking, floor plans, 3D viewer
+│           │   ├── payments/       # Payment schedules, record payment, void payment
 │           │   └── users/          # User management dialogs
-│           ├── hooks/              # 14 custom hooks (auth, CRUD, contracts, websocket, svg-to-3d, tour)
+│           ├── hooks/              # 30 custom hooks (auth, CRUD, contracts, websocket,
+│           │                       # svg-to-3d, tour, access-cards, parking, payments)
 │           ├── stores/             # authStore, mapStore (Zustand)
 │           └── lib/                # api-client, utils, performance, web-vitals
 │
@@ -135,7 +142,7 @@ vully/
 
 ## Database Schema
 
-### Models (25 total, 18 enums)
+### Models (32 total, 25 enums)
 
 #### Identity & RBAC (7 models)
 | Model | Purpose |
@@ -148,19 +155,25 @@ vully/
 | **password_reset_tokens** | Time-limited password reset flows |
 | **audit_logs** | Immutable audit trail (actor, action, resource, old/new values, IP, user agent) |
 
-#### Apartments (4 models)
+#### Apartments (10 models)
 | Model | Purpose |
-|-------|---------|
+|-------|---------||
 | **buildings** | Buildings with SVG floor plans (`svgMapData`), floor heights (`floorHeights`), amenities |
-| **apartments** | Units with 50+ fields: spatial, ownership, occupancy, utility meters, parking, billing config, IoT sync |
-| **contracts** | Lease agreements: tenant, apartment, dates, rent, deposit, terms, contract type |
+| **apartments** | Units with 50+ fields: spatial, ownership, occupancy, utility meters, parking, billing config, policy overrides, IoT sync |
+| **contracts** | Lease agreements: tenant, apartment, dates, rent, deposit, terms, contract type (rental/purchase/lease-to-own) |
 | **management_fee_configs** | Per-building pricing rules by unit type with effective date ranges |
+| **building_policies** | Versioned building policies: occupancy rules, billing config, trash collection (effective_from/to) |
+| **parking_zones** | Parking zones: building, name, code, slot type (car/motorcycle/bicycle), fee |
+| **parking_slots** | Individual parking slots: zone, slot number, assignment, status, access card link |
+| **access_cards** | Access cards: card number, apartment, holder, type (building/parking), status, zones, floor access |
+| **access_card_requests** | Access card request workflow: requester, apartment, card type, status (pending/approved/rejected) |
+| **bank_accounts** | Bank accounts for VietQR: building/owner accounts, bank code, account number |
 
-#### Payment Tracking (2 models) — NEW
+#### Payment Tracking (2 models)
 | Model | Purpose |
-|-------|---------|
-| **contract_payment_schedules** | Payment milestones/periods: rent installments, purchase milestones, due dates, status |
-| **contract_payments** | Payment transactions: amount, method, reference, receipt URL, void tracking |
+|-------|---------||
+| **contract_payment_schedules** | Payment milestones/periods: rent installments, purchase milestones, due dates, status (pending/paid/partial/overdue) |
+| **contract_payments** | Payment transactions: amount, method, reference, receipt URL, void tracking (is_voided, voided_at, void_reason) |
 
 #### Billing (6 models)
 | Model | Purpose |
@@ -185,7 +198,7 @@ vully/
 | **document_chunks** | Chunked documents with pgvector embeddings (768-dim for Gemini embedding-004) |
 | **chat_queries** | AI chat history: query, response, token usage, response time tracking |
 
-### Enums (18)
+### Enums (25)
 
 | Enum | Values |
 |------|--------|
@@ -193,19 +206,27 @@ vully/
 | `ApartmentStatus` | vacant, occupied, maintenance, reserved |
 | `ContractStatus` | draft, active, expired, terminated |
 | `ContractType` | rental, purchase, lease_to_own |
+| `ContractPaymentStatus` | pending, paid, partial, overdue |
 | `PaymentType` | rent, deposit, purchase_installment, option_fee, maintenance_fee, penalty, other |
 | `PaymentStatus` | pending, paid, partial, overdue, cancelled, voided |
 | `PaymentMethod` | cash, bank_transfer, credit_card, momo, vnpay, check, other |
+| `PaymentRejectionReason` | insufficient_funds, invalid_account, duplicate_payment, disputed, other |
+| `InvoiceStream` | utilities, management_fee |
 | `InvoiceStatus` | draft, pending, paid, overdue, cancelled |
 | `IncidentCategory` | plumbing, electrical, hvac, structural, appliance, pest, noise, security, other |
 | `IncidentStatus` | open, assigned, in_progress, pending_review, resolved, closed |
 | `IncidentPriority` | low, medium, high, urgent |
 | `BillingJobStatus` | pending, processing, completed, failed |
+| `BillingCycle` | monthly, quarterly, yearly |
 | `UnitType` | studio, one_bedroom, two_bedroom, three_bedroom, duplex, penthouse, shophouse |
 | `OwnershipType` | permanent, fifty_year, leasehold |
 | `Orientation` | north, south, east, west, northeast, northwest, southeast, southwest |
-| `BillingCycle` | monthly, quarterly, yearly |
 | `SyncStatus` | synced, pending, error, disconnected |
+| `ParkingType` | car, motorcycle, bicycle |
+| `ParkingSlotStatus` | available, occupied, reserved, maintenance |
+| `AccessCardType` | building, parking |
+| `AccessCardStatus` | active, suspended, deactivated, expired |
+| `AccessCardRequestStatus` | pending, approved, rejected, cancelled |
 
 ---
 
@@ -349,7 +370,44 @@ All endpoints are auto-documented via Swagger at `/api/docs`.
 - `PATCH /contracts/:id` — Update contract
 - `POST /contracts/:id/terminate` — Terminate contract (admin only)
 
-#### Payment Tracking (`/api/contracts/:id/...`) — NEW
+#### Building Policies (`/api/buildings/:buildingId/policies`)
+- `GET /buildings/:buildingId/policies` — List policies (includes current + historical)
+- `GET /buildings/:buildingId/policies/current` — Get current active policy
+- `POST /buildings/:buildingId/policies` — Create new policy version (admin only)
+- `PATCH /policies/:id` — Update policy (admin only, updates effective_to for versioning)
+
+#### Parking Management (`/api/buildings/:buildingId/parking`)
+- `GET /buildings/:buildingId/parking/zones` — List parking zones
+- `POST /buildings/:buildingId/parking/zones` — Create zone (admin only)
+- `GET /buildings/:buildingId/parking/zones/:zoneId/slots` — List slots in zone
+- `PATCH /parking/slots/:slotId` — Update slot (assign, free, set status)
+- `GET /apartments/:apartmentId/parking-slots` — Get parking assigned to apartment
+
+#### Access Cards (`/api/apartments/:apartmentId/access-cards`)
+- `GET /apartments/:apartmentId/access-cards` — List access cards for apartment
+- `POST /apartments/:apartmentId/access-cards` — Issue new access card (admin only)
+- `GET /access-cards/:id` — Get access card details
+- `PATCH /access-cards/:id` — Update card (edit zones, floor access)
+- `POST /access-cards/:id/deactivate` — Deactivate card (admin only)
+- `POST /access-cards/:id/reactivate` — Reactivate card (admin only)
+- `GET /access-cards/stats` — Get access card statistics
+
+#### Access Card Requests (`/api/access-card-requests`)
+- `GET /access-card-requests` — List all requests (admin: all, resident: own)
+- `GET /access-card-requests/:id` — Get request details
+- `POST /access-card-requests` — Submit request (resident)
+- `POST /access-card-requests/:id/approve` — Approve request & issue card (admin only)
+- `POST /access-card-requests/:id/reject` — Reject request (admin only)
+- `DELETE /access-card-requests/:id` — Cancel request (requester only, pending status)
+
+#### Bank Accounts (`/api/buildings/:buildingId/bank-accounts`)
+- `GET /buildings/:buildingId/bank-accounts` — List building bank accounts
+- `POST /buildings/:buildingId/bank-accounts` — Create bank account (admin only)
+- `PATCH /bank-accounts/:id` — Update bank account (admin only)
+- `DELETE /bank-accounts/:id` — Delete bank account (admin only)
+- `POST /bank-accounts/:id/set-primary` — Set as primary account (admin only)
+
+#### Payment Tracking (`/api/contracts/:id/...`)
 - `GET /contracts/:id/payment-schedules` — List payment schedule for contract
 - `POST /contracts/:id/payment-schedules/generate-rent` — Auto-generate monthly rent schedule
 - `GET /contracts/:id/payments` — List all payments for contract
