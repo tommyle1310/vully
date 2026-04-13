@@ -4,6 +4,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
 import { CacheModule } from '@nestjs/cache-manager';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import * as redisStore from 'cache-manager-redis-store';
 
 // Configuration
@@ -58,6 +59,13 @@ import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
         limit: 100,
       },
     ]),
+
+    // Event emitter for cache invalidation and domain events
+    EventEmitterModule.forRoot({
+      wildcard: false,
+      delimiter: '.',
+      maxListeners: 10,
+    }),
 
     // BullMQ for background jobs
     BullModule.forRootAsync({

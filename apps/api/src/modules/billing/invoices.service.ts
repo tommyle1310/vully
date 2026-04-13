@@ -6,6 +6,7 @@ import {
   Logger,
   ForbiddenException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
@@ -49,6 +50,7 @@ export class InvoicesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly calculator: InvoiceCalculatorService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(dto: CreateInvoiceDto, actorId: string, operationalOnly = false): Promise<InvoiceResponseDto> {
@@ -144,6 +146,13 @@ export class InvoicesService {
         },
       },
       include: INVOICE_INCLUDE,
+    });
+
+    // Emit event for cache invalidation
+    this.eventEmitter.emit('invoice.created', {
+      userId: contract.tenant_id,
+      buildingId: contract.apartments.building_id,
+      invoiceId: invoice.id,
     });
 
     this.logger.log({

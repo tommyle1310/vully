@@ -81,6 +81,7 @@ export interface ChatResponse {
   }>;
   tokensUsed?: number;
   responseTime: number;
+  queryId?: string; // For cache write after response
 }
 
 export interface ApartmentQueryResult {

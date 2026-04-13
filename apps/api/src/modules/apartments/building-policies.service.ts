@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import {
@@ -16,7 +17,10 @@ import {
 export class BuildingPoliciesService {
   private readonly logger = new Logger(BuildingPoliciesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   /**
    * Get all policies for a building (versioned history)
@@ -218,6 +222,12 @@ export class BuildingPoliciesService {
           ? new Date(dto.effectiveFrom)
           : undefined,
       },
+    });
+
+    // Emit event for cache invalidation
+    this.eventEmitter.emit('building-policy.updated', {
+      buildingId,
+      policyId: updatedPolicy.id,
     });
 
     this.logger.log({

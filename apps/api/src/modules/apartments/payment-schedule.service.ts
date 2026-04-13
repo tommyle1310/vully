@@ -4,6 +4,8 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { PaymentStatus } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   CreatePaymentScheduleDto,
@@ -15,7 +17,6 @@ import {
   PaymentResponseDto,
   ContractFinancialSummaryDto,
   PaymentType,
-  PaymentStatus,
   ContractPaymentStatus,
   PendingPaymentResponseDto,
 } from './dto/payment.dto';
@@ -27,7 +28,10 @@ import { InvoiceStatus } from '@prisma/client';
 export class PaymentScheduleService {
   private readonly logger = new Logger(PaymentScheduleService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   private get schedules() {
     return this.prisma.contract_payment_schedules;
@@ -240,6 +244,20 @@ export class PaymentScheduleService {
 
       return payment;
     });
+
+    // Emit event for cache invalidation
+    const contract = await this.prisma.contracts.findUnique({
+      where: { id: schedule.contract_id },
+      select: { tenant_id: true },
+    });
+
+    if (contract) {
+      this.eventEmitter.emit('payment.recorded', {
+        userId: contract.tenant_id,
+        contractId: schedule.contract_id,
+        paymentId: result.id,
+      });
+    }
 
     this.logger.log({
       event: 'payment_recorded',
