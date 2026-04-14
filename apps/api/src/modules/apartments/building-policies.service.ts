@@ -128,20 +128,101 @@ export class BuildingPoliciesService {
       const newPolicy = await tx.building_policies.create({
         data: {
           building_id: buildingId,
+          
+          // Occupancy
           default_max_residents: dto.defaultMaxResidents ?? null,
           access_card_limit_default: dto.accessCardLimitDefault,
           pet_allowed: dto.petAllowed,
           pet_limit_default: dto.petLimitDefault,
+          pet_rules: dto.petRules ?? null,
+          
+          // Billing
           default_billing_cycle: dto.defaultBillingCycle,
           late_fee_rate_percent: dto.lateFeeRatePercent
             ? new Prisma.Decimal(dto.lateFeeRatePercent)
             : null,
           late_fee_grace_days: dto.lateFeeGraceDays,
+          payment_due_day: dto.paymentDueDay ?? 10,
+          
+          // Trash
           trash_collection_days: dto.trashCollectionDays ?? [],
           trash_collection_time: dto.trashCollectionTime ?? null,
           trash_fee_per_month: dto.trashFeePerMonth
             ? new Prisma.Decimal(dto.trashFeePerMonth)
             : null,
+          
+          // Pool
+          pool_available: dto.poolAvailable ?? false,
+          pool_hours: dto.poolHours ?? null,
+          pool_fee_per_month: dto.poolFeePerMonth
+            ? new Prisma.Decimal(dto.poolFeePerMonth)
+            : null,
+          
+          // Gym
+          gym_available: dto.gymAvailable ?? false,
+          gym_hours: dto.gymHours ?? null,
+          gym_fee_per_month: dto.gymFeePerMonth
+            ? new Prisma.Decimal(dto.gymFeePerMonth)
+            : null,
+          gym_booking_required: dto.gymBookingRequired ?? false,
+          
+          // Sports Courts
+          sports_court_available: dto.sportsCourtAvailable ?? false,
+          sports_court_hours: dto.sportsCourtHours ?? null,
+          sports_court_booking_rules: dto.sportsCourtBookingRules ?? null,
+          
+          // Guest & Visitor
+          guest_registration_required: dto.guestRegistrationRequired ?? true,
+          guest_parking_rules: dto.guestParkingRules ?? null,
+          visitor_hours: dto.visitorHours ?? null,
+          
+          // Renovation
+          renovation_approval_required: dto.renovationApprovalRequired ?? true,
+          renovation_allowed_hours: dto.renovationAllowedHours ?? null,
+          renovation_deposit: dto.renovationDeposit
+            ? new Prisma.Decimal(dto.renovationDeposit)
+            : null,
+          renovation_approval_process: dto.renovationApprovalProcess ?? null,
+          
+          // Quiet Hours
+          quiet_hours_start: dto.quietHoursStart ?? null,
+          quiet_hours_end: dto.quietHoursEnd ?? null,
+          noise_complaint_process: dto.noiseComplaintProcess ?? null,
+          
+          // Package
+          package_pickup_location: dto.packagePickupLocation ?? null,
+          package_pickup_hours: dto.packagePickupHours ?? null,
+          package_holding_days: dto.packageHoldingDays ?? 7,
+          
+          // Emergency
+          emergency_contacts: dto.emergencyContacts 
+            ? (dto.emergencyContacts as unknown as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
+          management_office_hours: dto.managementOfficeHours ?? null,
+          security_24h_phone: dto.security24hPhone ?? null,
+          
+          // Access Cards
+          access_card_replacement_fee: dto.accessCardReplacementFee
+            ? new Prisma.Decimal(dto.accessCardReplacementFee)
+            : null,
+          access_card_replacement_process: dto.accessCardReplacementProcess ?? null,
+          
+          // Move In/Out
+          move_allowed_hours: dto.moveAllowedHours ?? null,
+          move_elevator_booking_required: dto.moveElevatorBookingRequired ?? true,
+          move_deposit: dto.moveDeposit
+            ? new Prisma.Decimal(dto.moveDeposit)
+            : null,
+          
+          // Parking Fees
+          motorcycle_parking_fee: dto.motorcycleParkingFee
+            ? new Prisma.Decimal(dto.motorcycleParkingFee)
+            : null,
+          car_parking_fee: dto.carParkingFee
+            ? new Prisma.Decimal(dto.carParkingFee)
+            : null,
+          
+          // Versioning
           effective_from: effectiveFromDate,
           effective_to: null,
           created_by: userId ?? null,
@@ -273,16 +354,81 @@ export class BuildingPoliciesService {
     return {
       id: policy.id,
       buildingId: policy.building_id,
+      
+      // Occupancy
       defaultMaxResidents: policy.default_max_residents,
       accessCardLimitDefault: policy.access_card_limit_default,
       petAllowed: policy.pet_allowed,
       petLimitDefault: policy.pet_limit_default,
+      petRules: policy.pet_rules,
+      
+      // Billing
       defaultBillingCycle: policy.default_billing_cycle,
       lateFeeRatePercent: policy.late_fee_rate_percent?.toNumber() ?? null,
       lateFeeGraceDays: policy.late_fee_grace_days,
+      paymentDueDay: policy.payment_due_day,
+      
+      // Trash
       trashCollectionDays: policy.trash_collection_days,
       trashCollectionTime: policy.trash_collection_time,
       trashFeePerMonth: policy.trash_fee_per_month?.toNumber() ?? null,
+      
+      // Pool
+      poolAvailable: policy.pool_available,
+      poolHours: policy.pool_hours,
+      poolFeePerMonth: policy.pool_fee_per_month?.toNumber() ?? null,
+      
+      // Gym
+      gymAvailable: policy.gym_available,
+      gymHours: policy.gym_hours,
+      gymFeePerMonth: policy.gym_fee_per_month?.toNumber() ?? null,
+      gymBookingRequired: policy.gym_booking_required,
+      
+      // Sports Courts
+      sportsCourtAvailable: policy.sports_court_available,
+      sportsCourtHours: policy.sports_court_hours,
+      sportsCourtBookingRules: policy.sports_court_booking_rules,
+      
+      // Guest & Visitor
+      guestRegistrationRequired: policy.guest_registration_required,
+      guestParkingRules: policy.guest_parking_rules,
+      visitorHours: policy.visitor_hours,
+      
+      // Renovation
+      renovationApprovalRequired: policy.renovation_approval_required,
+      renovationAllowedHours: policy.renovation_allowed_hours,
+      renovationDeposit: policy.renovation_deposit?.toNumber() ?? null,
+      renovationApprovalProcess: policy.renovation_approval_process,
+      
+      // Quiet Hours
+      quietHoursStart: policy.quiet_hours_start,
+      quietHoursEnd: policy.quiet_hours_end,
+      noiseComplaintProcess: policy.noise_complaint_process,
+      
+      // Package
+      packagePickupLocation: policy.package_pickup_location,
+      packagePickupHours: policy.package_pickup_hours,
+      packageHoldingDays: policy.package_holding_days,
+      
+      // Emergency
+      emergencyContacts: policy.emergency_contacts,
+      managementOfficeHours: policy.management_office_hours,
+      security24hPhone: policy.security_24h_phone,
+      
+      // Access Cards
+      accessCardReplacementFee: policy.access_card_replacement_fee?.toNumber() ?? null,
+      accessCardReplacementProcess: policy.access_card_replacement_process,
+      
+      // Move In/Out
+      moveAllowedHours: policy.move_allowed_hours,
+      moveElevatorBookingRequired: policy.move_elevator_booking_required,
+      moveDeposit: policy.move_deposit?.toNumber() ?? null,
+      
+      // Parking Fees
+      motorcycleParkingFee: policy.motorcycle_parking_fee?.toNumber() ?? null,
+      carParkingFee: policy.car_parking_fee?.toNumber() ?? null,
+      
+      // Versioning
       effectiveFrom: policy.effective_from.toISOString().split('T')[0],
       effectiveTo: policy.effective_to?.toISOString().split('T')[0] ?? null,
       isCurrent,

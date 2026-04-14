@@ -197,16 +197,73 @@ model building_policies {
   access_card_limit_default Int     @default(4)
   pet_allowed               Boolean @default(false)
   pet_limit_default         Int     @default(0)
+  pet_rules                 String? // Detailed pet rules text
 
   // Billing Configuration
   default_billing_cycle BillingCycle @default(monthly)
   late_fee_rate_percent Decimal?     @db.Decimal(5, 2) // e.g., 5.00 for 5%
   late_fee_grace_days   Int          @default(7)
+  payment_due_day       Int          @default(10) // Day of month payment is due
 
   // Trash Collection
   trash_collection_days String[] // ['monday', 'thursday']
   trash_collection_time String?  @db.VarChar(20) // e.g., "07:00-09:00"
   trash_fee_per_month   Decimal? @db.Decimal(12, 2)
+
+  // Amenities - Pool
+  pool_available     Boolean @default(false)
+  pool_hours         String? @db.VarChar(50) // e.g., "06:00-22:00"
+  pool_fee_per_month Decimal? @db.Decimal(12, 2) // null = free
+
+  // Amenities - Gym
+  gym_available     Boolean @default(false)
+  gym_hours         String? @db.VarChar(50) // e.g., "05:00-23:00"
+  gym_fee_per_month Decimal? @db.Decimal(12, 2) // null = free
+  gym_booking_required Boolean @default(false)
+
+  // Amenities - Tennis/Sports Courts
+  sports_court_available Boolean @default(false)
+  sports_court_hours     String? @db.VarChar(50)
+  sports_court_booking_rules String? // Booking rules text
+
+  // Guest & Visitor Rules
+  guest_registration_required Boolean @default(true)
+  guest_parking_rules         String? // How to register guest vehicles
+  visitor_hours               String? @db.VarChar(50) // e.g., "08:00-22:00"
+
+  // Renovation & Modifications
+  renovation_approval_required Boolean @default(true)
+  renovation_allowed_hours     String? @db.VarChar(50) // e.g., "08:00-17:00 Mon-Sat"
+  renovation_deposit           Decimal? @db.Decimal(12, 2)
+  renovation_approval_process  String? // Steps to get approval
+
+  // Quiet Hours & Noise
+  quiet_hours_start String? @db.VarChar(10) // e.g., "22:00"
+  quiet_hours_end   String? @db.VarChar(10) // e.g., "07:00"
+  noise_complaint_process String? // How to report noise
+
+  // Package & Deliveries
+  package_pickup_location String? @db.VarChar(200)
+  package_pickup_hours    String? @db.VarChar(50) // e.g., "08:00-20:00"
+  package_holding_days    Int     @default(7) // Days before returned to sender
+
+  // Emergency Contacts
+  emergency_contacts Json? // Array of {name, role, phone}
+  management_office_hours String? @db.VarChar(50) // e.g., "08:00-17:00 Mon-Fri"
+  security_24h_phone     String? @db.VarChar(20)
+
+  // Access Card Rules
+  access_card_replacement_fee  Decimal? @db.Decimal(12, 2)
+  access_card_replacement_process String? // Steps to replace lost card
+
+  // Move-in/Move-out
+  move_allowed_hours String? @db.VarChar(50) // e.g., "08:00-18:00"
+  move_elevator_booking_required Boolean @default(true)
+  move_deposit Decimal? @db.Decimal(12, 2)
+
+  // Parking Fees (reference to parking_zones for details)
+  motorcycle_parking_fee Decimal? @db.Decimal(12, 2)
+  car_parking_fee        Decimal? @db.Decimal(12, 2)
 
   // Versioning
   effective_from DateTime  @db.Date

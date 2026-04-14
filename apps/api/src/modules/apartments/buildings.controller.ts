@@ -28,6 +28,8 @@ import {
 import { JwtAuthGuard } from '../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthUser } from '../../common/interfaces/auth-user.interface';
 
 @ApiTags('Buildings')
 @Controller('buildings')
@@ -77,6 +79,22 @@ export class BuildingsController {
         limit: limitNum,
       },
     };
+  }
+
+  @Get('my/policies')
+  @ApiOperation({ summary: 'Get building policies for current user\'s apartment' })
+  @ApiResponse({ status: 200, description: 'Building policies for the user\'s building' })
+  async getMyBuildingPolicies(
+    @CurrentUser() user: AuthUser,
+  ): Promise<{
+    data: {
+      buildingId: string;
+      buildingName: string;
+      policy: any | null;
+    };
+  }> {
+    const result = await this.buildingsService.getMyBuildingPolicies(user.id);
+    return { data: result };
   }
 
   @Get(':id')

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Loader2, Sparkles, ExternalLink } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, Sparkles, ExternalLink, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -25,14 +25,62 @@ interface ApiError {
   };
 }
 
+const CHAT_STORAGE_KEY = 'vully-chat-messages';
+
+// Helper to serialize/deserialize chat messages with Date objects
+function saveChatToStorage(messages: ChatMessage[]) {
+  try {
+    const serializable = messages.map(m => ({
+      ...m,
+      timestamp: m.timestamp.toISOString(),
+    }));
+    sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(serializable));
+  } catch {
+    // Ignore storage errors (e.g., quota exceeded)
+  }
+}
+
+function loadChatFromStorage(): ChatMessage[] {
+  try {
+    const stored = sessionStorage.getItem(CHAT_STORAGE_KEY);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    return parsed.map((m: any) => ({
+      ...m,
+      timestamp: new Date(m.timestamp),
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export function FloatingChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const isInitialized = useRef(false);
 
   const { mutate: sendMessage, isPending } = useAiChat();
   const { data: quota } = useQueryQuota();
+
+  // Load messages from sessionStorage on mount
+  useEffect(() => {
+    if (!isInitialized.current) {
+      const stored = loadChatFromStorage();
+      if (stored.length > 0) {
+        setMessages(stored);
+      }
+      isInitialized.current = true;
+    }
+  }, []);
+
+  // Save messages to sessionStorage whenever they change
+  useEffect(() => {
+    if (isInitialized.current && messages.length > 0) {
+      saveChatToStorage(messages);
+    }
+  }, [messages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -82,6 +130,11 @@ export function FloatingChatWidget() {
     }
   };
 
+  const handleClearChat = () => {
+    setMessages([]);
+    sessionStorage.removeItem(CHAT_STORAGE_KEY);
+  };
+
   const remainingQueries = typeof quota?.remaining === 'number' 
     ? quota.remaining 
     : quota?.remaining;
@@ -129,7 +182,18 @@ export function FloatingChatWidget() {
           >
             <Card className="flex h-full flex-col overflow-hidden rounded-3xl border border-border/70 bg-card/80 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl">
               <div className="relative border-b border-border/60 bg-gradient-to-r from-primary/20 via-primary/5 to-transparent px-4 pb-4 pt-3">
-                <div className="absolute right-4 top-3">
+                <div className="absolute right-4 top-3 flex items-center gap-1">
+                  {messages.length > 0 && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground"
+                      onClick={handleClearChat}
+                      title="Clear conversation"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     size="icon"
                     variant="ghost"
@@ -140,7 +204,7 @@ export function FloatingChatWidget() {
                   </Button>
                 </div>
 
-                <div className="pr-12">
+                <div className="pr-20">
                   <div className="flex items-center gap-2">
                     <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/20 text-primary">
                       <Sparkles className="h-4.5 w-4.5" />
@@ -212,6 +276,20 @@ export function FloatingChatWidget() {
                                 p: ({ children }) => <p className="break-words whitespace-pre-wrap">{children}</p>,
                                 li: ({ children }) => <li className="break-words">{children}</li>,
                                 strong: ({ children }) => <strong className="break-words">{children}</strong>,
+                                a: ({ href, children }) => {
+                                  // Internal links (starting with /) open in same tab
+                                  const isInternal = href?.startsWith('/');
+                                  return (
+                                    <a
+                                      href={href}
+                                      className="text-primary underline underline-offset-2 hover:text-primary/80"
+                                      target={isInternal ? '_self' : '_blank'}
+                                      rel={isInternal ? undefined : 'noopener noreferrer'}
+                                    >
+                                      {children}
+                                    </a>
+                                  );
+                                },
                               }}
                             >
                               {message.content}

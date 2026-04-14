@@ -239,6 +239,150 @@ export class BuildingsService {
     return { meters, duplicates };
   }
 
+  /**
+   * Get building policies for the current user's apartment building
+   * Based on their active contract
+   */
+  async getMyBuildingPolicies(userId: string): Promise<{
+    buildingId: string;
+    buildingName: string;
+    policy: any | null;
+  }> {
+    // Find user's active contract to get their building
+    const contract = await this.prisma.contracts.findFirst({
+      where: {
+        tenant_id: userId,
+        status: 'active',
+      },
+      include: {
+        apartments: {
+          include: {
+            buildings: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!contract) {
+      throw new NotFoundException('No active contract found. You must have an active rental contract to view building policies.');
+    }
+
+    const buildingId = contract.apartments.buildings.id;
+    const buildingName = contract.apartments.buildings.name;
+
+    // Get the current active policy for this building (effective_to IS NULL = current policy)
+    const policy = await this.prisma.building_policies.findFirst({
+      where: {
+        building_id: buildingId,
+        effective_to: null,
+      },
+      orderBy: { effective_from: 'desc' },
+    });
+
+    if (!policy) {
+      return {
+        buildingId,
+        buildingName,
+        policy: null,
+      };
+    }
+
+    // Map to frontend-friendly format
+    return {
+      buildingId,
+      buildingName,
+      policy: {
+        id: policy.id,
+        buildingId: policy.building_id,
+        
+        // Basic occupancy
+        defaultMaxResidents: policy.default_max_residents,
+        accessCardLimitDefault: policy.access_card_limit_default,
+        petAllowed: policy.pet_allowed,
+        petLimitDefault: policy.pet_limit_default,
+        petRules: policy.pet_rules,
+        
+        // Quiet hours
+        quietHoursStart: policy.quiet_hours_start,
+        quietHoursEnd: policy.quiet_hours_end,
+        noiseComplaintProcess: policy.noise_complaint_process,
+        
+        // Amenities - Pool
+        poolAvailable: policy.pool_available,
+        poolHours: policy.pool_hours,
+        poolFeePerMonth: policy.pool_fee_per_month ? Number(policy.pool_fee_per_month) : null,
+        
+        // Amenities - Gym
+        gymAvailable: policy.gym_available,
+        gymHours: policy.gym_hours,
+        gymFeePerMonth: policy.gym_fee_per_month ? Number(policy.gym_fee_per_month) : null,
+        gymBookingRequired: policy.gym_booking_required,
+        
+        // Amenities - Sports
+        sportsCourtAvailable: policy.sports_court_available,
+        sportsCourtHours: policy.sports_court_hours,
+        sportsCourtBookingRules: policy.sports_court_booking_rules,
+        
+        // Guest policies
+        guestRegistrationRequired: policy.guest_registration_required,
+        guestParkingRules: policy.guest_parking_rules,
+        visitorHours: policy.visitor_hours,
+        
+        // Parking fees
+        motorcycleParkingFee: policy.motorcycle_parking_fee ? Number(policy.motorcycle_parking_fee) : null,
+        carParkingFee: policy.car_parking_fee ? Number(policy.car_parking_fee) : null,
+        
+        // Renovation
+        renovationApprovalRequired: policy.renovation_approval_required,
+        renovationAllowedHours: policy.renovation_allowed_hours,
+        renovationApprovalProcess: policy.renovation_approval_process,
+        renovationDeposit: policy.renovation_deposit ? Number(policy.renovation_deposit) : null,
+        
+        // Access cards
+        accessCardReplacementFee: policy.access_card_replacement_fee ? Number(policy.access_card_replacement_fee) : null,
+        accessCardReplacementProcess: policy.access_card_replacement_process,
+        
+        // Package pickup
+        packagePickupLocation: policy.package_pickup_location,
+        packagePickupHours: policy.package_pickup_hours,
+        packageHoldingDays: policy.package_holding_days,
+        
+        // Emergency
+        emergencyContacts: policy.emergency_contacts,
+        managementOfficeHours: policy.management_office_hours,
+        security24hPhone: policy.security_24h_phone,
+        
+        // Billing
+        defaultBillingCycle: policy.default_billing_cycle,
+        paymentDueDay: policy.payment_due_day,
+        lateFeeRatePercent: policy.late_fee_rate_percent ? Number(policy.late_fee_rate_percent) : null,
+        lateFeeGraceDays: policy.late_fee_grace_days,
+        
+        // Trash
+        trashCollectionDays: policy.trash_collection_days,
+        trashCollectionTime: policy.trash_collection_time,
+        trashFeePerMonth: policy.trash_fee_per_month ? Number(policy.trash_fee_per_month) : null,
+        
+        // Move in/out
+        moveAllowedHours: policy.move_allowed_hours,
+        moveElevatorBookingRequired: policy.move_elevator_booking_required,
+        moveDeposit: policy.move_deposit ? Number(policy.move_deposit) : null,
+        
+        // Meta
+        effectiveFrom: policy.effective_from.toISOString(),
+        effectiveTo: policy.effective_to?.toISOString() || null,
+        isCurrent: policy.effective_to === null,
+        createdBy: policy.created_by,
+        createdAt: policy.created_at.toISOString(),
+      },
+    };
+  }
+
   private toResponseDto(building: buildings): BuildingResponseDto {
     return {
       id: building.id,

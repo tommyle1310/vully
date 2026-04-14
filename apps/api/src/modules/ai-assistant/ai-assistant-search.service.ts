@@ -27,11 +27,11 @@ export class AiAssistantSearchService {
       },
       {
         name: 'get_recent_invoices',
-        description: 'Get the most recent invoices for a user or apartment',
-        parameters: { userId: 'string', apartmentId: 'string?', limit: 'number?' },
+        description: 'Get the most recent invoices for a user or apartment with full details including line items',
+        parameters: { userId: 'string', apartmentId: 'string?', limit: 'number?', status: 'string?' },
         readonly: true,
         execute: async (params: Record<string, any>, userId: string) =>
-          this.getRecentInvoices(userId, params.apartmentId, params.limit || 5),
+          this.getRecentInvoices(userId, params.apartmentId, params.limit || 5, params.status),
       },
       {
         name: 'get_payment_history',
@@ -43,7 +43,7 @@ export class AiAssistantSearchService {
       },
       {
         name: 'get_contract_summary',
-        description: 'Get active contract details for a user',
+        description: 'Get active contract details including rent amount, deposit, payment due date',
         parameters: { userId: 'string' },
         readonly: true,
         execute: async (params: Record<string, any>, userId: string) => this.getContractSummary(userId),
@@ -55,6 +55,28 @@ export class AiAssistantSearchService {
         readonly: true,
         execute: async (params: Record<string, any>, userId: string) =>
           this.getUtilityUsage(userId, params.utilityType, params.limit || 12),
+      },
+      {
+        name: 'get_building_policies',
+        description: 'Get building policies including pet rules, pool/gym hours, quiet hours, emergency contacts, renovation rules, guest parking rules, access card replacement process',
+        parameters: { userId: 'string' },
+        readonly: true,
+        execute: async (params: Record<string, any>, userId: string) => this.getBuildingPolicies(userId),
+      },
+      {
+        name: 'get_bank_accounts',
+        description: 'Get available bank accounts for payment (VietQR, bank transfer info)',
+        parameters: { userId: 'string' },
+        readonly: true,
+        execute: async (params: Record<string, any>, userId: string) => this.getBankAccounts(userId),
+      },
+      {
+        name: 'get_incident_status',
+        description: 'Get status of a maintenance/incident request by ID or search user incidents',
+        parameters: { userId: 'string', incidentId: 'string?' },
+        readonly: true,
+        execute: async (params: Record<string, any>, userId: string) =>
+          this.getIncidentStatus(userId, params.incidentId),
       },
     ];
   }
@@ -512,6 +534,7 @@ export class AiAssistantSearchService {
     userId: string,
     apartmentId?: string,
     limit: number = 5,
+    status?: string,
   ): Promise<
     Array<{
       id: string;
@@ -523,21 +546,42 @@ export class AiAssistantSearchService {
       status: string;
       invoiceStream: string;
       apartmentUnit: string | null;
+      lineItems: Array<{
+        description: string;
+        quantity: number;
+        unitPrice: number;
+        amount: number;
+      }>;
     }>
   > {
-    const invoices = await this.prisma.invoices.findMany({
-      where: apartmentId
-        ? { apartment_id: apartmentId }
-        : {
-            contracts: {
-              tenant_id: userId,
-            },
+    const where: any = apartmentId
+      ? { apartment_id: apartmentId }
+      : {
+          contracts: {
+            tenant_id: userId,
           },
+        };
+
+    // Add status filter if provided
+    if (status) {
+      where.status = status;
+    }
+
+    const invoices = await this.prisma.invoices.findMany({
+      where,
       take: limit,
       orderBy: { created_at: 'desc' },
       include: {
         apartments: {
           select: { unit_number: true },
+        },
+        invoice_line_items: {
+          select: {
+            description: true,
+            quantity: true,
+            unit_price: true,
+            amount: true,
+          },
         },
       },
     });
@@ -552,6 +596,12 @@ export class AiAssistantSearchService {
       status: inv.status,
       invoiceStream: inv.invoice_stream,
       apartmentUnit: inv.apartments?.unit_number || null,
+      lineItems: inv.invoice_line_items.map((item) => ({
+        description: item.description,
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unit_price),
+        amount: Number(item.amount),
+      })),
     }));
   }
 
@@ -727,11 +777,342 @@ export class AiAssistantSearchService {
     });
   }
 
-  // ============================================================================
-  // EXISTING APARTMENT/BUILDING QUERY METHODS
-  // ============================================================================
+  /**
+   * Tool: Get building policies for the user's apartment building
+   */
+  private async getBuildingPolicies(userId: string): Promise<{
+    buildingName: string;
+    policies: {
+      // Occupancy rules
+      defaultMaxResidents: number | null;
+      petAllowed: boolean;
+      petLimitDefault: number;
+      petRules: string | null;
+      
+      // Quiet hours
+      quietHoursStart: string | null;
+      quietHoursEnd: string | null;
+      noiseComplaintProcess: string | null;
+      
+      // Facilities
+      poolAvailable: boolean;
+      poolHours: string | null;
+      gymAvailable: boolean;
+      gymHours: string | null;
+      gymBookingRequired: boolean;
+      
+      // Guest policies
+      guestRegistrationRequired: boolean;
+      guestParkingRules: string | null;
+      visitorHours: string | null;
+      
+      // Parking fees
+      motorcycleParkingFee: number | null;
+      carParkingFee: number | null;
+      
+      // Renovation
+      renovationApprovalRequired: boolean;
+      renovationAllowedHours: string | null;
+      renovationDeposit: number | null;
+      renovationApprovalProcess: string | null;
+      
+      // Access cards
+      accessCardLimitDefault: number;
+      accessCardReplacementFee: number | null;
+      accessCardReplacementProcess: string | null;
+      
+      // Package pickup
+      packagePickupLocation: string | null;
+      packagePickupHours: string | null;
+      packageHoldingDays: number;
+      
+      // Emergency
+      emergencyContacts: any | null;
+      managementOfficeHours: string | null;
+      security24hPhone: string | null;
+      
+      // Billing
+      paymentDueDay: number;
+      lateFeeRatePercent: number | null;
+      lateFeeGraceDays: number;
+      
+      // Trash
+      trashCollectionDays: string[] | null;
+      trashCollectionTime: string | null;
+      
+      // Move in/out
+      moveAllowedHours: string | null;
+      moveElevatorBookingRequired: boolean;
+      moveDeposit: number | null;
+    } | null;
+  }> {
+    // Find user's active contract to get the building ID
+    const contract = await this.prisma.contracts.findFirst({
+      where: {
+        tenant_id: userId,
+        status: 'active',
+      },
+      include: {
+        apartments: {
+          include: {
+            buildings: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!contract) {
+      return { buildingName: 'N/A', policies: null };
+    }
+
+    const buildingId = contract.apartments.buildings.id;
+    const buildingName = contract.apartments.buildings.name;
+
+    // Get the current policy for this building (effective_to is null = current)
+    const policy = await this.prisma.building_policies.findFirst({
+      where: {
+        building_id: buildingId,
+        effective_to: null,
+      },
+      orderBy: { effective_from: 'desc' },
+    });
+
+    if (!policy) {
+      return { buildingName, policies: null };
+    }
+
+    return {
+      buildingName,
+      policies: {
+        // Occupancy
+        defaultMaxResidents: policy.default_max_residents,
+        petAllowed: policy.pet_allowed,
+        petLimitDefault: policy.pet_limit_default,
+        petRules: policy.pet_rules,
+        
+        // Quiet hours
+        quietHoursStart: policy.quiet_hours_start,
+        quietHoursEnd: policy.quiet_hours_end,
+        noiseComplaintProcess: policy.noise_complaint_process,
+        
+        // Facilities
+        poolAvailable: policy.pool_available,
+        poolHours: policy.pool_hours,
+        gymAvailable: policy.gym_available,
+        gymHours: policy.gym_hours,
+        gymBookingRequired: policy.gym_booking_required,
+        
+        // Guest policies
+        guestRegistrationRequired: policy.guest_registration_required,
+        guestParkingRules: policy.guest_parking_rules,
+        visitorHours: policy.visitor_hours,
+        
+        // Parking fees
+        motorcycleParkingFee: policy.motorcycle_parking_fee ? Number(policy.motorcycle_parking_fee) : null,
+        carParkingFee: policy.car_parking_fee ? Number(policy.car_parking_fee) : null,
+        
+        // Renovation
+        renovationApprovalRequired: policy.renovation_approval_required,
+        renovationAllowedHours: policy.renovation_allowed_hours,
+        renovationDeposit: policy.renovation_deposit ? Number(policy.renovation_deposit) : null,
+        renovationApprovalProcess: policy.renovation_approval_process,
+        
+        // Access cards
+        accessCardLimitDefault: policy.access_card_limit_default,
+        accessCardReplacementFee: policy.access_card_replacement_fee ? Number(policy.access_card_replacement_fee) : null,
+        accessCardReplacementProcess: policy.access_card_replacement_process,
+        
+        // Package pickup
+        packagePickupLocation: policy.package_pickup_location,
+        packagePickupHours: policy.package_pickup_hours,
+        packageHoldingDays: policy.package_holding_days,
+        
+        // Emergency
+        emergencyContacts: policy.emergency_contacts,
+        managementOfficeHours: policy.management_office_hours,
+        security24hPhone: policy.security_24h_phone,
+        
+        // Billing
+        paymentDueDay: policy.payment_due_day,
+        lateFeeRatePercent: policy.late_fee_rate_percent ? Number(policy.late_fee_rate_percent) : null,
+        lateFeeGraceDays: policy.late_fee_grace_days,
+        
+        // Trash
+        trashCollectionDays: policy.trash_collection_days,
+        trashCollectionTime: policy.trash_collection_time,
+        
+        // Move in/out
+        moveAllowedHours: policy.move_allowed_hours,
+        moveElevatorBookingRequired: policy.move_elevator_booking_required,
+        moveDeposit: policy.move_deposit ? Number(policy.move_deposit) : null,
+      },
+    };
+  }
 
   /**
-   * Query database for context based on the user's question.
-   * Detects if the query is asking about apartments or buildings and fetches relevant data.
-   */}
+   * Tool: Get bank accounts available for payment
+   */
+  private async getBankAccounts(userId: string): Promise<{
+    buildingAccounts: Array<{
+      bankName: string;
+      bankCode: string;
+      accountNumber: string;
+      accountName: string;
+      isPrimary: boolean;
+      notes: string | null;
+    }>;
+    note: string;
+  }> {
+    // Find user's active contract to get the building ID
+    const contract = await this.prisma.contracts.findFirst({
+      where: {
+        tenant_id: userId,
+        status: 'active',
+      },
+      include: {
+        apartments: {
+          select: { building_id: true },
+        },
+      },
+    });
+
+    if (!contract) {
+      return {
+        buildingAccounts: [],
+        note: 'No active contract found. Please contact management.',
+      };
+    }
+
+    const buildingId = contract.apartments.building_id;
+
+    // Get building bank accounts
+    const accounts = await this.prisma.bank_accounts.findMany({
+      where: {
+        building_id: buildingId,
+        is_active: true,
+      },
+      orderBy: { is_primary: 'desc' },
+    });
+
+    return {
+      buildingAccounts: accounts.map((acc) => ({
+        bankName: acc.bank_name,
+        bankCode: acc.bank_code,
+        accountNumber: acc.account_number,
+        accountName: acc.account_name,
+        isPrimary: acc.is_primary,
+        notes: acc.notes,
+      })),
+      note: accounts.length > 0
+        ? 'Please include your apartment unit number in the transfer description. Use bank_code for VietQR payments.'
+        : 'No bank accounts configured. Please contact management.',
+    };
+  }
+
+  /**
+   * Tool: Get incident/maintenance request status
+   */
+  private async getIncidentStatus(
+    userId: string,
+    incidentId?: string,
+  ): Promise<{
+    incidents: Array<{
+      id: string;
+      title: string;
+      category: string;
+      priority: string;
+      status: string;
+      description: string;
+      createdAt: Date;
+      resolvedAt: Date | null;
+      assignedTo: string | null;
+      commentCount: number;
+    }>;
+    note: string;
+  }> {
+    // If incidentId is provided, look up that specific incident
+    if (incidentId) {
+      const incident = await this.prisma.incidents.findFirst({
+        where: {
+          id: incidentId,
+          reported_by: userId, // Security: only show user's own incidents
+        },
+        include: {
+          users_incidents_assigned_toTousers: {
+            select: { first_name: true, last_name: true },
+          },
+          _count: {
+            select: { incident_comments: true },
+          },
+        },
+      });
+
+      if (!incident) {
+        return {
+          incidents: [],
+          note: `Incident #${incidentId} not found or you do not have access to it.`,
+        };
+      }
+
+      return {
+        incidents: [
+          {
+            id: incident.id,
+            title: incident.title,
+            category: incident.category,
+            priority: incident.priority,
+            status: incident.status,
+            description: incident.description,
+            createdAt: incident.created_at,
+            resolvedAt: incident.resolved_at,
+            assignedTo: incident.users_incidents_assigned_toTousers
+              ? `${incident.users_incidents_assigned_toTousers.first_name} ${incident.users_incidents_assigned_toTousers.last_name}`
+              : null,
+            commentCount: incident._count.incident_comments,
+          },
+        ],
+        note: '',
+      };
+    }
+
+    // Otherwise, get recent incidents for this user
+    const incidents = await this.prisma.incidents.findMany({
+      where: {
+        reported_by: userId,
+      },
+      take: 10,
+      orderBy: { created_at: 'desc' },
+      include: {
+        users_incidents_assigned_toTousers: {
+          select: { first_name: true, last_name: true },
+        },
+        _count: {
+          select: { incident_comments: true },
+        },
+      },
+    });
+
+    return {
+      incidents: incidents.map((inc) => ({
+        id: inc.id,
+        title: inc.title,
+        category: inc.category,
+        priority: inc.priority,
+        status: inc.status,
+        description: inc.description,
+        createdAt: inc.created_at,
+        resolvedAt: inc.resolved_at,
+        assignedTo: inc.users_incidents_assigned_toTousers
+          ? `${inc.users_incidents_assigned_toTousers.first_name} ${inc.users_incidents_assigned_toTousers.last_name}`
+          : null,
+        commentCount: inc._count.incident_comments,
+      })),
+      note:
+        incidents.length === 0
+          ? 'You have no incident reports. Use the Incidents page to create one.'
+          : '',
+    };
+  }
+}

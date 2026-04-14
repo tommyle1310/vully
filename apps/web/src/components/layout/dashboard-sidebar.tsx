@@ -7,7 +7,7 @@ import {
   Building2, Home, Building, Users, FileText, FileSignature,
   AlertTriangle, BarChart3, Settings, Gauge, Zap, Clock,
   CreditCard, PanelLeftClose, PanelLeftOpen, ChevronDown,
-  Landmark, Receipt, Wrench, ShieldCheck, ClipboardList,
+  Landmark, Receipt, Wrench, ShieldCheck, ClipboardList, ScrollText,
 } from 'lucide-react';
 import { UserRole } from '@vully/shared-types';
 import { cn } from '@/lib/utils';
@@ -68,6 +68,7 @@ const navConfig: NavEntry[] = [
       { href: '/reports', label: 'Reports', icon: BarChart3, roles: [UserRole.admin] },
     ],
   },
+  { href: '/policies', label: 'Building Policies', icon: ScrollText },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
