@@ -143,15 +143,21 @@ export class GroqService {
         messages: [
           {
             role: 'system',
-            content: `You are a tool selector. Given a user query, select which tools to call and with what parameters.
+            content: `You are a tool selector for an apartment management system. Given a user query, select which tools to call.
 
 Available tools:
 ${toolDescriptions}
 
-Respond with JSON array of tool selections:
-[{"tool_name": "...", "parameters": {...}}]
+Respond with JSON object containing a "tools" array:
+{"tools": [{"tool_name": "get_user_balance", "parameters": {}}]}
 
-If no tools are needed, return empty array: []`,
+Important:
+- For "What's my payment history?", select get_payment_history
+- For "Show invoices", select get_recent_invoices
+- For "How much electricity", select get_utility_usage
+- For "How much do I owe", select get_user_balance
+- Most queries need only 1-2 tools
+- If uncertain, return empty array: {"tools": []}`,
           },
           {
             role: 'user',
@@ -159,19 +165,29 @@ If no tools are needed, return empty array: []`,
           },
         ],
         temperature: 0.1,
-        max_tokens: 200,
+        max_tokens: 300,
         response_format: { type: 'json_object' },
       });
 
       const responseText = completion.choices[0]?.message?.content;
       if (!responseText) {
+        this.logger.warn('Tool selection returned no content');
         return [];
       }
 
-      const result = JSON.parse(responseText);
-      const selections: ToolSelection[] = result.tools || result.selections || [];
+      this.logger.debug(`Tool selection raw response: ${responseText}`);
 
-      this.logger.log(`Selected ${selections.length} tools for execution`);
+      const result = JSON.parse(responseText);
+      
+      // Try multiple possible keys for the array
+      const selections: ToolSelection[] = 
+        result.tools || 
+        result.tool_selections || 
+        result.selections || 
+        (Array.isArray(result) ? result : []);
+
+      this.logger.log(`Selected ${selections.length} tools for execution: ${selections.map(s => s.tool_name).join(', ') || 'none'}`);
+      
       return selections;
     } catch (error) {
       this.logger.error(`Tool selection failed: ${(error as Error).message}`);
