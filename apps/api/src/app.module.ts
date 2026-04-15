@@ -5,6 +5,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
 import { CacheModule } from '@nestjs/cache-manager';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import * as redisStore from 'cache-manager-redis-store';
 
 // Configuration
@@ -13,6 +14,7 @@ import { appConfig, databaseConfig, redisConfig, jwtConfig, s3Config } from './c
 // Common modules
 import { PrismaModule } from './common/prisma/prisma.module';
 import { HealthModule } from './common/health/health.module';
+import { SentryModule } from './common/sentry/sentry.module';
 
 // Feature modules (will be added progressively)
 import { IdentityModule } from './modules/identity/identity.module';
@@ -21,7 +23,8 @@ import { BillingModule } from './modules/billing/billing.module';
 import { StatsModule } from './modules/stats/stats.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
-// import { NotificationsModule } from './modules/notifications/notifications.module';
+import { PaymentsWebhookModule } from './modules/payments-webhook/payments-webhook.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 // import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
@@ -95,6 +98,10 @@ import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
     // Common modules
     PrismaModule,
     HealthModule,
+    SentryModule,
+
+    // Scheduler for cron jobs
+    ScheduleModule.forRoot(),
 
     // Feature modules
     IdentityModule,
@@ -103,7 +110,8 @@ import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
     StatsModule,
     IncidentsModule,
     AiAssistantModule,
-    // NotificationsModule,
+    PaymentsWebhookModule,
+    NotificationsModule,
     // DashboardModule,
   ],
 })

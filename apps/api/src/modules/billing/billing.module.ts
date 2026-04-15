@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { InvoicesController } from './invoices/invoices.controller';
 import { InvoicesService } from './invoices/invoices.service';
@@ -15,6 +15,8 @@ import { BillingQueueService } from './billing-queue.service';
 import { BillingJobsController } from './billing-jobs.controller';
 import { VietQRService } from './vietqr/vietqr.service';
 import { VacantBillingService } from './vacant-billing/vacant-billing.service';
+import { PaymentReminderJobs } from './payment-reminder-jobs';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -28,6 +30,7 @@ import { VacantBillingService } from './vacant-billing/vacant-billing.service';
         },
       },
     }),
+    forwardRef(() => NotificationsModule),
   ],
   controllers: [
     InvoicesController,
@@ -51,6 +54,8 @@ import { VacantBillingService } from './vacant-billing/vacant-billing.service';
     // Additional services
     VietQRService,
     VacantBillingService,
+    // Scheduled jobs
+    PaymentReminderJobs,
   ],
   exports: [
     InvoicesService,

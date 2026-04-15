@@ -86,6 +86,42 @@ export class IncidentsGateway implements OnGatewayConnection, OnGatewayDisconnec
           room: 'role:technician',
         });
       }
+
+      if (client.user.roles.includes(UserRole.accountant)) {
+        client.join(WS_ROOMS.accountant());
+        this.logger.log({
+          event: 'ws_auto_join',
+          clientId: client.id,
+          room: 'role:accountant',
+        });
+      }
+
+      if (client.user.roles.includes(UserRole.security)) {
+        client.join(WS_ROOMS.security());
+        this.logger.log({
+          event: 'ws_auto_join',
+          clientId: client.id,
+          room: 'role:security',
+        });
+      }
+
+      if (client.user.roles.includes(UserRole.housekeeping)) {
+        client.join(WS_ROOMS.housekeeping());
+        this.logger.log({
+          event: 'ws_auto_join',
+          clientId: client.id,
+          room: 'role:housekeeping',
+        });
+      }
+
+      if (client.user.roles.includes(UserRole.building_manager)) {
+        client.join(WS_ROOMS.buildingManager());
+        this.logger.log({
+          event: 'ws_auto_join',
+          clientId: client.id,
+          room: 'role:building_manager',
+        });
+      }
     }
   }
 
@@ -110,7 +146,7 @@ export class IncidentsGateway implements OnGatewayConnection, OnGatewayDisconnec
       /^apartments:[a-f0-9-]{36}$/,
       /^incidents:[a-f0-9-]{36}$/,
       /^user:[a-f0-9-]{36}$/,
-      /^role:(admin|technician)$/,
+      /^role:(admin|technician|accountant|security|housekeeping|building_manager)$/,
     ];
 
     const isValidRoom = validPatterns.some((pattern) => pattern.test(room));

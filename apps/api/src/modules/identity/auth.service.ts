@@ -31,6 +31,11 @@ export class AuthService {
       return null;
     }
 
+    // OAuth users don't have password_hash
+    if (!user.password_hash) {
+      return null;
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
       return null;
@@ -252,6 +257,38 @@ export class AuthService {
     });
 
     return token;
+  }
+
+  /**
+   * Get full user profile by ID (for /auth/me)
+   */
+  async getProfile(userId: string) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      include: { user_role_assignments: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const roles = user.user_role_assignments.length > 0
+      ? user.user_role_assignments.map((ra: { role: string }) => ra.role)
+      : [user.role];
+
+    const profileData = user.profile_data as Record<string, unknown> | null;
+
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      role: user.role,
+      roles,
+      phone: user.phone || undefined,
+      avatarUrl: profileData?.avatarUrl as string | undefined,
+      isActive: user.is_active,
+    };
   }
 
   private hashToken(token: string): string {

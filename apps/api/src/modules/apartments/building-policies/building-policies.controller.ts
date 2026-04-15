@@ -23,17 +23,20 @@ import {
 } from '../dto/building-policy.dto';
 import { JwtAuthGuard } from '../../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
+import { BuildingScopedGuard } from '../../../common/guards/building-scoped.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
+import { BuildingScoped } from '../../../common/decorators/building-scoped.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 
 @ApiTags('Building Policies')
 @Controller('buildings/:buildingId/policies')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, BuildingScopedGuard)
 @ApiBearerAuth()
 export class BuildingPoliciesController {
   constructor(private readonly policiesService: BuildingPoliciesService) {}
 
   @Get()
+  @BuildingScoped()
   @ApiOperation({ summary: 'List all policies for a building (versioned history)' })
   @ApiParam({ name: 'buildingId', type: String })
   @ApiResponse({ status: 200, description: 'Policies list', type: [BuildingPolicyResponseDto] })
@@ -45,6 +48,7 @@ export class BuildingPoliciesController {
   }
 
   @Get('current')
+  @BuildingScoped()
   @ApiOperation({ summary: 'Get currently effective policy' })
   @ApiParam({ name: 'buildingId', type: String })
   @ApiResponse({ status: 200, description: 'Current policy', type: BuildingPolicyResponseDto })

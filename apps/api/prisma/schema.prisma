@@ -146,12 +146,13 @@ model buildings {
   created_at             DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at             DateTime                 @db.Timestamptz(6)
   floor_heights          Json?
-  apartments             apartments[]
-  management_fee_configs management_fee_configs[]
-  utility_tiers          utility_tiers[]
-  building_policies      building_policies[]
-  parking_zones          parking_zones[]
-  bank_accounts          bank_accounts[]
+  apartments               apartments[]
+  management_fee_configs   management_fee_configs[]
+  utility_tiers            utility_tiers[]
+  building_policies        building_policies[]
+  parking_zones            parking_zones[]
+  bank_accounts            bank_accounts[]
+  user_building_assignments user_building_assignments[]
 }
 
 // ============================================================================
@@ -588,9 +589,16 @@ model invoices {
   price_snapshot     Json?
   created_at         DateTime             @default(now()) @db.Timestamptz(6)
   updated_at         DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
-  invoice_line_items invoice_line_items[]
-  contracts          contracts?           @relation(fields: [contract_id], references: [id], onDelete: Cascade)
-  apartments         apartments?          @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
+
+  // Payment reconciliation fields (VietQR webhook)
+  payment_reference       String?  @unique @db.VarChar(30) // VULLY-INV-xxxxxx
+  external_transaction_id String?  @db.VarChar(100)       // Gateway tx ID for idempotency
+  raw_gateway_response    Json?                           // Full webhook payload for audit
+
+  invoice_line_items  invoice_line_items[]
+  unmatched_payments  unmatched_payments[]
+  contracts           contracts?           @relation(fields: [contract_id], references: [id], onDelete: Cascade)
+  apartments          apartments?          @relation(fields: [apartment_id], references: [id], onDelete: Cascade)
 
   @@index([billing_period])
   @@index([contract_id])
@@ -598,6 +606,7 @@ model invoices {
   @@index([due_date])
   @@index([status])
   @@index([invoice_stream])
+  @@index([external_transaction_id])
 }
 
 model management_fee_configs {
@@ -645,10 +654,79 @@ model notifications {
   is_read       Boolean   @default(false)
   read_at       DateTime? @db.Timestamptz(6)
   created_at    DateTime  @default(now()) @db.Timestamptz(6)
-  users         users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  // Delivery tracking (multi-channel notifications)
+  delivery_status String?   @db.VarChar(20) // 'pending' | 'delivered' | 'failed' | 'skipped'
+  delivered_at    DateTime? @db.Timestamptz(6)
+  delivery_error  String?
+
+  users users @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([created_at])
   @@index([user_id, is_read])
+}
+
+// ============================================================================
+// Device Tokens (FCM Push Notifications)
+// ============================================================================
+
+model device_tokens {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  token      String   @unique @db.VarChar(500) // FCM token can be long
+  platform   String   @db.VarChar(20)          // 'web' | 'android' | 'ios'
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  last_used  DateTime @default(now()) @db.Timestamptz(6)
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([last_used])
+}
+
+// ============================================================================
+// User Notification Preferences
+// ============================================================================
+
+model user_notification_preferences {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String  @unique @db.Uuid
+
+  // Channel preferences
+  push_enabled  Boolean @default(true)
+  email_enabled Boolean @default(true)
+  zalo_enabled  Boolean @default(true) // Zalo ZNS
+
+  // Type preferences
+  payment_notifications      Boolean @default(true)
+  incident_notifications     Boolean @default(true)
+  announcement_notifications Boolean @default(true)
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+// ============================================================================
+// OAuth Accounts (Google, Zalo)
+// ============================================================================
+
+model oauth_accounts {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String    @db.Uuid
+  provider         String    @db.VarChar(20) // 'google' | 'zalo'
+  provider_user_id String    @db.VarChar(100)
+  access_token     String?   @db.VarChar(2000) // Encrypted
+  refresh_token    String?   @db.VarChar(2000) // Encrypted
+  token_expires_at DateTime? @db.Timestamptz(6)
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime  @updatedAt @db.Timestamptz(6)
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([provider, provider_user_id])
+  @@index([user_id])
 }
 
 model password_reset_tokens {
@@ -707,10 +785,32 @@ model user_role_assignments {
   @@index([user_id])
 }
 
+// ============================================================================
+// Building-Scoped Role Assignments
+// ============================================================================
+
+model user_building_assignments {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String   @db.Uuid
+  building_id String   @db.Uuid
+  role        UserRole // Role scoped to this building
+  assigned_at DateTime @default(now()) @db.Timestamptz(6)
+  assigned_by String?  @db.Uuid
+
+  // Relations
+  user        users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  building    buildings @relation(fields: [building_id], references: [id], onDelete: Cascade)
+  assigned_by_user users? @relation("building_assignment_assigner", fields: [assigned_by], references: [id], onDelete: SetNull)
+
+  @@unique([user_id, building_id])
+  @@index([building_id])
+  @@index([role])
+}
+
 model users {
   id                                     String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                                  String                  @unique @db.VarChar(255)
-  password_hash                          String                  @db.VarChar(255)
+  password_hash                          String?                 @db.VarChar(255) // Nullable for OAuth-only users
   role                                   UserRole                @default(resident)
   first_name                             String                  @db.VarChar(100)
   last_name                              String                  @db.VarChar(100)
@@ -719,6 +819,12 @@ model users {
   is_active                              Boolean                 @default(true)
   created_at                             DateTime                @default(now()) @db.Timestamptz(6)
   updated_at                             DateTime                @db.Timestamptz(6)
+
+  // Zalo integration (for ZNS notifications)
+  zalo_id          String?  @unique @db.VarChar(100)
+  zalo_oa_follower Boolean  @default(false)
+
+  // Existing relations
   apartments                             apartments[]
   audit_logs                             audit_logs[]
   building_policies                      building_policies[]
@@ -742,6 +848,14 @@ model users {
   access_card_requests_as_requester      access_card_requests[]  @relation("access_card_request_requester")
   access_card_requests_as_reviewer       access_card_requests[]  @relation("access_card_request_reviewer")
   bank_accounts                          bank_accounts[]
+
+  // New relations (Operations Automation)
+  device_tokens             device_tokens[]
+  notification_preferences  user_notification_preferences?
+  oauth_accounts            oauth_accounts[]
+  building_assignments      user_building_assignments[]
+  building_assignments_made user_building_assignments[]   @relation("building_assignment_assigner")
+  unmatched_payments_matched unmatched_payments[]         @relation("unmatched_payment_matcher")
 }
 
 model utility_tiers {
@@ -793,6 +907,11 @@ model contract_payment_schedules {
   // Status
   status PaymentStatus @default(pending)
 
+  // Payment reconciliation fields (VietQR webhook)
+  payment_reference       String?  @unique @db.VarChar(30) // VULLY-CTR-xxxxxx
+  external_transaction_id String?  @db.VarChar(100)       // Gateway tx ID for idempotency
+  raw_gateway_response    Json?                           // Full webhook payload for audit
+
   // Metadata
   notes      String?
   created_at DateTime @default(now()) @db.Timestamptz(6)
@@ -804,6 +923,7 @@ model contract_payment_schedules {
 
   @@index([contract_id, due_date])
   @@index([status])
+  @@index([external_transaction_id])
 }
 
 model contract_payments {
@@ -841,6 +961,39 @@ model contract_payments {
   @@index([schedule_id])
   @@index([recorded_by])
   @@index([status])
+}
+
+// ============================================================================
+// Unmatched Payments (VietQR Webhook - Manual Reconciliation)
+// ============================================================================
+
+model unmatched_payments {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gateway        String   @db.VarChar(20)        // 'payos' | 'casso' | 'sepay'
+  transaction_id String   @unique @db.VarChar(100) // External tx ID (idempotency key)
+  amount         Decimal  @db.Decimal(15, 2)
+  sender_name    String?  @db.VarChar(200)
+  description    String   @db.VarChar(500)       // Original transfer content
+  received_at    DateTime @db.Timestamptz(6)
+  raw_payload    Json                            // Full webhook payload for audit
+
+  // Reconciliation status
+  status              String    @default("pending") @db.VarChar(20) // 'pending' | 'matched' | 'rejected'
+  matched_invoice_id  String?   @db.Uuid
+  matched_by          String?   @db.Uuid     // Accountant who matched
+  matched_at          DateTime? @db.Timestamptz(6)
+  rejection_reason    String?   @db.VarChar(500)
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  matched_invoice invoices? @relation(fields: [matched_invoice_id], references: [id], onDelete: SetNull)
+  matcher         users?    @relation("unmatched_payment_matcher", fields: [matched_by], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([received_at])
+  @@index([amount])
 }
 
 // Contract Payment Status (for verification workflow)
@@ -965,6 +1118,10 @@ enum UserRole {
   admin
   technician
   resident
+  security         // Building security guards (building-scoped)
+  housekeeping     // Cleaning/maintenance staff (building-scoped)
+  accountant       // Finance/billing staff (can be global or building-scoped)
+  building_manager // Full access within assigned buildings
 }
 
 // ============================================================================

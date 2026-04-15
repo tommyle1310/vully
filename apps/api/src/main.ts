@@ -54,6 +54,13 @@ async function bootstrap() {
     .addTag('incidents', 'Incident reporting')
     .addTag('dashboard', 'Dashboard statistics')
     .addTag('ai', 'AI Assistant')
+    .addTag('Notifications', 'User notifications and device tokens')
+    .addTag('Unmatched Payments', 'Payment reconciliation for accountants')
+    .addTag('Payment Webhook', 'VietQR payment gateway webhooks')
+    .addTag('Parking', 'Parking zone and slot management')
+    .addTag('Building Policies', 'Building policy management')
+    .addTag('Building Staff', 'Building staff assignments')
+    .addTag('Building Assignments', 'User-building role assignments')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

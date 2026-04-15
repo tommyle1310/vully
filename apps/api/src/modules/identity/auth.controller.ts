@@ -103,8 +103,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'Current user info' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async me(@CurrentUser() user: { id: string; email: string; role: string }) {
-    return { data: user };
+  async me(@CurrentUser() user: { id: string }) {
+    const profile = await this.authService.getProfile(user.id);
+    return { data: profile };
   }
 
   @Post('forgot-password')

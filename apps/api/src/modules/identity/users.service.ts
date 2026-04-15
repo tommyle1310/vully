@@ -361,6 +361,11 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    // OAuth users don't have password_hash
+    if (!user.password_hash) {
+      throw new ForbiddenException('Cannot change password for OAuth users');
+    }
+
     const isValid = await bcrypt.compare(currentPassword, user.password_hash);
     if (!isValid) {
       throw new ForbiddenException('Current password is incorrect');

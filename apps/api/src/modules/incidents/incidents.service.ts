@@ -12,6 +12,7 @@ import { Prisma, IncidentStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { DEFAULT_PAGINATION_LIMIT } from '../../common/constants/defaults';
 import { IncidentsGateway } from './incidents.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   CreateIncidentDto,
   UpdateIncidentDto,
@@ -40,6 +41,7 @@ export class IncidentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: IncidentsGateway,
+    private readonly notificationsService: NotificationsService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -542,6 +544,23 @@ export class IncidentsService {
       this.gateway.emitIncidentResolved(payload);
     } else {
       this.gateway.emitIncidentUpdated(payload);
+    }
+
+    // Send push notification to reporter about status change
+    if (updated.reported_by) {
+      this.notificationsService
+        .notifyIncidentStatusChange(
+          updated.id,
+          updated.reported_by,
+          dto.status,
+          dto.resolutionNotes,
+        )
+        .catch((err) => {
+          this.logger.warn('Failed to send incident status notification', {
+            incidentId: updated.id,
+            error: err.message,
+          });
+        });
     }
 
     // Invalidate technician workload cache on status change

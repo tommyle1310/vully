@@ -30,14 +30,16 @@ import {
 } from '../dto/parking.dto';
 import { JwtAuthGuard } from '../../identity/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
+import { BuildingScopedGuard } from '../../../common/guards/building-scoped.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
+import { BuildingScoped } from '../../../common/decorators/building-scoped.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { AuthUser } from '../../identity/interfaces/auth.interface';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
 @ApiTags('Parking')
 @Controller('buildings/:buildingId/parking')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, BuildingScopedGuard)
 @ApiBearerAuth()
 export class ParkingController {
   constructor(
@@ -51,6 +53,7 @@ export class ParkingController {
   // =====================
 
   @Get('stats')
+  @BuildingScoped()
   @ApiOperation({ summary: 'Get parking statistics for a building' })
   @ApiParam({ name: 'buildingId', type: String })
   @ApiResponse({ status: 200, description: 'Parking stats', type: ParkingStatsDto })
@@ -66,6 +69,7 @@ export class ParkingController {
   // =====================
 
   @Get('zones')
+  @BuildingScoped()
   @ApiOperation({ summary: 'List all parking zones for a building' })
   @ApiParam({ name: 'buildingId', type: String })
   @ApiResponse({ status: 200, description: 'Zones list', type: [ParkingZoneResponseDto] })
