@@ -209,8 +209,25 @@ apps/api/src/
 │
 └── modules/
     ├── identity/                      # Auth, Users, RBAC
-    ├── apartments/                    # Buildings, Apartments, Contracts, Payments, Parking, Access Cards, Policies
-    ├── billing/                       # Invoices, Meter Readings, Utility Types, BullMQ Processor
+    ├── apartments/                    # 🏢 Real Estate Management (10 subdirectories)
+    │   ├── buildings/                 # BuildingsController, BuildingsService, BuildingsSvgService
+    │   ├── apartments-entity/         # ApartmentsController, ApartmentsService, ApartmentsConfigService, mapper
+    │   ├── contracts/                 # ContractsController, ContractsService, ContractsTenantService, mapper
+    │   ├── building-policies/         # BuildingPoliciesController, BuildingPoliciesService
+    │   ├── parking/                   # ParkingController, ParkingService, ParkingZonesService, mapper
+    │   ├── access-cards/              # AccessCardsController, AccessCardsService, helpers, lifecycle, mapper
+    │   ├── access-card-requests/      # AccessCardRequestsController, AccessCardRequestsService
+    │   ├── bank-accounts/             # BankAccountsController, BankAccountsService
+    │   ├── payment-schedules/         # PaymentScheduleController, facade, core, recording, verification, mapper
+    │   ├── payment-generator/         # PaymentGeneratorService
+    │   └── dto/                       # Shared DTOs at module root
+    ├── billing/                       # 💰 Invoicing & Billing (5 subdirectories)
+    │   ├── invoices/                  # InvoicesController, facade, core, payment, schedule-sync, mapper
+    │   ├── meter-readings/            # MeterReadingsController, service, mapper
+    │   ├── utility-types/             # UtilityTypesController, service
+    │   ├── vacant-billing/            # VacantBillingService
+    │   ├── vietqr/                    # VietQRService
+    │   └── dto/                       # Shared DTOs + calculator + BullMQ processor at root
     ├── incidents/                     # Incidents, Comments, WebSocket Gateway
     ├── stats/                         # Dashboard analytics (Redis-cached)
     ├── ai-assistant/                  # RAG chatbot (Gemini + pgvector)
@@ -219,7 +236,8 @@ apps/api/src/
 
 ### Module File Conventions
 
-Each module follows this file organization. **Max ~300 lines per file** — split when larger.
+#### Simple Modules (incidents, identity, stats)
+For modules with a single domain concern, use flat structure with max ~300 lines per file:
 
 ```
 modules/[module-name]/
@@ -228,13 +246,80 @@ modules/[module-name]/
 ├── [resource].service.ts              # Core business logic
 ├── [resource].mapper.ts               # Pure functions: Prisma model → ResponseDto
 ├── [resource]-[concern].service.ts    # Split services by concern (e.g., contracts-tenant.service.ts)
-├── [resource]-[concern].controller.ts # Split controllers by concern (e.g., incident-comments.controller.ts)
 ├── [resource].processor.ts            # BullMQ job processor (if async work)
 ├── [resource].gateway.ts              # WebSocket gateway (if real-time events)
 ├── dto/
-│   ├── [resource].dto.ts              # Create + Update + Response DTOs (or split into separate files)
+│   ├── [resource].dto.ts              # Create + Update + Response DTOs
 │   └── index.ts                       # Barrel re-export
 └── index.ts                           # Barrel export for module
+```
+
+#### Complex Modules (apartments, billing)
+For large domains with multiple sub-concerns, use **feature-based subdirectories** (DDD pattern):
+
+```
+modules/apartments/                     # Complex domain: Real Estate Management
+├── apartments.module.ts                # Imports all subdirectory services
+├── index.ts                            # Barrel export
+├── dto/                                # SHARED DTOs at module root (used by multiple subdirectories)
+│   ├── apartment.dto.ts
+│   ├── building.dto.ts
+│   ├── contract.dto.ts
+│   ├── parking.dto.ts
+│   └── index.ts
+├── buildings/                          # Sub-feature 1: Building management
+│   ├── buildings.controller.ts
+│   ├── buildings.service.ts
+│   └── buildings-svg.service.ts        # Specialized concern
+├── apartments-entity/                  # Sub-feature 2: Apartment CRUD
+│   ├── apartments.controller.ts
+│   ├── apartments.service.ts
+│   ├── apartments-config.service.ts    # Policy inheritance logic
+│   └── apartments.mapper.ts
+├── contracts/                          # Sub-feature 3: Contract lifecycle
+│   ├── contracts.controller.ts
+│   ├── contracts.service.ts
+│   ├── contracts-tenant.service.ts     # Resident-scoped endpoints
+│   └── contracts.mapper.ts
+├── parking/                            # Sub-feature 4: Parking management
+│   ├── parking.controller.ts
+│   ├── parking.service.ts
+│   ├── parking-zones.service.ts
+│   └── parking.mapper.ts
+├── access-cards/                       # Sub-feature 5: Access card lifecycle
+│   ├── access-cards.controller.ts
+│   ├── access-cards.service.ts
+│   ├── access-cards-helpers.service.ts
+│   ├── access-cards-lifecycle.service.ts
+│   └── access-cards.mapper.ts
+└── payment-schedules/                  # Sub-feature 6: Payment tracking
+    ├── payment-schedule.controller.ts
+    ├── payment-schedule.service.ts     # Facade service
+    ├── schedules-core.service.ts       # CRUD operations
+    ├── payment-recording.service.ts    # Record/void logic
+    ├── payment-verification.service.ts # Verification workflow
+    └── payment-schedule.mapper.ts
+```
+
+**When to use subdirectories**:
+- ✅ Module has 5+ distinct resources (apartments has 10)
+- ✅ Resources share domain concepts but have independent controllers
+- ✅ Files exceed 300 lines even after splitting by concern
+- ❌ Module only has 1-2 resources (keep flat)
+
+**Import path conventions**:
+```typescript
+// From subdirectory → shared DTOs at module root
+import { ApartmentDto } from '../dto/apartment.dto';
+
+// From subdirectory → common utilities (3 levels up)
+import { PrismaService } from '../../../common/prisma/prisma.service';
+
+// From subdirectory → sibling subdirectory
+import { BuildingsService } from '../buildings/buildings.service';
+
+// From module root → subdirectory
+import { BuildingsService } from './buildings/buildings.service';
 ```
 
 ### Split Patterns (when a file exceeds ~300 lines)
@@ -242,11 +327,11 @@ modules/[module-name]/
 | Pattern | File naming | What moves out |
 |---------|------------|---------------|
 | **Mapper** | `*.mapper.ts` | `toXxxResponseDto()` pure functions, type helpers |
-| **Sub-service by concern** | `*-[concern].service.ts` | Subset of methods grouped by domain concern |
-| **Sub-controller** | `*-[concern].controller.ts` | Subset of endpoints (e.g., comments extracted from incidents) |
-| **Config service** | `*-config.service.ts` | Policy/config inheritance logic |
+| **Sub-service by concern** | `*-[concern].service.ts` | Subset of methods grouped by domain concern (e.g., `contracts-tenant.service.ts` for resident endpoints) |
+| **Specialized service** | `*-[specialized].service.ts` | Single-purpose service (e.g., `buildings-svg.service.ts` for SVG parsing) |
+| **Facade pattern** | `*.service.ts` (facade) + `*-core.service.ts` / `*-[action].service.ts` | Main service delegates to specialized services (see `payment-schedule.service.ts` → `schedules-core`, `payment-recording`, `payment-verification`) |
 | **Helper functions** | `*.helpers.ts` | Pure utility functions used only by this module |
-| **Data files** | `*.data.ts` | Large static data arrays (e.g., knowledge base seeds) |
+| **Subdirectory** | `[sub-feature]/` | Move entire resource to subdirectory when domain has 5+ features |
 
 ---
 
@@ -269,55 +354,58 @@ modules/[module-name]/
 
 ### Apartments Module (`modules/apartments/`)
 
-**The largest module** — manages buildings, apartments, contracts, payment schedules, parking, access cards, building policies, bank accounts.
+**The largest module** — manages buildings, apartments, contracts, payment schedules, parking, access cards, building policies, bank accounts.  
+**Architecture**: Feature-based subdirectories (10 subdirs) following DDD pattern. Shared DTOs remain at module root.
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `apartments.module.ts` | ~60 | 9 controllers + 18 services + exports all services |
-| **Buildings** | | |
-| `buildings.controller.ts` | ~270 | CRUD + SVG map upload + stats + meters |
-| `buildings.service.ts` | ~220 | Building CRUD + delegates SVG sync to sub-service |
-| `buildings-svg.service.ts` | ~175 | SVG parsing → auto-create apartments from floor plans |
-| **Apartments** | | |
-| `apartments.controller.ts` | ~340 | CRUD + resident-scoped access + config endpoints |
-| `apartments.service.ts` | ~250 | Apartment CRUD with policy inheritance |
-| `apartments-config.service.ts` | ~100 | Policy inheritance logic (apartment overrides building defaults) |
-| `apartments.mapper.ts` | ~100 | `toApartmentResponseDto()` |
-| **Contracts** | | |
-| `contracts.controller.ts` | ~310 | CRUD + terminate + tenant endpoints |
-| `contracts.service.ts` | ~240 | Contract CRUD with apartment status sync + auto-issue access cards |
-| `contracts-tenant.service.ts` | ~100 | `findMyContracts()`, `getMyApartment()` (resident-scoped) |
-| `contracts.mapper.ts` | ~70 | `toContractResponseDto()` + `optNum()` decimal helper |
-| **Payment Schedules** | | |
-| `payment-schedule.controller.ts` | ~285 | CRUD schedules + record/void payments + financial summary |
-| `payment-schedule.service.ts` | ~290 | Payment CRUD + financial calculations |
-| `payment-generator.service.ts` | ~270 | Auto-generate payment schedules for purchase/lease contracts |
-| `payment-schedule.mapper.ts` | ~100 | `toScheduleResponseDto()` |
-| **Parking Management** | | |
-| `parking.controller.ts` | ~295 | Zone CRUD + slot CRUD + assign/unassign + stats |
-| `parking.service.ts` | ~280 | Slot operations: bulk create, assign, unassign |
-| `parking-zones.service.ts` | ~155 | Zone CRUD + verify helpers |
-| `parking.mapper.ts` | ~52 | `toZoneResponseDto()`, `toSlotResponseDto()` |
-| **Access Cards** | | |
-| `access-cards.controller.ts` | ~320 | CRUD + deactivate/reactivate + stats |
-| `access-cards.service.ts` | ~200 | Core CRUD |
-| `access-cards-helpers.service.ts` | ~120 | Validation helpers (check limits from building policy) |
-| `access-cards-lifecycle.service.ts` | ~120 | Deactivate, reactivate workflows |
-| `access-cards.mapper.ts` | ~80 | `toAccessCardResponseDto()` |
-| **Access Card Requests** | | |
-| `access-card-requests.controller.ts` | ~265 | Request workflow: create, approve, reject, cancel |
-| `access-card-requests.service.ts` | ~240 | Request CRUD + approval workflow (auto-issue card on approval) |
-| `access-card-requests.mapper.ts` | ~90 | `toRequestResponseDto()` |
-| **Building Policies** | | |
-| `building-policies.controller.ts` | ~195 | CRUD versioned policies per building |
-| `building-policies.service.ts` | ~200 | Policy CRUD with effective date logic (versioning with effective_from/to) |
-| `building-policies.mapper.ts` | ~65 | `toPolicyResponseDto()` |
-| **Bank Accounts** | | |
-| `bank-accounts.controller.ts` | ~210 | CRUD bank accounts for VietQR integration |
-| `bank-accounts.service.ts` | ~185 | Account CRUD + set primary account logic |
-| `bank-accounts.mapper.ts` | ~55 | `toBankAccountResponseDto()` |
-| **DTOs** | | |
-| `dto/apartment.dto.ts` | | Barrel re-export for split dto files |
+| Subdirectory / File | Lines | Purpose |
+|---------------------|-------|---------|
+| `apartments.module.ts` | ~120 | 9 controllers + 18 services + exports all services |
+| `index.ts` | ~30 | Barrel exports for external imports |
+| **buildings/** | | Building management subdirectory |
+| `buildings/buildings.controller.ts` | ~270 | CRUD + SVG map upload + stats + meters |
+| `buildings/buildings.service.ts` | ~220 | Building CRUD + delegates SVG sync to sub-service |
+| `buildings/buildings-svg.service.ts` | ~175 | SVG parsing → auto-create apartments from floor plans |
+| **apartments-entity/** | | Apartment CRUD subdirectory |
+| `apartments-entity/apartments.controller.ts` | ~340 | CRUD + resident-scoped access + config endpoints |
+| `apartments-entity/apartments.service.ts` | ~250 | Apartment CRUD with policy inheritance |
+| `apartments-entity/apartments-config.service.ts` | ~100 | Policy inheritance logic (apartment overrides building defaults) |
+| `apartments-entity/apartments.mapper.ts` | ~100 | `toApartmentResponseDto()` |
+| **contracts/** | | Contract lifecycle subdirectory |
+| `contracts/contracts.controller.ts` | ~310 | CRUD + terminate + tenant endpoints |
+| `contracts/contracts.service.ts` | ~240 | Contract CRUD with apartment status sync + auto-issue access cards |
+| `contracts/contracts-tenant.service.ts` | ~100 | `findMyContracts()`, `getMyApartment()` (resident-scoped) |
+| `contracts/contracts.mapper.ts` | ~70 | `toContractResponseDto()` + `optNum()` decimal helper |
+| **payment-schedules/** | | Payment tracking subdirectory (Facade pattern) |
+| `payment-schedules/payment-schedule.controller.ts` | ~285 | CRUD schedules + record/void payments + financial summary |
+| `payment-schedules/payment-schedule.service.ts` | ~122 | Facade service - delegates to specialized services |
+| `payment-schedules/schedules-core.service.ts` | ~267 | CRUD operations for payment schedules |
+| `payment-schedules/payment-recording.service.ts` | ~194 | Record payment, void payment logic |
+| `payment-schedules/payment-verification.service.ts` | ~350 | Verification workflow + status tracking |
+| `payment-schedules/payment-schedule.mapper.ts` | ~100 | `toScheduleResponseDto()` |
+| **payment-generator/** | | Auto-generate schedules |
+| `payment-generator/payment-generator.service.ts` | ~270 | Auto-generate payment schedules for purchase/lease contracts |
+| **parking/** | | Parking management subdirectory |
+| `parking/parking.controller.ts` | ~295 | Zone CRUD + slot CRUD + assign/unassign + stats |
+| `parking/parking.service.ts` | ~280 | Slot operations: bulk create, assign, unassign |
+| `parking/parking-zones.service.ts` | ~155 | Zone CRUD + verify helpers |
+| `parking/parking.mapper.ts` | ~52 | `toZoneResponseDto()`, `toSlotResponseDto()` |
+| **access-cards/** | | Access card lifecycle subdirectory |
+| `access-cards/access-cards.controller.ts` | ~320 | CRUD + deactivate/reactivate + stats |
+| `access-cards/access-cards.service.ts` | ~200 | Core CRUD |
+| `access-cards/access-cards-helpers.service.ts` | ~120 | Validation helpers (check limits from building policy) |
+| `access-cards/access-cards-lifecycle.service.ts` | ~120 | Deactivate, reactivate workflows |
+| `access-cards/access-cards.mapper.ts` | ~80 | `toAccessCardResponseDto()` |
+| **access-card-requests/** | | Card request workflow subdirectory |
+| `access-card-requests/access-card-requests.controller.ts` | ~265 | Request workflow: create, approve, reject, cancel |
+| `access-card-requests/access-card-requests.service.ts` | ~240 | Request CRUD + approval workflow (auto-issue card on approval) |
+| **building-policies/** | | Versioned policies subdirectory |
+| `building-policies/building-policies.controller.ts` | ~195 | CRUD versioned policies per building |
+| `building-policies/building-policies.service.ts` | ~200 | Policy CRUD with effective date logic (versioning with effective_from/to) |
+| **bank-accounts/** | | VietQR integration subdirectory |
+| `bank-accounts/bank-accounts.controller.ts` | ~210 | CRUD bank accounts for VietQR integration |
+| `bank-accounts/bank-accounts.service.ts` | ~185 | Account CRUD + set primary account logic |
+| **dto/** (module root) | | Shared DTOs used by multiple subdirectories |
+| `dto/apartment.dto.ts` | ~50 | Barrel re-export for split dto files |
 | `dto/create-apartment.dto.ts` | ~135 | 50+ validated fields (spatial, ownership, utilities, policy overrides) |
 | `dto/update-apartment.dto.ts` | ~130 | Same fields as create, all optional |
 | `dto/apartment-response.dto.ts` | ~160 | Flat response (no nesting), ApiProperty decorators |
@@ -331,18 +419,43 @@ modules/[module-name]/
 | `dto/access-card-request.dto.ts` | ~120 | Request workflow DTOs (Create, Approve, Reject) |
 | `dto/building-policy.dto.ts` | ~115 | Policy DTOs with versioning fields (effective_from/to) |
 | `dto/bank-account.dto.ts` | ~85 | Bank account DTOs for VietQR integration |
+| `dto/index.ts` | ~30 | Barrel exports for all DTOs |
 
 ### Billing Module (`modules/billing/`)
 
-| File | Purpose |
-|------|---------|
-| `billing.module.ts` | Imports BullModule.registerQueue('billing'), ApartmentsModule |
-| `invoices.controller.ts` | CRUD invoices + pay/void |
-| `invoices.service.ts` | ~200 | Invoice CRUD, status transitions |
-| `invoices.mapper.ts` | `toInvoiceResponseDto()` |
-| `invoice-calculator.service.ts` | Compute line items: rent + utilities (tiered pricing) + tax |
-| `meter-readings.controller.ts` | CRUD readings per apartment per utility per period |
-| `meter-readings.service.ts` | ~260 | Reading CRUD with meter ID generation |
+**Architecture**: Feature-based subdirectories (5 subdirs) for invoice management. Calculator & BullMQ processor remain at root.
+
+| Subdirectory / File | Lines | Purpose |
+|---------------------|-------|---------|
+| `billing.module.ts` | ~70 | Imports BullModule.registerQueue('billing'), ApartmentsModule + 4 controllers + 10 services |
+| `index.ts` | ~20 | Barrel exports |
+| `billing.processor.ts` | ~240 | BullMQ `@Processor('billing')` — monthly invoice generation with retry |
+| `billing-queue.service.ts` | ~150 | Enqueue jobs + track status in `billing_jobs` table |
+| `billing-jobs.controller.ts` | ~130 | Admin: trigger jobs, check status, list history |
+| `invoice-calculator.service.ts` | ~320 | Compute line items: rent + utilities (tiered pricing) + tax + VAT |
+| **invoices/** | | Invoice management subdirectory (Facade pattern) |
+| `invoices/invoices.controller.ts` | ~400 | CRUD + bulk generate + report payment + verify payment |
+| `invoices/invoices.service.ts` | ~87 | Facade service - delegates to specialized services |
+| `invoices/invoices-core.service.ts` | ~467 | CRUD operations for invoices |
+| `invoices/invoices-payment.service.ts` | ~231 | Report payment + verify payment workflows |
+| `invoices/invoices-schedule-sync.helper.ts` | ~117 | Sync confirmed payments to payment schedules |
+| `invoices/invoices.mapper.ts` | ~60 | `toInvoiceResponseDto()` |
+| **meter-readings/** | | Meter reading subdirectory |
+| `meter-readings/meter-readings.controller.ts` | ~215 | CRUD readings per apartment per utility per period |
+| `meter-readings/meter-readings.service.ts` | ~260 | Reading CRUD with meter ID generation |
+| `meter-readings/meter-readings.mapper.ts` | ~50 | `toMeterReadingResponseDto()` + `generateMeterId()` |
+| **utility-types/** | | Utility type management |
+| `utility-types/utility-types.controller.ts` | ~195 | CRUD utility types + tiers |
+| `utility-types/utility-types.service.ts` | ~240 | Type + tier management with effective dates |
+| **vacant-billing/** | | Auto-billing for vacant units |
+| `vacant-billing/vacant-billing.service.ts` | ~165 | Generate invoices for vacant apartments (owner-paid) |
+| **vietqr/** | | QR code generation |
+| `vietqr/vietqr.service.ts` | ~120 | Generate VietQR payment QR codes for invoices |
+| **dto/** (module root) | | Shared DTOs |
+| `dto/invoice.dto.ts` | ~320 | All invoice DTOs: Create, Update, Response, BulkGenerate, ReportPayment, VerifyPayment |
+| `dto/meter-reading.dto.ts` | ~110 | CreateMeterReadingDto, MeterReadingResponseDto |
+| `dto/utility-type.dto.ts` | ~95 | CreateUtilityTypeDto, TierDto, UtilityTypeResponseDto |
+| `dto/index.ts` | ~15 | Barrel exports |
 | `meter-readings.mapper.ts` | `toMeterReadingResponseDto()` + `generateMeterId()` |
 | `utility-types.controller.ts` | CRUD utility types + tiers |
 | `utility-types.service.ts` | Type + tier management |

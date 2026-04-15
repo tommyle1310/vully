@@ -78,11 +78,20 @@ vully/
 │   │       │   ├── middleware/     # CorrelationIdMiddleware
 │   │       │   ├── prisma/         # PrismaService (global)
 │   │       │   └── health/         # /health, /health/ready
-│   │       └── modules/
+│   │       └── modules/            # Feature modules (DDD subdirectory organization)
 │   │           ├── identity/       # Auth (JWT access+refresh), users CRUD, RBAC
-│   │           ├── apartments/     # Buildings, apartments, contracts, policies, parking,
-│   │           │                   # access cards, bank accounts, payment schedules
-│   │           ├── billing/        # Invoices, meter readings, BullMQ processor, tiered pricing
+│   │           │
+│   │           ├── apartments/     # 🏢 Apartment Management Domain
+│   │           │   ├── buildings/, apartments-entity/, contracts/, building-policies/
+│   │           │   ├── parking/, access-cards/, access-card-requests/, bank-accounts/
+│   │           │   ├── payment-schedules/, payment-generator/
+│   │           │   └── dto/        # 10 subdirectories + shared DTOs
+│   │           │
+│   │           ├── billing/        # 💰 Billing & Invoicing Domain
+│   │           │   ├── invoices/, meter-readings/, utility-types/
+│   │           │   ├── vacant-billing/, vietqr/
+│   │           │   └── dto/        # 5 subdirectories + shared DTOs + calculator + BullMQ processor
+│   │           │
 │   │           ├── incidents/      # Incident CRUD, comments, WebSocket gateway
 │   │           ├── stats/          # Dashboard analytics (Redis-cached)
 │   │           ├── ai-assistant/   # RAG chatbot (Gemini + pgvector + LangChain)

@@ -139,14 +139,38 @@ Role: Senior Fullstack Engineer (NestJS & Next.js expert)
 apps/
 ├── api/                    # NestJS Backend
 │   └── src/
-│       ├── modules/        # Feature modules
+│       ├── modules/        # Feature modules (DDD-organized with subdirectories)
         │   ├── identity/       # Auth, Users, RBAC (JWT + multi-role)
-        │   ├── apartments/     # Buildings, Apartments, Contracts, Building Policies, 
-        │   │                   # Parking (zones+slots), Access Cards (CRUD+lifecycle),
-        │   │                   # Access Card Requests (workflow), Bank Accounts, 
-        │   │                   # Payment Schedules (generate+record)
-        │   ├── billing/        # Invoices (dual-stream), Meter Readings, Utility Types/Tiers, 
-        │   │                   # Management Fee Configs, BullMQ processor
+        │   │
+        │   ├── apartments/     # 🏢 Apartment Management Domain (10 subdirectories)
+        │   │   ├── buildings/          # BuildingsController, BuildingsService, BuildingsSvgService
+        │   │   ├── apartments-entity/  # ApartmentsController, ApartmentsService, ApartmentsConfigService, mapper
+        │   │   ├── contracts/          # ContractsController, ContractsService, ContractsTenantService, mapper
+        │   │   ├── building-policies/  # BuildingPoliciesController, BuildingPoliciesService
+        │   │   ├── parking/            # ParkingController, ParkingService, ParkingZonesService, mapper
+        │   │   ├── access-cards/       # AccessCardsController, AccessCardsService, AccessCardsLifecycleService, AccessCardsHelpersService, mapper
+        │   │   ├── access-card-requests/ # AccessCardRequestsController, AccessCardRequestsService
+        │   │   ├── bank-accounts/      # BankAccountsController, BankAccountsService
+        │   │   ├── payment-schedules/  # PaymentScheduleController, PaymentScheduleService (facade), SchedulesCoreService, PaymentRecordingService, PaymentVerificationService, mapper
+        │   │   ├── payment-generator/  # PaymentGeneratorService
+        │   │   ├── dto/                # Shared DTOs (apartment.dto, building.dto, contract.dto, parking.dto, payment.dto, access-card.dto)
+        │   │   ├── apartments.module.ts
+        │   │   └── index.ts            # Barrel exports
+        │   │
+        │   ├── billing/        # 💰 Billing & Invoicing Domain (5 subdirectories)
+        │   │   ├── invoices/           # InvoicesController, InvoicesService (facade), InvoicesCoreService, InvoicesPaymentService, InvoicesScheduleSyncHelper, mapper
+        │   │   ├── meter-readings/     # MeterReadingsController, MeterReadingsService, mapper
+        │   │   ├── utility-types/      # UtilityTypesController, UtilityTypesService
+        │   │   ├── vacant-billing/     # VacantBillingService (auto-bill vacant apartments)
+        │   │   ├── vietqr/             # VietQRService (QR code generation)
+        │   │   ├── dto/                # Shared DTOs (invoice.dto, meter-reading.dto, utility-type.dto)
+        │   │   ├── billing.module.ts
+        │   │   ├── billing.processor.ts # BullMQ job processor
+        │   │   ├── billing-queue.service.ts
+        │   │   ├── billing-jobs.controller.ts
+        │   │   ├── invoice-calculator.service.ts # Tiered pricing calculator
+        │   │   └── index.ts            # Barrel exports
+        │   │
         │   ├── incidents/      # Incidents, Comments, WebSocket Gateway
         │   ├── stats/          # Dashboard analytics (Redis-cached)
         │   ├── management-board/ # 🚧 Vendor, Investor, Board (skeleton controllers only)

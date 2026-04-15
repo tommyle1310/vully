@@ -401,7 +401,11 @@ export function SettingsBankAccountsForm() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label>Bank</Label>
-              <Select value={selectedBankCode} onValueChange={handleBankSelect}>
+              <Select 
+                value={selectedBankCode} 
+                onValueChange={handleBankSelect}
+                disabled={!!editingAccount}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a bank" />
                 </SelectTrigger>
@@ -413,6 +417,11 @@ export function SettingsBankAccountsForm() {
                   ))}
                 </SelectContent>
               </Select>
+              {editingAccount && (
+                <p className="text-xs text-muted-foreground">
+                  Bank cannot be changed for security reasons
+                </p>
+              )}
               {errors.bankCode && (
                 <p className="text-sm text-destructive">{errors.bankCode.message}</p>
               )}
@@ -423,8 +432,14 @@ export function SettingsBankAccountsForm() {
               <Input
                 id="accountNumber"
                 placeholder="Enter account number"
+                disabled={!!editingAccount}
                 {...register('accountNumber')}
               />
+              {editingAccount && (
+                <p className="text-xs text-muted-foreground">
+                  Account number cannot be changed for security reasons. Delete and create new if needed.
+                </p>
+              )}
               {errors.accountNumber && (
                 <p className="text-sm text-destructive">{errors.accountNumber.message}</p>
               )}
