@@ -1,17 +1,20 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
-import { InvoicesController } from './invoices.controller';
-import { InvoicesService } from './invoices.service';
+import { InvoicesController } from './invoices/invoices.controller';
+import { InvoicesService } from './invoices/invoices.service';
+import { InvoicesCoreService } from './invoices/invoices-core.service';
+import { InvoicesPaymentService } from './invoices/invoices-payment.service';
+import { InvoicesScheduleSyncHelper } from './invoices/invoices-schedule-sync.helper';
 import { InvoiceCalculatorService } from './invoice-calculator.service';
-import { MeterReadingsController } from './meter-readings.controller';
-import { MeterReadingsService } from './meter-readings.service';
-import { UtilityTypesController } from './utility-types.controller';
-import { UtilityTypesService } from './utility-types.service';
+import { MeterReadingsController } from './meter-readings/meter-readings.controller';
+import { MeterReadingsService } from './meter-readings/meter-readings.service';
+import { UtilityTypesController } from './utility-types/utility-types.controller';
+import { UtilityTypesService } from './utility-types/utility-types.service';
 import { BillingProcessor } from './billing.processor';
 import { BillingQueueService } from './billing-queue.service';
 import { BillingJobsController } from './billing-jobs.controller';
-import { VietQRService } from './vietqr.service';
-import { VacantBillingService } from './vacant-billing.service';
+import { VietQRService } from './vietqr/vietqr.service';
+import { VacantBillingService } from './vacant-billing/vacant-billing.service';
 
 @Module({
   imports: [
@@ -33,12 +36,19 @@ import { VacantBillingService } from './vacant-billing.service';
     BillingJobsController,
   ],
   providers: [
+    // Invoice services (facade + specialized services)
     InvoicesService,
+    InvoicesCoreService,
+    InvoicesPaymentService,
+    InvoicesScheduleSyncHelper,
     InvoiceCalculatorService,
+    // Meter readings & utility types
     MeterReadingsService,
     UtilityTypesService,
+    // Background processing
     BillingProcessor,
     BillingQueueService,
+    // Additional services
     VietQRService,
     VacantBillingService,
   ],

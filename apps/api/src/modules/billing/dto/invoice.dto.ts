@@ -235,19 +235,25 @@ export class ReportInvoicePaymentDto {
   @Min(0)
   amount: number;
 
-  @ApiProperty({ example: '2026-04-08', description: 'Date of transfer' })
+  @ApiPropertyOptional({ example: '2026-04-08T10:30:00Z', description: 'Date and time of bank transaction' })
+  @IsOptional()
   @IsDateString()
-  paymentDate: string;
+  transactionDate?: string;
 
   @ApiPropertyOptional({ enum: ['bank_transfer', 'cash', 'check', 'card', 'other'] })
   @IsOptional()
   @IsEnum(['bank_transfer', 'cash', 'check', 'card', 'other'])
   paymentMethod?: string;
 
-  @ApiPropertyOptional({ description: 'Bank transfer reference number' })
+  @ApiPropertyOptional({ description: 'Bank transaction reference number' })
   @IsOptional()
   @IsString()
-  referenceNumber?: string;
+  transactionRef?: string;
+
+  @ApiPropertyOptional({ description: 'Name of the bank used for transfer' })
+  @IsOptional()
+  @IsString()
+  bankName?: string;
 
   @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
@@ -297,6 +303,11 @@ export class VerifyInvoicePaymentDto {
   @IsNumber()
   @Min(0)
   actualAmount?: number;
+
+  @ApiPropertyOptional({ example: '2026-04-08', description: 'Override payment date when verifying' })
+  @IsOptional()
+  @IsDateString()
+  paymentDate?: string;
 
   @ApiPropertyOptional({ description: 'Verification notes' })
   @IsOptional()

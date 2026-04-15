@@ -2,8 +2,8 @@ import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { InvoicesService } from './invoices.service';
-import { VacantBillingService } from './vacant-billing.service';
+import { InvoicesService } from './invoices/invoices.service';
+import { VacantBillingService } from './vacant-billing/vacant-billing.service';
 
 export interface GenerateMonthlyInvoicesPayload {
   billingPeriod: string;

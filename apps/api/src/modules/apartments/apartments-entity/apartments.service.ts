@@ -1,0 +1,386 @@
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
+import { Prisma, ApartmentStatus, UnitType } from '@prisma/client';
+import { PrismaService } from '../../../common/prisma/prisma.service';
+import { DEFAULT_PAGINATION_LIMIT } from '../../../common/constants/defaults';
+import {
+  CreateApartmentDto,
+  UpdateApartmentDto,
+  ApartmentResponseDto,
+  ApartmentFiltersDto,
+} from '../dto/apartment.dto';
+import { toApartmentResponseDto, ApartmentWithRelations } from './apartments.mapper';
+
+@Injectable()
+export class ApartmentsService {
+  private readonly logger = new Logger(ApartmentsService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(dto: CreateApartmentDto): Promise<ApartmentResponseDto> {
+    // Verify building exists
+    const building = await this.prisma.buildings.findUnique({
+      where: { id: dto.buildingId },
+    });
+
+    if (!building) {
+      throw new NotFoundException('Building not found');
+    }
+
+    this.logger.debug({
+      event: 'apartment_create_input',
+      dto: {
+        grossArea: dto.grossArea,
+        bedroomCount: dto.bedroomCount,
+        bathroomCount: dto.bathroomCount,
+      },
+    });
+
+    const apartment = await this.prisma.apartments.create({
+      data: {
+        building_id: dto.buildingId,
+        unit_number: dto.unit_number,
+        floor_index: dto.floorIndex,
+        apartment_code: dto.apartmentCode ?? null,
+        floor_label: dto.floorLabel ?? null,
+        unit_type: dto.unitType ?? null,
+        net_area: dto.netArea !== undefined ? dto.netArea : null,
+        gross_area: dto.grossArea !== undefined ? dto.grossArea : null,
+        ceiling_height: dto.ceilingHeight !== undefined ? dto.ceilingHeight : null,
+        bedroom_count: dto.bedroomCount ?? 1,
+        bathroom_count: dto.bathroomCount ?? 1,
+        features: (dto.features || {}) as Prisma.InputJsonValue,
+        svg_element_id: dto.svgElementId ?? null,
+        svg_path_data: dto.svgPathData ?? null,
+        centroid_x: dto.centroidX !== undefined ? dto.centroidX : null,
+        centroid_y: dto.centroidY !== undefined ? dto.centroidY : null,
+        orientation: dto.orientation ?? null,
+        balcony_direction: dto.balconyDirection ?? null,
+        is_corner_unit: dto.isCornerUnit ?? false,
+        status: 'vacant',
+        updated_at: new Date(),
+      },
+      include: {
+        buildings: {
+          select: { id: true, name: true, address: true },
+        },
+      },
+    });
+
+    this.logger.log({
+      event: 'apartment_created',
+      apartmentId: apartment.id,
+      buildingId: dto.buildingId,
+      unit_number: dto.unit_number,
+      storedValues: {
+        grossArea: apartment.gross_area,
+        bedroomCount: apartment.bedroom_count,
+        bathroomCount: apartment.bathroom_count,
+      },
+    });
+
+    return toApartmentResponseDto(apartment);
+  }
+
+  async findAll(
+    filters: ApartmentFiltersDto,
+    page = 1,
+    limit = DEFAULT_PAGINATION_LIMIT,
+  ): Promise<{ data: ApartmentResponseDto[]; total: number }> {
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.apartmentsWhereInput = {};
+    
+    if (filters.buildingId) where.building_id = filters.buildingId;
+    
+    if (filters.status) {
+      const statusArray = Array.isArray(filters.status) ? filters.status : [filters.status];
+      where.status = statusArray.length === 1
+        ? statusArray[0] as ApartmentStatus
+        : { in: statusArray as ApartmentStatus[] };
+    }
+    
+    if (filters.unitType) {
+      const unitTypeArray = Array.isArray(filters.unitType) ? filters.unitType : [filters.unitType];
+      where.unit_type = unitTypeArray.length === 1
+        ? unitTypeArray[0] as UnitType
+        : { in: unitTypeArray as UnitType[] };
+    }
+    
+    if (filters.minBedrooms !== undefined || filters.maxBedrooms !== undefined) {
+      const bedroomFilter: Record<string, number> = {};
+      if (filters.minBedrooms !== undefined) bedroomFilter.gte = filters.minBedrooms;
+      if (filters.maxBedrooms !== undefined) bedroomFilter.lte = filters.maxBedrooms;
+      where.bedroom_count = bedroomFilter;
+    }
+    
+    if (filters.minFloor !== undefined || filters.maxFloor !== undefined) {
+      const floorFilter: Record<string, number> = {};
+      if (filters.minFloor !== undefined) floorFilter.gte = filters.minFloor;
+      if (filters.maxFloor !== undefined) floorFilter.lte = filters.maxFloor;
+      where.floor_index = floorFilter;
+    } else if (filters.floor !== undefined) {
+      where.floor_index = filters.floor;
+    }
+    
+    if (filters.minArea !== undefined || filters.maxArea !== undefined) {
+      const areaFilter: Record<string, number> = {};
+      if (filters.minArea !== undefined) areaFilter.gte = filters.minArea;
+      if (filters.maxArea !== undefined) areaFilter.lte = filters.maxArea;
+      where.gross_area = areaFilter;
+    }
+    
+    if (filters.orientation) where.orientation = filters.orientation;
+    if (filters.ownerId) where.owner_id = filters.ownerId;
+    
+    if (filters.search) {
+      where.OR = [
+        { unit_number: { contains: filters.search, mode: 'insensitive' } },
+        { apartment_code: { contains: filters.search, mode: 'insensitive' } },
+        { buildings: { name: { contains: filters.search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [apartments, total] = await Promise.all([
+      this.prisma.apartments.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [{ building_id: 'asc' }, { floor_index: 'asc' }, { unit_number: 'asc' }],
+        include: {
+          buildings: {
+            select: { id: true, name: true, address: true },
+          },
+          users: {
+            select: { id: true, first_name: true, last_name: true, email: true },
+          },
+          contracts: {
+            where: { status: 'active' },
+            take: 1,
+            orderBy: { created_at: 'desc' },
+            include: {
+              users_contracts_tenant_idTousers: {
+                select: { id: true, first_name: true, last_name: true, email: true },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.apartments.count({ where }),
+    ]);
+
+    return {
+      data: apartments.map((a) => toApartmentResponseDto(a)),
+      total,
+    };
+  }
+
+  async findOne(id: string): Promise<ApartmentResponseDto> {
+    const apartment = await this.prisma.apartments.findUnique({
+      where: { id },
+      include: {
+        buildings: {
+          select: { id: true, name: true, address: true },
+        },
+        users: {
+          select: { id: true, first_name: true, last_name: true, email: true },
+        },
+        contracts: {
+          where: { status: 'active' },
+          take: 1,
+          orderBy: { created_at: 'desc' },
+          include: {
+            users_contracts_tenant_idTousers: {
+              select: { id: true, first_name: true, last_name: true, email: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!apartment) {
+      throw new NotFoundException('Apartment not found');
+    }
+
+    return toApartmentResponseDto(apartment);
+  }
+
+  async findByResident(
+    residentId: string,
+  ): Promise<ApartmentResponseDto | null> {
+    const contract = await this.prisma.contracts.findFirst({
+      where: {
+        tenant_id: residentId,
+        status: 'active',
+      },
+      include: {
+        apartments: {
+          include: {
+            buildings: {
+              select: { id: true, name: true, address: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!contract) {
+      return null;
+    }
+
+    return toApartmentResponseDto(contract.apartments);
+  }
+
+  async findOneForResident(
+    id: string,
+    residentId: string,
+  ): Promise<ApartmentResponseDto> {
+    const apartment = await this.findOne(id);
+
+    const contract = await this.prisma.contracts.findFirst({
+      where: {
+        apartment_id: id,
+        tenant_id: residentId,
+        status: 'active',
+      },
+    });
+
+    if (!contract) {
+      throw new ForbiddenException('You do not have access to this apartment');
+    }
+
+    return apartment;
+  }
+
+  async update(id: string, dto: UpdateApartmentDto): Promise<ApartmentResponseDto> {
+    const apartment = await this.prisma.apartments.findUnique({ where: { id } });
+
+    if (!apartment) {
+      throw new NotFoundException('Apartment not found');
+    }
+
+    this.logger.debug({
+      event: 'apartment_update_input',
+      apartmentId: id,
+      dto: {
+        grossArea: dto.grossArea,
+        bedroomCount: dto.bedroomCount,
+        bathroomCount: dto.bathroomCount,
+      },
+    });
+
+    const updateData: Prisma.apartmentsUpdateInput = {};
+
+    // Spatial
+    if (dto.unit_number !== undefined) updateData.unit_number = dto.unit_number;
+    if (dto.floorIndex !== undefined) updateData.floor_index = dto.floorIndex;
+    if (dto.apartmentCode !== undefined) updateData.apartment_code = dto.apartmentCode;
+    if (dto.floorLabel !== undefined) updateData.floor_label = dto.floorLabel;
+    if (dto.unitType !== undefined) updateData.unit_type = dto.unitType;
+    if (dto.netArea !== undefined) updateData.net_area = dto.netArea;
+    if (dto.grossArea !== undefined) updateData.gross_area = dto.grossArea;
+    if (dto.ceilingHeight !== undefined) updateData.ceiling_height = dto.ceilingHeight;
+    if (dto.bedroomCount !== undefined) updateData.bedroom_count = dto.bedroomCount;
+    if (dto.bathroomCount !== undefined) updateData.bathroom_count = dto.bathroomCount;
+    if (dto.features !== undefined) updateData.features = dto.features as Prisma.InputJsonValue;
+    if (dto.svgElementId !== undefined) updateData.svg_element_id = dto.svgElementId;
+    if (dto.svgPathData !== undefined) updateData.svg_path_data = dto.svgPathData;
+    if (dto.centroidX !== undefined) updateData.centroid_x = dto.centroidX;
+    if (dto.centroidY !== undefined) updateData.centroid_y = dto.centroidY;
+    if (dto.orientation !== undefined) updateData.orientation = dto.orientation;
+    if (dto.balconyDirection !== undefined) updateData.balcony_direction = dto.balconyDirection;
+    if (dto.isCornerUnit !== undefined) updateData.is_corner_unit = dto.isCornerUnit;
+    if (dto.status !== undefined) updateData.status = dto.status;
+
+    // Ownership & Legal
+    if (dto.ownerId !== undefined) updateData.users = dto.ownerId ? { connect: { id: dto.ownerId } } : { disconnect: true };
+    if (dto.ownershipType !== undefined) updateData.ownership_type = dto.ownershipType;
+    if (dto.pinkBookId !== undefined) updateData.pink_book_id = dto.pinkBookId;
+    if (dto.handoverDate !== undefined) updateData.handover_date = dto.handoverDate ? new Date(dto.handoverDate) : null;
+    if (dto.warrantyExpiryDate !== undefined) updateData.warranty_expiry_date = dto.warrantyExpiryDate ? new Date(dto.warrantyExpiryDate) : null;
+    if (dto.isRented !== undefined) updateData.is_rented = dto.isRented;
+    if (dto.vatRate !== undefined) updateData.vat_rate = dto.vatRate;
+
+    // Occupancy
+    if (dto.maxResidents !== undefined) updateData.max_residents = dto.maxResidents;
+    if (dto.currentResidentCount !== undefined) updateData.current_resident_count = dto.currentResidentCount;
+    if (dto.petAllowed !== undefined) updateData.pet_allowed = dto.petAllowed;
+    if (dto.petLimit !== undefined) updateData.pet_limit = dto.petLimit;
+    if (dto.accessCardLimit !== undefined) updateData.access_card_limit = dto.accessCardLimit;
+    if (dto.intercomCode !== undefined) updateData.intercom_code = dto.intercomCode;
+
+    // Utility & Technical
+    if (dto.electricMeterId !== undefined) updateData.electric_meter_id = dto.electricMeterId;
+    if (dto.waterMeterId !== undefined) updateData.water_meter_id = dto.waterMeterId;
+    if (dto.gasMeterId !== undefined) updateData.gas_meter_id = dto.gasMeterId;
+    if (dto.powerCapacity !== undefined) updateData.power_capacity = dto.powerCapacity;
+    if (dto.acUnitCount !== undefined) updateData.ac_unit_count = dto.acUnitCount;
+    if (dto.fireDetectorId !== undefined) updateData.fire_detector_id = dto.fireDetectorId;
+    if (dto.sprinklerCount !== undefined) updateData.sprinkler_count = dto.sprinklerCount;
+    if (dto.internetTerminalLoc !== undefined) updateData.internet_terminal_loc = dto.internetTerminalLoc;
+
+    // Parking & Assets
+    if (dto.assignedCarSlot !== undefined) updateData.assigned_car_slot = dto.assignedCarSlot;
+    if (dto.assignedMotoSlot !== undefined) updateData.assigned_moto_slot = dto.assignedMotoSlot;
+    if (dto.mailboxNumber !== undefined) updateData.mailbox_number = dto.mailboxNumber;
+    if (dto.storageUnitId !== undefined) updateData.storage_unit_id = dto.storageUnitId;
+
+    // Billing Config
+    if (dto.mgmtFeeConfigId !== undefined) updateData.management_fee_configs = dto.mgmtFeeConfigId ? { connect: { id: dto.mgmtFeeConfigId } } : { disconnect: true };
+    if (dto.billingStartDate !== undefined) updateData.billing_start_date = dto.billingStartDate ? new Date(dto.billingStartDate) : null;
+    if (dto.billingCycle !== undefined) updateData.billing_cycle = dto.billingCycle;
+    if (dto.bankAccountVirtual !== undefined) updateData.bank_account_virtual = dto.bankAccountVirtual;
+    if (dto.lateFeeWaived !== undefined) updateData.late_fee_waived = dto.lateFeeWaived;
+
+    // System Logic
+    if (dto.parentUnitId !== undefined) updateData.apartments = dto.parentUnitId ? { connect: { id: dto.parentUnitId } } : { disconnect: true };
+    if (dto.isMerged !== undefined) updateData.is_merged = dto.isMerged;
+    if (dto.syncStatus !== undefined) updateData.sync_status = dto.syncStatus;
+    if (dto.portalAccessEnabled !== undefined) updateData.portal_access_enabled = dto.portalAccessEnabled;
+    if (dto.technicalDrawingUrl !== undefined) updateData.technical_drawing_url = dto.technicalDrawingUrl;
+    if (dto.notesAdmin !== undefined) updateData.notes_admin = dto.notesAdmin;
+
+    // Policy Override Fields (null clears the override, revert to building policy)
+    if (dto.maxResidentsOverride !== undefined) updateData.max_residents_override = dto.maxResidentsOverride;
+    if (dto.accessCardLimitOverride !== undefined) updateData.access_card_limit_override = dto.accessCardLimitOverride;
+    if (dto.petAllowedOverride !== undefined) updateData.pet_allowed_override = dto.petAllowedOverride;
+    if (dto.petLimitOverride !== undefined) updateData.pet_limit_override = dto.petLimitOverride;
+    if (dto.billingCycleOverride !== undefined) updateData.billing_cycle_override = dto.billingCycleOverride;
+
+    const updated = await this.prisma.apartments.update({
+      where: { id },
+      data: updateData,
+      include: {
+        buildings: {
+          select: { id: true, name: true, address: true },
+        },
+      },
+    });
+
+    this.logger.log({
+      event: 'apartment_updated',
+      apartmentId: id,
+      status: dto.status,
+    });
+
+    return toApartmentResponseDto(updated);
+  }
+
+  async updateStatus(
+    id: string,
+    status: 'vacant' | 'occupied' | 'maintenance' | 'reserved',
+  ): Promise<ApartmentResponseDto> {
+    return this.update(id, { status });
+  }
+
+  /**
+   * Compatibility wrapper - delegates to mapper for external callers
+   */
+  toResponseDto(apartment: ApartmentWithRelations): ApartmentResponseDto {
+    return toApartmentResponseDto(apartment);
+  }
+}
