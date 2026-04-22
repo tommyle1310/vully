@@ -1,5 +1,17 @@
 # 🔧 3D Building Viewer Reference - Vully Platform
 
+## Context Bootstrap (Run Before Starting)
+
+Before building or modifying 3D/SVG features, read:
+
+1. `.project-context.md` §3 (data flow) and §5 (coding standards — dynamic import rule for heavy components)
+2. `apps/web/src/app/(dashboard)/README.context.md` — where 3D viewer surfaces in the dashboard
+3. `apps/web/src/hooks/README.context.md` — `useSvgTo3d` hook boundaries
+
+**Performance rule**: `<Building3D />` and `<SvgBuilder />` MUST be `dynamic()` imported with a skeleton loader. Never include Three.js in the initial bundle.
+
+---
+
 **Version:** 2.0 (2026-04)  
 **Description:**  
 Reference guide for Vully's Three.js building 3D viewer that extrudes SVG floor plans into 3D models using floor heights from the database.

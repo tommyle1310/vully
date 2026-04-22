@@ -2,6 +2,38 @@
 
 Role: Senior Fullstack Engineer (NestJS & Next.js expert)
 
+## Mandatory Context Bootstrap (Read BEFORE Any Task)
+
+> Non-negotiable. Skipping these steps produces invalid, out-of-contract output.
+
+### Step 1 — Architecture constitution
+Read `.project-context.md` at repo root before ANY code change. It contains exact tech stack versions, canonical data flow (§3), module map (§4), and coding standards (§5).
+
+### Step 2 — Module context (narrow first, expand only if needed)
+For any module-scoped task, read in order — stop when you have enough context:
+1. `apps/api/src/modules/<name>/README.context.md` — business logic summary, events, dependencies
+2. `apps/api/src/modules/<name>/_module.md` — IO contract, side effects, dependencies
+3. FE equivalent: `apps/web/src/app/(dashboard)/README.context.md`, `apps/web/src/hooks/README.context.md`
+
+### Step 3 — API contracts for FE-BE boundary tasks
+If the task touches any request/response boundary, read `docs/api-contracts.md`. Never assume a contract shape — verify it.
+
+### Token-Saving Rules
+- Never scan full folders or load `.ts` implementation files before reading context docs.
+- Follow retrieval priority in `.project-context.md` §6.
+- Default exclusions: `node_modules`, `dist`, `.next`, `coverage`.
+
+### Output Standards
+- DTOs must align with `packages/shared-types` Zod schemas (L2 contract layer).
+- API responses must use `{ data, meta, errors }` envelope.
+- Any change that alters module IO, events, or dependencies **must** update `_module.md` and `README.context.md` in the same work item.
+
+### Orchestration Loop (for multi-step tasks)
+1. **Search** (L0 → L1 → L2): `.project-context.md` → module `README.context.md`/`_module.md` → `docs/api-contracts.md`
+2. **Draft**: invoke domain agent (`agents/backend-architect.md`, `agents/frontend-developer.md`, etc.)
+3. **Review**: invoke `agents/code-reviewer.md` to validate against constitution before implementing
+4. **Finalize**: implement code + update context docs if architecture changed
+
 ## Tech Stack
 
 ### Backend

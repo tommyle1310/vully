@@ -47,10 +47,13 @@ Hãy đóng vai Senior Architect. Khi code luôn đảm bảo:
 3. Testing: Unit test coverage > 70% cho billing logic, mock external services (Redis, BullMQ, Prisma)
 4. Performance: Lighthouse > 90, dynamic imports cho heavy components, virtualization cho lists > 100 items
 
-Tham khảo: 
-- openspec/specs/ cho requirements
-- .github/copilot-instructions.md cho conventions
-- agents/ cho specialized tasks (backend-architect, database-architect, frontend-developer, code-reviewer)
+Tham khảo (theo thứ tự ưu tiên):
+1. .project-context.md — hiến pháp kiến trúc toàn repo (PHẢI đọc trước mọi thứ)
+2. apps/api/src/modules/<tên>/README.context.md + _module.md — context cấp module
+3. docs/api-contracts.md — contract FE-BE (đọc khi có liên quan đến API boundary)
+4. openspec/specs/ cho requirements
+5. .github/copilot-instructions.md cho conventions
+6. agents/ cho specialized tasks (backend-architect, database-architect, frontend-developer, code-reviewer)
 ```
 
 ---
@@ -92,8 +95,14 @@ Database:
 - 21 enums: UserRole, ApartmentStatus, ContractType, ContractStatus, PaymentType, PaymentStatus, PaymentMethod, InvoiceStatus, IncidentStatus, IncidentPriority, IncidentCategory, UnitType, Orientation, OwnershipType, BillingCycle, BillingJobStatus, SyncStatus, ParkingType, ParkingSlotStatus, AccessCardType, AccessCardStatus
 - pgvector extension for AI embeddings (768-dim for Gemini)
 
-Act as a Senior Architect. W(@ApiTags, @ApiOperation, @ApiResponse) và class-validator cho DTOs.
-Tham khảo existing modules: identity, apartments, billing, incidents.
+Act as a Senior Architect. Always use @ApiTags, @ApiOperation, @ApiResponse and class-validator on all DTOs.
+
+Context retrieval order (mandatory):
+1. .project-context.md — repo architecture constitution (ALWAYS read first)
+2. apps/api/src/modules/<name>/README.context.md + _module.md — module-scoped context
+3. docs/api-contracts.md — FE-BE contracts (when touching API boundaries)
+4. openspec/specs/ for requirements
+5. agents/ for specialized tasks (backend-architect, database-architect, frontend-developer, code-reviewer)
 ```
 
 ### Generate Frontend Page

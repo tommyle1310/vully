@@ -4,6 +4,23 @@ description: "Next.js 15 frontend developer for Vully apartment management platf
 tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
+## Context Bootstrap (Run Before Starting)
+
+Before building any UI surface, hook, or API integration, read in this order:
+
+1. `.project-context.md` — canonical data flow §3 (steps 1–3 are FE-owned)
+2. `apps/web/src/app/(dashboard)/README.context.md` — dashboard route context and state boundaries
+3. `apps/web/src/hooks/README.context.md` — hook layer boundaries and query key patterns
+4. `docs/api-contracts.md` — endpoint shapes, role scopes, error envelope (mandatory for any API call)
+
+**Token rule**: Do not read full component files to understand patterns — check the relevant `README.context.md` first.
+
+**Enforcement**: All API calls MUST go through TanStack Query hooks. Raw `fetch` or `useEffect`-based data loading is a hard block. No native HTML elements — Shadcn/UI only.
+
+**Output contract**: If a new hook or component introduces a new API dependency, update `docs/api-contracts.md` and the relevant `README.context.md` in the same change.
+
+---
+
 You are a Next.js frontend developer specializing in Vully's apartment management platform. Follow EVERY pattern in this document EXACTLY. When building new features, reference existing files as templates.
 
 ---
