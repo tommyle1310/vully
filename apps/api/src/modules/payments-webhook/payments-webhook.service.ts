@@ -102,75 +102,120 @@ export class PaymentsWebhookService {
       }
 
       // 2. Try to find matching entity by payment_reference
+      // Strategy: first try VULLY-INV/CTR regex, then fallback to direct DB lookup
+      const invoiceInclude = {
+        contracts: {
+          include: {
+            users_contracts_tenant_idTousers: true,
+          },
+        },
+      } as const;
+      const scheduleInclude = {
+        contracts: {
+          include: {
+            users_contracts_tenant_idTousers: true,
+          },
+        },
+      } as const;
+
+      type MatchedInvoice = Awaited<ReturnType<typeof tx.invoices.findFirst<{ include: typeof invoiceInclude }>>>;
+      type MatchedSchedule = Awaited<ReturnType<typeof tx.contract_payment_schedules.findFirst<{ include: typeof scheduleInclude }>>>;
+
+      let invoice: MatchedInvoice = null;
+      let schedule: MatchedSchedule = null;
+
       if (refInfo) {
+        // VULLY-INV / VULLY-CTR format matched
         if (refInfo.type === 'invoice') {
-          const invoice = await tx.invoices.findFirst({
+          invoice = await tx.invoices.findFirst({
             where: { payment_reference: refInfo.reference },
-            include: {
-              contracts: {
-                include: {
-                  users_contracts_tenant_idTousers: true,
-                },
-              },
-            },
+            include: invoiceInclude,
           });
-
-          if (invoice) {
-            // Update invoice as paid
-            await tx.invoices.update({
-              where: { id: invoice.id },
-              data: {
-                status: 'paid',
-                paid_amount: new Decimal(payment.amount),
-                paid_at: new Date(),
-                external_transaction_id: payment.transactionId,
-                raw_gateway_response: payment as any,
-              },
-            });
-
-            return {
-              status: 'matched' as const,
-              entityType: 'invoice' as const,
-              entityId: invoice.id,
-              tenantId: invoice.contracts?.users_contracts_tenant_idTousers?.id,
-            };
-          }
         } else {
-          // Contract payment schedule
-          const schedule = await tx.contract_payment_schedules.findFirst({
+          schedule = await tx.contract_payment_schedules.findFirst({
             where: { payment_reference: refInfo.reference },
-            include: {
-              contracts: {
-                include: {
-                  users_contracts_tenant_idTousers: true,
-                },
-              },
-            },
+            include: scheduleInclude,
           });
-
-          if (schedule) {
-            // Update schedule as paid
-            const newReceivedAmount = schedule.received_amount.add(new Decimal(payment.amount));
-            const newStatus = newReceivedAmount.gte(schedule.expected_amount) ? 'paid' : 'partial';
-
-            await tx.contract_payment_schedules.update({
-              where: { id: schedule.id },
-              data: {
-                received_amount: newReceivedAmount,
-                status: newStatus,
-                external_transaction_id: payment.transactionId,
-                raw_gateway_response: payment as any,
-              },
-            });
-
-            return {
-              status: 'matched' as const,
-              entityType: 'contract_schedule' as const,
-              entityId: schedule.id,
-              tenantId: schedule.contracts?.users_contracts_tenant_idTousers?.id,
-            };
-          }
         }
+      }
+
+      // Fallback: direct lookup by payment_reference column
+      // Handles non-VULLY formats like "105_RENT_202604"
+      // Banks may replace underscores/dashes with spaces in transfer descriptions
+      if (!invoice && !schedule && payment.description) {
+        const normalizeForMatch = (s: string) => s.toUpperCase().replace(/[\s_\-\.]+/g, '');
+
+        const descNorm = normalizeForMatch(payment.description);
+
+        // Find invoice whose payment_reference appears in the bank transfer description
+        const invoiceCandidates = await tx.invoices.findMany({
+          where: {
+            payment_reference: { not: null },
+            status: { in: ['pending', 'overdue'] },
+          },
+          include: invoiceInclude,
+        });
+        invoice = invoiceCandidates.find(
+          (inv) => inv.payment_reference && descNorm.includes(normalizeForMatch(inv.payment_reference)),
+        ) ?? null;
+
+        if (!invoice) {
+          // Try contract schedule payment_reference match
+          const scheduleCandidates = await tx.contract_payment_schedules.findMany({
+            where: {
+              payment_reference: { not: null },
+              status: { in: ['pending', 'overdue'] },
+            },
+            include: scheduleInclude,
+          });
+          schedule = scheduleCandidates.find(
+            (s) => s.payment_reference && descNorm.includes(normalizeForMatch(s.payment_reference)),
+          ) ?? null;
+        }
+      }
+
+      if (invoice) {
+        // Update invoice as paid
+        await tx.invoices.update({
+          where: { id: invoice.id },
+          data: {
+            status: 'paid',
+            paid_amount: new Decimal(payment.amount),
+            paid_at: new Date(),
+            external_transaction_id: payment.transactionId,
+            raw_gateway_response: payment as any,
+          },
+        });
+
+        return {
+          status: 'matched' as const,
+          entityType: 'invoice' as const,
+          entityId: invoice.id,
+          tenantId: invoice.contracts?.users_contracts_tenant_idTousers?.id,
+        };
+      }
+
+      if (schedule) {
+        // Update schedule as paid
+        const newReceivedAmount = schedule.received_amount.add(new Decimal(payment.amount));
+        const newStatus = newReceivedAmount.gte(schedule.expected_amount) ? 'paid' : 'partial';
+
+        await tx.contract_payment_schedules.update({
+          where: { id: schedule.id },
+          data: {
+            received_amount: newReceivedAmount,
+            status: newStatus,
+            external_transaction_id: payment.transactionId,
+            raw_gateway_response: payment as any,
+          },
+        });
+
+        return {
+          status: 'matched' as const,
+          entityType: 'contract_schedule' as const,
+          entityId: schedule.id,
+          tenantId: schedule.contracts?.users_contracts_tenant_idTousers?.id,
+        };
       }
 
       // 3. No match found - store as unmatched payment for manual reconciliation
@@ -225,12 +270,16 @@ export class PaymentsWebhookService {
       await this.notificationQueue.add('send', {
         type: 'payment_confirmed',
         userId: result.tenantId,
+        title: 'Thanh toán thành công ✓',
+        message: `Đã nhận ${new Intl.NumberFormat('vi-VN').format(payment.amount)}đ qua ${payment.gateway}`,
         data: {
           entityType: result.entityType,
           entityId: result.entityId,
           amount: payment.amount,
           gateway: payment.gateway,
           transactionId: payment.transactionId,
+          resourceType: result.entityType,
+          resourceId: result.entityId,
         },
       });
 
@@ -257,6 +306,8 @@ export class PaymentsWebhookService {
       await this.notificationQueue.add('send', {
         type: 'unmatched_payment',
         roles: ['accountant', 'admin'],
+        title: 'Thanh toán chưa khớp',
+        message: `${new Intl.NumberFormat('vi-VN').format(payment.amount)}đ từ ${payment.senderName || 'N/A'} - cần đối soát thủ công`,
         data: {
           amount: payment.amount,
           senderName: payment.senderName,

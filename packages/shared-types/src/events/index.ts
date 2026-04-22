@@ -43,6 +43,29 @@ export const InvoiceEventPayloadSchema = z.object({
 });
 export type InvoiceEventPayload = z.infer<typeof InvoiceEventPayloadSchema>;
 
+export const PaymentEventPayloadSchema = z.object({
+  invoiceId: z.string().uuid().optional(),
+  contractPaymentId: z.string().uuid().optional(),
+  apartmentId: z.string().uuid().optional(),
+  buildingId: z.string().uuid().optional(),
+  amount: z.number().nonnegative(),
+  gateway: z.string(),
+  transactionId: z.string(),
+  status: z.enum(['completed', 'unmatched', 'matched']),
+  matchedAt: z.string().datetime().optional(),
+});
+export type PaymentEventPayload = z.infer<typeof PaymentEventPayloadSchema>;
+
+export const UnmatchedPaymentEventPayloadSchema = z.object({
+  unmatchedPaymentId: z.string().uuid(),
+  amount: z.number().nonnegative(),
+  gateway: z.string(),
+  senderName: z.string().optional(),
+  description: z.string().optional(),
+  receivedAt: z.string().datetime(),
+});
+export type UnmatchedPaymentEventPayload = z.infer<typeof UnmatchedPaymentEventPayloadSchema>;
+
 export const NotificationPayloadSchema = z.object({
   id: z.string().uuid(),
   type: NotificationTypeSchema,
@@ -75,6 +98,11 @@ export const WS_EVENTS = {
   INVOICE_STATUS_CHANGED: 'invoice:status-changed',
   INVOICE_PAID: 'invoice:paid',
   
+  // Server -> Client: Payments
+  PAYMENT_COMPLETED: 'payment:completed',
+  PAYMENT_UNMATCHED: 'payment:unmatched',
+  PAYMENT_MATCHED: 'payment:matched', // Manual match by accountant
+  
   // Server -> Client: Notifications
   NOTIFICATION: 'notification',
   
@@ -97,6 +125,10 @@ export const WS_ROOMS = {
   user: (userId: string) => `user:${userId}`,
   admin: () => 'role:admin',
   technician: () => 'role:technician',
+  accountant: () => 'role:accountant',
+  security: () => 'role:security',
+  housekeeping: () => 'role:housekeeping',
+  buildingManager: () => 'role:building_manager',
 } as const;
 
 // =============================================================================

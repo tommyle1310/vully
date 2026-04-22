@@ -1,11 +1,12 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { User, Lock, Building2 } from 'lucide-react';
+import { User, Lock, Building2, Bell } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SettingsProfileForm } from './settings-profile-form';
 import { SettingsPasswordForm } from './settings-password-form';
 import { SettingsBankAccountsForm } from './settings-bank-accounts-form';
+import { SettingsNotificationPreferences } from './settings-notification-preferences';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function SettingsPage() {
@@ -33,6 +34,10 @@ export default function SettingsPage() {
             <Lock className="h-4 w-4" />
             Security
           </TabsTrigger>
+          <TabsTrigger value="notifications" className="gap-2">
+            <Bell className="h-4 w-4" />
+            Notifications
+          </TabsTrigger>
           {isAdmin && (
             <TabsTrigger value="bank-accounts" className="gap-2">
               <Building2 className="h-4 w-4" />
@@ -58,6 +63,16 @@ export default function SettingsPage() {
             animate={{ opacity: 1, y: 0 }}
           >
             <SettingsPasswordForm />
+          </motion.div>
+        </TabsContent>
+
+        {/* Notifications Tab */}
+        <TabsContent value="notifications" className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <SettingsNotificationPreferences />
           </motion.div>
         </TabsContent>
 

@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/table';
 import { VerifyPaymentDialog } from '@/components/payments/VerifyPaymentDialog';
 import { VerifyInvoicePaymentDialog } from '@/components/payments/VerifyInvoicePaymentDialog';
+import { UnmatchedPaymentsTab } from '@/components/payments/unmatched-payments-tab';
 import { useToast } from '@/hooks/use-toast';
 import {
   Tooltip,
@@ -75,7 +76,7 @@ export default function PendingPaymentsPage() {
   const isAdmin = hasRole('admin');
   const { toast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'pending' | 'invoices' | 'history'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'invoices' | 'webhooks' | 'history'>('pending');
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<PendingPayment | null>(null);
@@ -823,7 +824,7 @@ export default function PendingPaymentsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'pending' | 'invoices' | 'history')}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'pending' | 'invoices' | 'webhooks' | 'history')}>
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="pending" className="flex items-center gap-2">
@@ -839,6 +840,10 @@ export default function PendingPaymentsPage() {
               {reportedInvoices.length > 0 && (
                 <Badge variant="secondary" className="ml-1">{reportedInvoices.length}</Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="webhooks" className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              Webhook Payments
             </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-2">
               <History className="h-4 w-4" />
@@ -960,6 +965,10 @@ export default function PendingPaymentsPage() {
               </Table>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="webhooks" className="mt-4">
+          <UnmatchedPaymentsTab />
         </TabsContent>
 
         <TabsContent value="history" className="mt-4 space-y-6">

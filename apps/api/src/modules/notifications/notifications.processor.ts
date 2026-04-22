@@ -87,6 +87,75 @@ export class NotificationsProcessor {
   }
 
   /**
+   * Process 'deliver-batch' job: queue delivery channels for already-persisted notifications.
+   * DB records are already created by NotificationsService.create() — this only handles
+   * external channel delivery (FCM, Zalo, Email).
+   */
+  @Process('deliver-batch')
+  async handleDeliverBatch(
+    job: Job<{
+      notificationIds: string[];
+      userIds: string[];
+      type: string;
+      title: string;
+      message: string;
+      data?: Record<string, unknown>;
+    }>,
+  ): Promise<void> {
+    const { data } = job;
+    this.logger.log('Processing deliver-batch job', {
+      jobId: job.id,
+      notificationCount: data.notificationIds.length,
+    });
+
+    try {
+      for (let i = 0; i < data.userIds.length; i++) {
+        const userId = data.userIds[i];
+        const notificationId = data.notificationIds[i];
+        if (!userId || !notificationId) continue;
+
+        const prefs = await this.preferencesService.getByUserId(userId);
+        const user = await this.prisma.users.findUnique({
+          where: { id: userId },
+          select: { zalo_id: true, email: true },
+        });
+
+        const channels: NotificationChannel[] = [];
+        if (prefs.zalo_enabled && user?.zalo_id) {
+          channels.push(NotificationChannel.ZALO_ZNS);
+        }
+        if (prefs.push_enabled) {
+          channels.push(NotificationChannel.FCM);
+        }
+        if (prefs.email_enabled && user?.email) {
+          channels.push(NotificationChannel.EMAIL);
+        }
+
+        for (const channel of channels) {
+          await this.notificationsQueue.add('deliver', {
+            notificationId,
+            userId,
+            channel,
+            title: data.title,
+            message: data.message,
+            data: data.data,
+          });
+        }
+      }
+
+      this.logger.log('Deliver-batch job complete', {
+        jobId: job.id,
+      });
+    } catch (error) {
+      this.logger.error('Failed to process deliver-batch job', {
+        jobId: job.id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Process 'deliver' job: deliver notification via channel
    */
   @Process('deliver')

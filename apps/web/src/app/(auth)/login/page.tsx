@@ -28,6 +28,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Skeleton } from '@/components/ui/skeleton';
+import { OAuthButtons, OAuthSeparator } from '@/components/auth/oauth-buttons';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -98,6 +99,10 @@ function LoginPageContent() {
                 Password reset successfully! Please sign in with your new password.
               </motion.div>
             )}
+            
+            <OAuthButtons isLoading={isPending} />
+            <OAuthSeparator />
+            
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField

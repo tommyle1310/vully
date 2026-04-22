@@ -377,6 +377,17 @@ export class OAuthService {
             : null,
         },
       });
+
+      // Sync avatar from OAuth provider if not already set
+      if (profile.picture && !(user.profile_data as Record<string, unknown>)?.avatarUrl) {
+        const existingData = (user.profile_data as Record<string, unknown>) || {};
+        await this.prisma.users.update({
+          where: { id: user.id },
+          data: {
+            profile_data: { ...existingData, avatarUrl: profile.picture },
+          },
+        });
+      }
     } else if (profile.email) {
       // Check if user exists by email
       user = await this.prisma.users.findUnique({
@@ -400,6 +411,17 @@ export class OAuthService {
               : null,
           },
         });
+
+        // Sync avatar from OAuth provider if not already set
+        if (profile.picture && !(user.profile_data as Record<string, unknown>)?.avatarUrl) {
+          const existingData = (user.profile_data as Record<string, unknown>) || {};
+          await this.prisma.users.update({
+            where: { id: user.id },
+            data: {
+              profile_data: { ...existingData, avatarUrl: profile.picture },
+            },
+          });
+        }
       } else {
         // Create new user
         user = await this.prisma.users.create({

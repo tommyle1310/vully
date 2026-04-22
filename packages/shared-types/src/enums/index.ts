@@ -17,10 +17,22 @@ import { z } from 'zod';
  * - admin: Full platform access (CRUD all resources)
  * - technician: Limited access (update incidents, read apartments)
  * - resident: Scoped access (own resources only)
+ * - security: Building security guards (building-scoped)
+ * - housekeeping: Cleaning/maintenance staff (building-scoped)
+ * - accountant: Finance/billing staff (can be global or building-scoped)
+ * - building_manager: Full access within assigned buildings
  * 
- * NOTE: A user can hold 1-3 roles simultaneously via UserRoleAssignment table
+ * NOTE: A user can hold multiple roles simultaneously via UserRoleAssignment table
  */
-export const UserRoleSchema = z.enum(['admin', 'technician', 'resident']);
+export const UserRoleSchema = z.enum([
+  'admin',
+  'technician',
+  'resident',
+  'security',
+  'housekeeping',
+  'accountant',
+  'building_manager',
+]);
 export type UserRole = z.infer<typeof UserRoleSchema>;
 
 /**
@@ -30,6 +42,10 @@ export const UserRole = {
   admin: 'admin' as const,
   technician: 'technician' as const,
   resident: 'resident' as const,
+  security: 'security' as const,
+  housekeeping: 'housekeeping' as const,
+  accountant: 'accountant' as const,
+  building_manager: 'building_manager' as const,
 } as const;
 
 // ============================================================================
@@ -446,4 +462,85 @@ export const DeactivationReason = {
   stolen: 'stolen' as const,
   resident_left: 'resident_left' as const,
   admin_action: 'admin_action' as const,
+} as const;
+
+// ============================================================================
+// Payment Webhook / VietQR Auto-Sync
+// ============================================================================
+
+/**
+ * Supported VietQR payment gateways
+ */
+export const PaymentGatewaySchema = z.enum(['payos', 'casso', 'sepay']);
+export type PaymentGateway = z.infer<typeof PaymentGatewaySchema>;
+
+export const PaymentGateway = {
+  payos: 'payos' as const,
+  casso: 'casso' as const,
+  sepay: 'sepay' as const,
+} as const;
+
+/**
+ * Unmatched payment reconciliation status
+ */
+export const UnmatchedPaymentStatusSchema = z.enum([
+  'pending',  // Awaiting accountant review
+  'matched',  // Manually matched to invoice
+  'rejected', // Rejected (invalid/duplicate/not our customer)
+]);
+export type UnmatchedPaymentStatus = z.infer<typeof UnmatchedPaymentStatusSchema>;
+
+export const UnmatchedPaymentStatus = {
+  pending: 'pending' as const,
+  matched: 'matched' as const,
+  rejected: 'rejected' as const,
+} as const;
+
+// ============================================================================
+// Notification Delivery
+// ============================================================================
+
+/**
+ * Notification delivery status for multi-channel push
+ */
+export const NotificationDeliveryStatusSchema = z.enum([
+  'pending',   // Queued for delivery
+  'delivered', // Successfully sent
+  'failed',    // Delivery failed
+  'skipped',   // Skipped (user disabled or no device)
+]);
+export type NotificationDeliveryStatus = z.infer<typeof NotificationDeliveryStatusSchema>;
+
+export const NotificationDeliveryStatus = {
+  pending: 'pending' as const,
+  delivered: 'delivered' as const,
+  failed: 'failed' as const,
+  skipped: 'skipped' as const,
+} as const;
+
+/**
+ * Device platform for FCM push notifications
+ */
+export const DevicePlatformSchema = z.enum(['web', 'android', 'ios']);
+export type DevicePlatform = z.infer<typeof DevicePlatformSchema>;
+
+export const DevicePlatform = {
+  web: 'web' as const,
+  android: 'android' as const,
+  ios: 'ios' as const,
+} as const;
+
+// ============================================================================
+// OAuth Providers
+// ============================================================================
+
+/**
+ * Supported OAuth providers
+ */
+export const OAuthProviderSchema = z.enum(['google', 'zalo']);
+export type OAuthProvider = z.infer<typeof OAuthProviderSchema>;
+
+export const OAuthProvider = {
+  google: 'google' as const,
+  zalo: 'zalo' as const,
 } as const;

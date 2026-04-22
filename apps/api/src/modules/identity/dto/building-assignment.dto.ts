@@ -52,4 +52,11 @@ export class BuildingAssignmentResponseDto {
 
   @ApiPropertyOptional()
   building_address?: string;
+
+  @ApiPropertyOptional({ description: 'User details (included when querying by building)' })
+  user?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
 }

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
@@ -11,6 +11,7 @@ import { NotificationScheduledJobs } from './notification-scheduled-jobs';
 import { FcmAdapter } from './adapters/fcm.adapter';
 import { ZaloZnsAdapter } from './adapters/zalo-zns.adapter';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { IncidentsModule } from '../incidents/incidents.module';
 
 /**
  * Notifications Module
@@ -32,6 +33,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
     BullModule.registerQueue({
       name: 'notifications',
     }),
+    forwardRef(() => IncidentsModule),
   ],
   controllers: [
     NotificationsController,

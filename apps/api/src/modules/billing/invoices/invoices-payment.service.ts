@@ -15,6 +15,8 @@ import {
 import { toInvoiceResponseDto } from './invoices.mapper';
 import { INVOICE_INCLUDE } from './invoices-core.service';
 import { InvoicesScheduleSyncHelper } from './invoices-schedule-sync.helper';
+import { NotificationsService } from '../../notifications/notifications.service';
+import { NotificationType } from '../../notifications/dto/notification.dto';
 
 /**
  * Invoice payment reporting and verification workflow.
@@ -27,6 +29,7 @@ export class InvoicesPaymentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scheduleSyncHelper: InvoicesScheduleSyncHelper,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -91,8 +94,17 @@ export class InvoicesPaymentService {
       transactionRef: dto.transactionRef,
     });
 
-    // TODO: Send WebSocket notification to admins
-    // this.socketGateway.server.to('admins').emit('invoice:payment_reported', { invoiceId: id });
+    // Notify admins about new payment report
+    this.notificationsService.create({
+      type: NotificationType.PAYMENT_REMINDER,
+      roles: ['admin'],
+      title: 'Thanh toán mới cần xác minh',
+      message: `Cư dân đã báo thanh toán ${new Intl.NumberFormat('vi-VN').format(dto.amount)}đ cho hóa đơn #${id.slice(-6).toUpperCase()}`,
+      resourceType: 'invoice',
+      resourceId: id,
+    }).catch((err) => {
+      this.logger.warn('Failed to send payment report notification', { invoiceId: id, error: err.message });
+    });
 
     return toInvoiceResponseDto(updated);
   }
@@ -217,6 +229,21 @@ export class InvoicesPaymentService {
         verifierId,
         finalAmount,
       });
+
+      // Notify resident about confirmed payment
+      const tenantId = invoice.contracts?.tenant_id;
+      const aptName = invoice.apartments?.unit_number || invoice.contracts?.apartments?.unit_number || 'N/A';
+      if (tenantId) {
+        this.notificationsService.notifyPaymentConfirmed(
+          tenantId,
+          aptName,
+          finalAmount,
+          invoice.billing_period,
+          id,
+        ).catch((err) => {
+          this.logger.warn('Failed to send payment confirmed notification', { invoiceId: id, error: err.message });
+        });
+      }
     } else {
       // Rejected — clear reportedPayment but keep invoice pending
       updated = await this.prisma.invoices.update({
@@ -244,8 +271,21 @@ export class InvoicesPaymentService {
         reason: dto.notes,
       });
 
-      // TODO: Send notification to resident
-      // this.notificationService.notify(reportedPayment.reportedBy, {...});
+      // Notify resident about rejected payment
+      const rejectedTenantId = invoice.contracts?.tenant_id;
+      const rejectedAptName = invoice.apartments?.unit_number || invoice.contracts?.apartments?.unit_number || 'N/A';
+      if (rejectedTenantId) {
+        this.notificationsService.create({
+          type: NotificationType.PAYMENT_CONFIRMED,
+          userId: rejectedTenantId,
+          title: 'Thanh toán bị từ chối',
+          message: `Thanh toán cho hóa đơn ${rejectedAptName} #${id.slice(-6).toUpperCase()} đã bị từ chối${dto.notes ? ': ' + dto.notes : ''}`,
+          resourceType: 'invoice',
+          resourceId: id,
+        }).catch((err) => {
+          this.logger.warn('Failed to send payment rejected notification', { invoiceId: id, error: err.message });
+        });
+      }
     }
 
     return toInvoiceResponseDto(updated);

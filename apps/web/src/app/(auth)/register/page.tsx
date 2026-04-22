@@ -25,6 +25,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { OAuthButtons, OAuthSeparator } from '@/components/auth/oauth-buttons';
 
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -85,6 +86,9 @@ export default function RegisterPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <OAuthButtons isLoading={isPending} />
+            <OAuthSeparator />
+            
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">

@@ -1,9 +1,11 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationPreferencesService } from './notification-preferences.service';
 import { DeviceTokensService } from './device-tokens.service';
+import { IncidentsGateway } from '../incidents/incidents.gateway';
+import { WS_EVENTS } from '@vully/shared-types';
 import {
   CreateNotificationDto,
   NotificationResponseDto,
@@ -32,10 +34,13 @@ export class NotificationsService {
     private readonly preferencesService: NotificationPreferencesService,
     private readonly deviceTokensService: DeviceTokensService,
     @InjectQueue('notifications') private readonly notificationQueue: Queue,
+    @Inject(forwardRef(() => IncidentsGateway))
+    private readonly gateway: IncidentsGateway,
   ) {}
 
   /**
-   * Create and queue a notification
+   * Create notification — writes to DB immediately (for in-app bell),
+   * then queues delivery jobs for external channels (push/email/zalo).
    */
   async create(dto: CreateNotificationDto): Promise<{ queued: boolean; jobId?: string }> {
     this.logger.log('Creating notification', {
@@ -46,30 +51,92 @@ export class NotificationsService {
       buildingId: dto.buildingId,
     });
 
-    const jobPayload: NotificationJobPayload = {
-      type: dto.type,
-      userId: dto.userId,
-      userIds: dto.userIds,
-      roles: dto.roles,
-      buildingId: dto.buildingId,
-      title: dto.title,
-      message: dto.message,
-      data: {
-        ...dto.data,
-        resourceType: dto.resourceType,
-        resourceId: dto.resourceId,
-      },
-    };
+    // 1. Resolve target users
+    let userIds: string[] = [];
+    if (dto.userId) {
+      userIds = [dto.userId];
+    } else if (dto.userIds && dto.userIds.length > 0) {
+      userIds = dto.userIds;
+    } else if (dto.roles && dto.roles.length > 0) {
+      userIds = await this.getUserIdsByRoles(dto.roles);
+    } else if (dto.buildingId) {
+      userIds = await this.getUserIdsByBuilding(dto.buildingId);
+    }
 
-    const job = await this.notificationQueue.add('send', jobPayload, {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 1000,
-      },
+    if (userIds.length === 0) {
+      this.logger.warn('No target users for notification', {
+        type: dto.type,
+        roles: dto.roles,
+        buildingId: dto.buildingId,
+      });
+      return { queued: false };
+    }
+
+    // 2. Write notifications to DB immediately (in-app bell works instantly)
+    const notificationIds: string[] = [];
+    for (const userId of userIds) {
+      try {
+        const notification = await this.prisma.notifications.create({
+          data: {
+            user_id: userId,
+            type: dto.type,
+            title: dto.title,
+            message: dto.message,
+            resource_type: dto.resourceType || null,
+            resource_id: dto.resourceId || null,
+            is_read: false,
+            delivery_status: 'pending',
+          },
+        });
+        notificationIds.push(notification.id);
+      } catch (error) {
+        this.logger.error('Failed to create notification record', {
+          userId,
+          type: dto.type,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    this.logger.log('Notifications created in DB', {
+      count: notificationIds.length,
+      type: dto.type,
     });
 
-    return { queued: true, jobId: job.id.toString() };
+    // 2b. Emit WebSocket event to each user for instant bell update
+    for (const userId of userIds) {
+      this.gateway.emitToUser(userId, WS_EVENTS.NOTIFICATION, {
+        type: dto.type,
+        title: dto.title,
+        message: dto.message,
+      });
+    }
+
+    // 3. Queue delivery for external channels (push/email/zalo) — non-blocking
+    if (notificationIds.length > 0) {
+      const job = await this.notificationQueue.add('deliver-batch', {
+        notificationIds,
+        userIds,
+        type: dto.type,
+        title: dto.title,
+        message: dto.message,
+        data: {
+          ...dto.data,
+          resourceType: dto.resourceType,
+          resourceId: dto.resourceId,
+        },
+      }, {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+      });
+
+      return { queued: true, jobId: job.id.toString() };
+    }
+
+    return { queued: false };
   }
 
   /**

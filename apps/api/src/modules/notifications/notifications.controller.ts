@@ -41,7 +41,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
  */
 @ApiTags('Notifications')
 @ApiBearerAuth()
-@Controller('api/v1/notifications')
+@Controller('notifications')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class NotificationsController {
   constructor(private readonly service: NotificationsService) {}

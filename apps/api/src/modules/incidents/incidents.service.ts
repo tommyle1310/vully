@@ -13,6 +13,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { DEFAULT_PAGINATION_LIMIT } from '../../common/constants/defaults';
 import { IncidentsGateway } from './incidents.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/dto/notification.dto';
 import {
   CreateIncidentDto,
   UpdateIncidentDto,
@@ -127,6 +128,18 @@ export class IncidentsService {
       title: incident.title,
       assignedTo: incident.assigned_to ?? undefined,
       updatedAt: incident.updated_at.toISOString(),
+    });
+
+    // Notify admins about new incident
+    this.notificationsService.create({
+      type: NotificationType.INCIDENT_UPDATED,
+      roles: ['admin'],
+      title: `Sự cố mới: ${incident.title}`,
+      message: `Căn ${apartment.unit_number} - ${apartment.buildings.name}. Ưu tiên: ${dto.priority}`,
+      resourceType: 'incident',
+      resourceId: incident.id,
+    }).catch((err) => {
+      this.logger.warn('Failed to send incident creation notification', { incidentId: incident.id, error: err.message });
     });
 
     return this.toResponseDto(incident);
@@ -438,6 +451,18 @@ export class IncidentsService {
       title: updated.title,
       assignedTo: updated.assigned_to ?? undefined,
       updatedAt: updated.updated_at.toISOString(),
+    });
+
+    // Notify assigned technician
+    this.notificationsService.create({
+      type: NotificationType.INCIDENT_ASSIGNED,
+      userId: dto.technicianId,
+      title: `Được giao sự cố: ${updated.title}`,
+      message: `Căn ${updated.apartments?.unit_number || 'N/A'} - ${updated.apartments?.buildings?.name || 'N/A'}`,
+      resourceType: 'incident',
+      resourceId: updated.id,
+    }).catch((err) => {
+      this.logger.warn('Failed to send technician assignment notification', { incidentId: updated.id, error: err.message });
     });
 
     return this.toResponseDto(updated);

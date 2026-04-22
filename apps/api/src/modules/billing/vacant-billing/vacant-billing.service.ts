@@ -160,6 +160,7 @@ export class VacantBillingService {
         subtotal,
         tax_amount: taxAmount,
         total_amount: totalAmount,
+        payment_reference: paymentReference,
         notes: `Management fee for vacant unit ${unitNumber}`,
         price_snapshot: {
           vacantUnit: true,

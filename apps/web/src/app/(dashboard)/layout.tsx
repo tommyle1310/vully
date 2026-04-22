@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { UserProfileDropdown } from '@/components/user-profile-dropdown';
 import { ProtectedRoute } from '@/components/protected-route';
 import { FloatingChatWidget } from '@/components/floating-chat-widget';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { useState } from 'react';
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar';
 
@@ -28,7 +29,10 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
 
       <div className="flex-1" />
 
-      <UserProfileDropdown />
+      <div className="flex items-center gap-2">
+        <NotificationBell />
+        <UserProfileDropdown />
+      </div>
     </header>
   );
 }

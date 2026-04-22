@@ -33,7 +33,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
  */
 @ApiTags('Device Tokens')
 @ApiBearerAuth()
-@Controller('api/v1/notifications/devices')
+@Controller('notifications/devices')
 @UseGuards(JwtAuthGuard)
 export class DeviceTokensController {
   constructor(private readonly service: DeviceTokensService) {}

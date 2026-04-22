@@ -17,9 +17,10 @@ export function toInvoiceResponseDto(invoice: InvoiceWithLineItems): InvoiceResp
     paid_at: invoice.paid_at ?? undefined,
     notes: invoice.notes ?? undefined,
     paymentReference:
-      (invoice.price_snapshot as Record<string, unknown>)?.paymentReference as
+      invoice.payment_reference ??
+      ((invoice.price_snapshot as Record<string, unknown>)?.paymentReference as
         | string
-        | undefined,
+        | undefined),
     priceSnapshot: invoice.price_snapshot as Record<string, unknown> | undefined,
     lineItems: invoice.invoice_line_items?.map((item) => ({
       id: item.id,

@@ -200,9 +200,10 @@ export class IncidentsGateway implements OnGatewayConnection, OnGatewayDisconnec
   // =============================================================================
 
   emitIncidentCreated(payload: IncidentEventPayload) {
-    // Emit to building room and admin room
+    // Emit to building room, admin room, AND technician room
     this.server.to(WS_ROOMS.buildings(payload.buildingId)).emit(WS_EVENTS.INCIDENT_CREATED, payload);
     this.server.to(WS_ROOMS.admin()).emit(WS_EVENTS.INCIDENT_CREATED, payload);
+    this.server.to(WS_ROOMS.technician()).emit(WS_EVENTS.INCIDENT_CREATED, payload);
 
     this.logger.log({
       event: 'ws_incident_created_emitted',

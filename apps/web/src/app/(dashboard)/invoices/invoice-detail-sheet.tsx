@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
+import { WS_EVENTS } from '@vully/shared-types';
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
   FileText,
@@ -43,6 +45,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
+import { useWebSocket } from '@/hooks/use-websocket';
 import { ScheduleQRDisplay } from '@/components/payments/ScheduleQRDisplay';
 import { ReportInvoicePaymentDialog } from '@/components/payments/ReportInvoicePaymentDialog';
 import { TierBreakdown } from '@/components/billing/TierBreakdown';
@@ -94,6 +97,20 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange }: InvoiceDetai
   const { hasAnyRole } = useAuthStore();
   const { mutate: markAsPaid, isPending } = useMarkInvoicePaid();
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { on, connected } = useWebSocket();
+
+  // Listen for real-time payment:completed from SePay webhook
+  useEffect(() => {
+    if (!connected) return;
+    const unsubscribe = on<{ invoiceId: string; amount: number }>(WS_EVENTS.PAYMENT_COMPLETED, (data) => {
+      if (data.invoiceId === invoice?.id) {
+        toast({ title: 'Payment received', description: `${formatCurrency(data.amount)} confirmed by bank.` });
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      }
+    });
+    return unsubscribe;
+  }, [connected, invoice?.id, on, queryClient, toast]);
 
   // Check role and reported payment status
   const isAdmin = hasAnyRole(['admin', 'technician']);

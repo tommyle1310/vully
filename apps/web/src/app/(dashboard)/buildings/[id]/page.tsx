@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useParams } from 'next/navigation';
-import { Building, MapPin, Layers, ArrowLeft, Upload, Pencil, Box, Home, Search, Eye, Settings, Car } from 'lucide-react';
+import { Building, MapPin, Layers, ArrowLeft, Upload, Pencil, Box, Home, Search, Eye, Settings, Car, Users } from 'lucide-react';
 import { useBuilding } from '@/hooks/use-buildings';
 import { useApartments } from '@/hooks/use-apartments';
 import { useAuthStore } from '@/stores/authStore';
@@ -28,6 +28,7 @@ import { SvgUploadDialog } from '@/components/maps/svg-upload-dialog';
 import { SvgBuilderDialog } from '@/components/maps/svg-builder-dialog';
 import { Building3D, Building3DLegend } from '@/components/3d';
 import { BuildingPoliciesTab, BuildingParkingTab } from '@/components/buildings';
+import { BuildingStaffTab } from '@/components/buildings/building-staff-tab';
 import { FloorUnitsDialog } from '@/components/buildings/floor-units-dialog';
 import {
   DropdownMenu,
@@ -330,6 +331,10 @@ export default function BuildingDetailPage() {
             <Car className="h-4 w-4" />
             Parking
           </TabsTrigger>
+          <TabsTrigger value="staff" className="gap-2">
+            <Users className="h-4 w-4" />
+            Staff
+          </TabsTrigger>
         </TabsList>
 
         {/* 2D Floor Plan Tab */}
@@ -411,6 +416,11 @@ export default function BuildingDetailPage() {
         {/* Parking Management Tab */}
         <TabsContent value="parking" className="space-y-0">
           <BuildingParkingTab buildingId={buildingId} />
+        </TabsContent>
+
+        {/* Staff Management Tab */}
+        <TabsContent value="staff" className="space-y-0">
+          <BuildingStaffTab buildingId={buildingId} />
         </TabsContent>
       </Tabs>
 

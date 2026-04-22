@@ -120,7 +120,7 @@ export function ManageRolesDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Manage User Roles</DialogTitle>
           <DialogDescription>
@@ -132,7 +132,7 @@ export function ManageRolesDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 py-4 overflow-y-auto flex-1 min-h-0">
           {/* Current Roles */}
           <div>
             <Label className="text-sm font-medium">Current Roles</Label>
@@ -214,6 +214,14 @@ function getRoleDescription(role: UserRole): string {
       return 'Can manage incidents and maintenance tasks';
     case UserRole.resident:
       return 'Can view apartments and submit incidents';
+    case UserRole.security:
+      return 'Building security, access card management';
+    case UserRole.housekeeping:
+      return 'Cleaning and maintenance scheduling';
+    case UserRole.accountant:
+      return 'Financial management and billing';
+    case UserRole.building_manager:
+      return 'Building operations and staff management';
     default:
       return '';
   }

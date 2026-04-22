@@ -36,7 +36,7 @@ import {
  * and signature verification methods.
  */
 @ApiTags('Payment Webhooks')
-@Controller('api/v1/payments/webhook')
+@Controller('payments/webhook')
 export class PaymentsWebhookController {
   private readonly logger = new Logger(PaymentsWebhookController.name);
 

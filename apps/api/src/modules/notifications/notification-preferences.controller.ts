@@ -30,7 +30,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
  */
 @ApiTags('Notification Preferences')
 @ApiBearerAuth()
-@Controller('api/v1/notifications/preferences')
+@Controller('notifications/preferences')
 @UseGuards(JwtAuthGuard)
 export class NotificationPreferencesController {
   constructor(private readonly service: NotificationPreferencesService) {}

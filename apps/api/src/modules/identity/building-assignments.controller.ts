@@ -45,7 +45,7 @@ import { AuthUser } from './interfaces/auth.interface';
  */
 @ApiTags('Building Assignments')
 @ApiBearerAuth()
-@Controller('api/v1/users/:userId/building-assignments')
+@Controller('users/:userId/building-assignments')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class BuildingAssignmentsController {
   constructor(private readonly service: BuildingAssignmentsService) {}
@@ -130,7 +130,7 @@ export class BuildingAssignmentsController {
  */
 @ApiTags('Building Staff')
 @ApiBearerAuth()
-@Controller('api/v1/buildings/:buildingId/staff')
+@Controller('buildings/:buildingId/staff')
 @UseGuards(JwtAuthGuard, RolesGuard, BuildingScopedGuard)
 export class BuildingStaffController {
   constructor(private readonly service: BuildingAssignmentsService) {}

@@ -39,7 +39,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
  */
 @ApiTags('Unmatched Payments')
 @ApiBearerAuth()
-@Controller('api/v1/unmatched-payments')
+@Controller('unmatched-payments')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UnmatchedPaymentsController {
   constructor(private readonly service: UnmatchedPaymentsService) {}

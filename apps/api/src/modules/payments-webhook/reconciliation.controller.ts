@@ -26,7 +26,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
  */
 @ApiTags('Payment Reconciliation')
 @ApiBearerAuth()
-@Controller('api/v1/payments')
+@Controller('payments')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ReconciliationController {
   constructor(private readonly service: ReconciliationService) {}

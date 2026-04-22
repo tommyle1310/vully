@@ -82,6 +82,11 @@ export class BuildingAssignmentsService {
       role: a.role as UserRole,
       assigned_at: a.assigned_at,
       assigned_by: a.assigned_by ?? undefined,
+      user: a.user ? {
+        first_name: a.user.first_name,
+        last_name: a.user.last_name,
+        email: a.user.email,
+      } : undefined,
     }));
   }
 

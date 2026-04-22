@@ -123,6 +123,7 @@ export class InvoicesCoreService {
         subtotal: calculation.subtotal,
         tax_amount: calculation.taxAmount,
         total_amount: calculation.totalAmount,
+        payment_reference: calculation.paymentReference,
         notes: dto.notes,
         price_snapshot: {
           rentAmount: Number(contract.rent_amount),

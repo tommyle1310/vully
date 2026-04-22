@@ -116,8 +116,16 @@ export default function UsersPage() {
                 <Badge
                   key={role}
                   variant={role === UserRole.admin ? 'destructive' : 'secondary'}
+                  className={
+                    role === UserRole.building_manager ? 'bg-blue-100 text-blue-800 hover:bg-blue-100' :
+                    role === UserRole.security ? 'bg-orange-100 text-orange-800 hover:bg-orange-100' :
+                    role === UserRole.housekeeping ? 'bg-green-100 text-green-800 hover:bg-green-100' :
+                    role === UserRole.accountant ? 'bg-purple-100 text-purple-800 hover:bg-purple-100' :
+                    role === UserRole.technician ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100' :
+                    undefined
+                  }
                 >
-                  {role}
+                  {role.replace('_', ' ')}
                 </Badge>
               ))}
             </div>
